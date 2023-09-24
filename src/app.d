@@ -8,7 +8,7 @@ int main(string[] args) {
 		fairy.run(args);
 	} catch (Exception e) {
 		import std.stdio;
-		writeln("Exception: ", e.msg);
+		writeln("Exception: ", e.file ,":", e.line, " : ", e.msg);
 		return -1;
 	}
 	return 0;

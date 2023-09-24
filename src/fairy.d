@@ -1,6 +1,8 @@
 module fairy;
 @safe:
 
+import draw;
+
 bool running = true;
 
 @trusted
@@ -41,7 +43,7 @@ void cmdline_Command(cmdline.Command cmd) {
 		auto tokens = cmd.command.split;
 		cmdline.run_with_args(tokens).writeln;
 	} catch (Exception e) {
-		writeln("Error: ", e.file, ":", e.line, " : ", e.msg);
+		writeln("Error: ", e.msg);
 	}
 
 	cmd.tid.send(cmdline.Continue());
