@@ -23,34 +23,32 @@ void close_stdin() {
 }
 
 @trusted
-void run_console(Tid main_tread) {
+void run_console(Tid main_thread) {
 	import std.string, std.algorithm;
 	try {
 		for (;;) {
 			import std.stdio;
 			const pollresult = wait_for_input();
-			if (pollresult>=0) {
-				auto input = stdin.readln;
-				auto command = input.stripRight('\n').stripRight('\r').strip(' ');
-				if (command.startsWith("#")) { // comment
-					continue;
-				}
-				if (input == ""){ 
-					main_tread.send(Quit());
-					break;
-				} else {
-					// the receiver of this message should send the Continue message in response
-					main_tread.send(Command(command, thisTid));
-				}
-			} 
 			if (pollresult < 0) {
 				break;
 			}
-			// wait until the reciever sends Continue signal
-			receive((Continue c) {});
+			if (pollresult>=0) {
+				auto input = stdin.readln;
+				auto command = input.stripRight('\n').stripRight('\r').strip(' ');
+				// comment
+				if (command.startsWith("#")) continue;
+				if (input.empty){ 
+					main_thread.send(Quit());
+					break;
+				} 
+				// the receiver of this message should send the Continue message in response
+				if (input.length) main_thread.send(Command(command, thisTid));
+				// wait until the reciever sends Continue signal
+				receive((Continue c) {});
+			} 
 		}
 	} catch (const Exception e) {
-		main_tread.send(QuitWithError(e.msg, e.file, e.line));
+		main_thread.send(QuitWithError(e.msg, e.file, e.line));
 	}
 }
 

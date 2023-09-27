@@ -32,14 +32,17 @@ T deserialize(T)(in JSONValue json) pure {
 private:
 
 
-
 void serialize_struct(T)(in T structure, ref JSONValue json) {
 	import std.json;
 	import std.traits;
+	alias helper(alias T) = T;
 	static foreach(memberName; __traits(allMembers, T)) {{
-		JSONValue member_json;
-		mixin("serialize(structure." ~ memberName ~ ", member_json);");
-		json[memberName] = member_json;
+		alias member = helper!(__traits(getMember, T, memberName));
+		static if (!isSomeFunction!(typeof(member))) {
+			JSONValue member_json;
+			mixin("serialize(structure." ~ memberName ~ ", member_json);");
+			json[memberName] = member_json;
+		}
 	}}
 }
 
@@ -64,12 +67,16 @@ T deserialize_da(T)(in JSONValue json) pure {
 T deserialize_struct(T)(in JSONValue json) pure {
 	static assert(isAggregateType!T);
 	T result;
+	alias helper(alias T) = T;
 	static foreach(memberName; __traits(allMembers, T)) {{
-		try {
-			mixin("result." ~ memberName ~ " = deserialize!(typeof(T."~memberName~"))(json[\"" ~ memberName ~ "\"]);");
-		} catch (Exception e) {
-			// nothing, just maybe a report
-			//import std.stdio; writeln("member " ~ memberName ~ " not found in JSON");
+		alias member = helper!(__traits(getMember, T, memberName));
+		static if (!isSomeFunction!(typeof(member))) {
+			try {
+				mixin("result." ~ memberName ~ " = deserialize!(typeof(T."~memberName~"))(json[\"" ~ memberName ~ "\"]);");
+			} catch (Exception e) {
+				// nothing, just maybe a report
+				//import std.stdio; writeln("member " ~ memberName ~ " not found in JSON");
+			}
 		}
 	}}
 	return result;
@@ -124,16 +131,19 @@ unittest {
 		auto s = deserialize!S(json);
 		//writeln(s);
 		serialize(s,json);
-		json.toJSON(true).writeln;
-		serialize(s).toString.writeln;
+		//json.toJSON(true).writeln;
+		//serialize(s).toString.writeln;
 		//assert(json_string == json.toString);
 	}
 
 	{
 		class C : PersistentData!JSONValue {
+			enum Enum { a, b, c}
 			struct Data {
 				int a;
 				double b;
+				Enum e;
+				int f(int a) { return a*a;}
 			};
 			Data persistent;
 
@@ -141,8 +151,9 @@ unittest {
 			void write(ref JSONValue json) { persistent.serialize(json);          }
 		}
 
-		auto json = parseJSON(`{"a":1,"b":2}`);
+		auto json = parseJSON(`{"a":1,"b":2,"e":1}`);
 		auto my_class = new C;
+		auto x = my_class.persistent.f(1);
 		my_class.read(json);
 		my_class.persistent.writeln;
 		JSONValue new_json;

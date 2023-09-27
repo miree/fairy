@@ -23,7 +23,9 @@ bool hasUiExport(alias mem)() {
 	return false;
 }
 
-
+///////////////////////////////////////////////////////////////////////
+// all user interface functions are here
+///////////////////////////////////////////////////////////////////////
 
 @UI_EXPORT("quit program")
 @trusted
@@ -85,5 +87,6 @@ string help(string name = "__all") {
 			}
 		}
 	}}
+	result ~= "\n\"help <command>\" provides details about a specific command";
 	return result;
 }
