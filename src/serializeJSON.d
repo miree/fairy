@@ -155,10 +155,10 @@ unittest {
 		auto my_class = new C;
 		auto x = my_class.persistent.f(1);
 		my_class.read(json);
-		my_class.persistent.writeln;
+		//my_class.persistent.writeln;
 		JSONValue new_json;
 		my_class.write(new_json);
-		new_json.toJSON(true).writeln;
+		//new_json.toJSON(true).writeln;
 	}
 
 }
