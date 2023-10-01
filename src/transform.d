@@ -2,17 +2,18 @@ module transform;
 @safe:
 
 import std.math;
+import serializeJSON;
 
 struct Transform 
 {
 //private:
-	double minimum = -1;
-	double maximum =  1;
-	double delta = 0;
-	double scale = 1;
-	double min_width = 1e-3;
-	double max_width = 1e10;
-	bool   logscale = false;
+	@SERIALIZE double minimum = -1;
+	@SERIALIZE double maximum =  1;
+	@SERIALIZE double delta = 0;
+	@SERIALIZE double scale = 1;
+	@SERIALIZE double min_width = 1e-3;
+	@SERIALIZE double max_width = 1e10;
+	@SERIALIZE bool   logscale = false;
 
 	double a,b; // transformation coefficients
 	// use with negative canvas_width, if the positive 
@@ -243,5 +244,7 @@ unittest {
 	assert(lt.world2canvas(0)==30);
 	assert(lt.world2canvas(10)==40);
 
-
+	JSONValue json;
+	serialize(lt,json);
+	json.toString.writeln;
 }

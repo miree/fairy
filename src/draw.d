@@ -97,24 +97,35 @@ private:
 	bool require_redraw;
 }
 
-class Canvas {
+enum DisplayMode { overlay, row_major, col_major }
+import serializeJSON;
+
+
+struct Canvas {
 	GraphicsInterface graphics;
 
-
-	Transform   transform;
-	int         window_text_size = 0;
-	bool[2]     grid             = [true,true];
-	bool        grid_ontop       = true;
-	bool[2]     numbers          = [true,true];
-	bool        numbers_ontop    = true;
-	bool        color_bar        = true;
-	int         dim              = 1;
-	DisplayMode display_mode     = DisplayMode.overlay;
-	enum DisplayMode { overlay, row_major, col_major }
-	int         columns_or_rows  = 1;
-	double      color_key_width  = 0.05; // percent of canvas width
-	bool[3]     autoscale        = [false,false,false];
-	bool        autorefresh      = false;
-
+	@SERIALIZE Transform[3] transform;
+	@SERIALIZE int          window_text_size = 0;
+	@SERIALIZE bool[2]      grid             = [true,true];
+	@SERIALIZE bool         grid_ontop       = true;
+	@SERIALIZE bool[2]      numbers          = [true,true];
+	@SERIALIZE bool         numbers_ontop    = true;
+	@SERIALIZE bool         color_bar        = true;
+	@SERIALIZE int          dim              = 1;
+	@SERIALIZE DisplayMode  display_mode     = DisplayMode.overlay;
+	@SERIALIZE int          columns_or_rows  = 1;
+	@SERIALIZE double       color_key_width  = 0.05; // percent of canvas width
+	@SERIALIZE bool[3]      autoscale        = [false,false,false];
+	@SERIALIZE bool         autorefresh      = false;
 }
 
+unittest {
+	import std.json;
+	import serializeJSON;
+	import std.stdio;
+
+	Canvas canvas;
+	JSONValue json;
+	serialize(canvas,json);
+	json.toString(JSONOptions.specialFloatLiterals).writeln;
+}

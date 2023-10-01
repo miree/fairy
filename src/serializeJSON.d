@@ -4,18 +4,26 @@ module serializeJSON;
 public import std.json;
 import std.traits;
 
-interface PersistentData(Representation) {
-	void read(in Representation r);
-	void write(ref Representation r);
+
+struct SERIALIZE {}
+bool isSERIALIZEd(T, alias membername)(in T t) {
+	foreach (attr; __traits(getAttributes, __traits(getMember,t,membername))) {
+		static if (is(attr==SERIALIZE)) return true;
+	}
+	return false;
 }
 
-auto serialize(T)(in T data) pure {
+
+auto serialize(T)(in T data) {
 	JSONValue json;
 	serialize!T(data,json);
 	return json;
 }
 void serialize(T)(in T data, ref JSONValue json) {
-	static if (isAggregateType!T) serialize_struct!T(data,json);
+	static      if (isAssociativeArray!T) serialize_aa!(KeyType!T,ValueType!T)(data,json);
+	else static if (isStaticArray!T)      serialize_sa!(T)(data,json);
+	else static if (isDynamicArray!T)     serialize_da!(T)(data,json);
+	else static if (isAggregateType!T)    serialize_struct!T(data,json);
 	else json = JSONValue(data);
 }
 T deserialize(T)(in JSONValue json) pure {
@@ -31,6 +39,20 @@ T deserialize(T)(in JSONValue json) pure {
 
 private:
 
+void serialize_sa(T)(in T data, ref JSONValue json) pure {
+	JSONValue[] jsons;
+	foreach(a; data) jsons ~= serialize(a);
+	json = JSONValue(jsons);
+}
+void serialize_da(T)(in T data, ref JSONValue json) pure {
+	JSONValue[] jsons;
+	foreach(a; data) jsons ~= serialize(a);
+	json = JSONValue(jsons);
+}
+void serialize_aa(K,V)(in V[K] data, ref JSONValue json) pure {
+	foreach(k,v; data) json[k] = serialize(v); 
+}
+
 
 void serialize_struct(T)(in T structure, ref JSONValue json) {
 	import std.json;
@@ -39,9 +61,11 @@ void serialize_struct(T)(in T structure, ref JSONValue json) {
 	static foreach(memberName; __traits(allMembers, T)) {{
 		alias member = helper!(__traits(getMember, T, memberName));
 		static if (!isSomeFunction!(typeof(member))) {
-			JSONValue member_json;
-			mixin("serialize(structure." ~ memberName ~ ", member_json);");
-			json[memberName] = member_json;
+			if (isSERIALIZEd!(T,memberName)(structure)) {
+				JSONValue member_json;
+				mixin("serialize(structure." ~ memberName ~ ", member_json);");
+				json[memberName] = member_json;
+			}
 		}
 	}}
 }
@@ -71,11 +95,13 @@ T deserialize_struct(T)(in JSONValue json) pure {
 	static foreach(memberName; __traits(allMembers, T)) {{
 		alias member = helper!(__traits(getMember, T, memberName));
 		static if (!isSomeFunction!(typeof(member))) {
-			try {
-				mixin("result." ~ memberName ~ " = deserialize!(typeof(T."~memberName~"))(json[\"" ~ memberName ~ "\"]);");
-			} catch (Exception e) {
-				// nothing, just maybe a report
-				//import std.stdio; writeln("member " ~ memberName ~ " not found in JSON");
+			if (isSERIALIZEd!(T,memberName)(result)) {
+				try {
+					mixin("result." ~ memberName ~ " = deserialize!(typeof(T."~memberName~"))(json[\"" ~ memberName ~ "\"]);");
+				} catch (Exception e) {
+					// nothing, just maybe a report
+					//import std.stdio; writeln("member " ~ memberName ~ " not found in JSON");
+				}
 			}
 		}
 	}}
@@ -85,14 +111,35 @@ T deserialize_struct(T)(in JSONValue json) pure {
 unittest {
 	import std.stdio;
 	{
-		auto aa = ["eins":1, "zwei":2, "drei":3];
+		auto aa = ["eins":1, "zwei":2, "drei":3] ;
+		struct S {
+			@SERIALIZE int[] a;
+			           int b;
+			@SERIALIZE double c = 1.0;
+		}
+
+		S s;
+		//__traits(getMember,S,"a") = 1;
+		//static foreach(mem; __traits(allMembers, S)) {{
+		//	mem.write; " ".write; isSERIALIZEd!(S,mem)(s).writeln;
+		//}}
 		auto json = serialize(aa);
-		//json.toString.writeln;
+		//json.toString(JSONOptions.specialFloatLiterals).writeln;
 		auto aa2 = deserialize!(typeof(aa))(json);
 		assert(aa==aa2);
+
+		auto json2 = serialize(s);
+		//json2.toString(JSONOptions.specialFloatLiterals).writeln;
+		S s2 = deserialize!(typeof(s))(json2);
+		assert(s == s2);
 	}
+
+
 	{
-		struct S {int a = 1; double b = 3.14;}
+		struct S {
+			@SERIALIZE int a = 1; 
+			@SERIALIZE double b = 3.14;
+		}
 		auto s = S();
 		auto json = serialize(s);
 		//json.toString.writeln;
@@ -100,9 +147,24 @@ unittest {
 		assert(s==s2);
 	}
 	{
-		struct NN {double[] hist; double x = 6.6; string text = "blub";}
-		struct N {double x = 5.5; string text = "bla"; NN nn;}
-		struct S {int a = 1; double[string] b; N n; int[3] sa=[1,2,3]; double[] da;}
+		struct NN {
+			@SERIALIZE double[] hist; 
+			@SERIALIZE double x = 6.6; 
+			@SERIALIZE string text = "blub";
+		}
+		struct N {
+			@SERIALIZE double x = 5.5; 
+			@SERIALIZE string text = "bla"; 
+			@SERIALIZE NN nn;
+			           NN nn2;
+		}
+		struct S {
+			@SERIALIZE int a = 1; 
+			@SERIALIZE double[string] b; 
+			@SERIALIZE N n; 
+			@SERIALIZE int[3] sa=[1,2,3]; 
+			@SERIALIZE double[] da;
+		}
 		auto s = S();
 		s.da ~= 1.23;
 		s.da ~= 4.56;
@@ -119,46 +181,33 @@ unittest {
 		//s3.writeln;
 	}
 	{
-		struct N { int[3] ar=[2,3,4];}
+		struct N { 
+			@SERIALIZE int[3] ar=[2,3,4];
+			double d = 1.0;
+		}
 		struct S {
-			int a;
-			double b;
-			string x;
-			N n;
+			@SERIALIZE int a;
+			@SERIALIZE double b;
+			@SERIALIZE string x;
+			@SERIALIZE N n;
+			@SERIALIZE N[3] na;
+			@SERIALIZE N[] da;
+			@SERIALIZE N[string] aa;
 		}
 		string json_string = `{"a":1,"b":2.0,"c":"extra"}`;
 		auto json = parseJSON(json_string);
 		auto s = deserialize!S(json);
 		//writeln(s);
+		s.aa["hallo"] = N();
 		serialize(s,json);
+		json.toString(JSONOptions.specialFloatLiterals).writeln;
+
+		s.writeln;
+		S s2 = deserialize!S(json);
+		s2.writeln;
 		//json.toJSON(true).writeln;
-		//serialize(s).toString.writeln;
+		//assert(serialize(s).toString(JSONOptions.specialFloatLiterals) == `{"a":1,"b":2.0,"n":{"ar":[2,3,4]},"x":""}`);
 		//assert(json_string == json.toString);
-	}
-
-	{
-		class C : PersistentData!JSONValue {
-			enum Enum { a, b, c}
-			struct Data {
-				int a;
-				double b;
-				Enum e;
-				int f(int a) { return a*a;}
-			};
-			Data persistent;
-
-			void read ( in JSONValue json) { persistent = deserialize!Data(json); }
-			void write(ref JSONValue json) { persistent.serialize(json);          }
-		}
-
-		auto json = parseJSON(`{"a":1,"b":2,"e":1}`);
-		auto my_class = new C;
-		auto x = my_class.persistent.f(1);
-		my_class.read(json);
-		//my_class.persistent.writeln;
-		JSONValue new_json;
-		my_class.write(new_json);
-		//new_json.toJSON(true).writeln;
 	}
 
 }
