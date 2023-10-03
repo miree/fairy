@@ -21,8 +21,37 @@ struct Session {
 		}
 	}
 	string list_windows() {
-		import std.array;
-		return windows.byKey.array.join('\n');
+		import std.algorithm, std.array, std.conv;
+		string result;
+		foreach(name; windows.byKey.array.sort) {
+			result ~= name 
+			        ~ " " 
+			        ~ windows[name].canvas_width[0].to!string 
+			        ~ "x" 
+			        ~ windows[name].canvas_width[1].to!string ~ "\n";
+		}
+		return result;
+	}
+
+	import std.file, std.json, std.algorithm, serializeJSON;
+	@trusted
+	void read_from_file() {
+		try {
+			JSONValue json = readText(name~".session").parseJSON;
+			JSONValue window_jsons = json["windows"];
+			windows = deserialize!(Canvas[string])(window_jsons);
+		} catch (Exception e) {
+			import std.stdio;
+			writeln(e.msg, ", creating a new session!");
+		}
+	}
+	void write_to_file() {
+		import std.stdio : writeln;
+		auto filename = name~".session";
+		writeln("save session to file ", filename);
+		JSONValue json_out;
+		json_out["windows"] = serialize(windows);
+		write(filename, json_out.toJSON(true, JSONOptions.specialFloatLiterals));
 	}
 }
 
@@ -38,6 +67,7 @@ void run(string[] args) {
 
 	import std.stdio;
 	writeln("session ", session.name);
+	session.read_from_file();
 
 
 	import cmdline;
@@ -45,6 +75,7 @@ void run(string[] args) {
 	loop(args);
 	// cause the cmdline.run_console thread to stop
 	cmdline.close_stdin(); 
+	session.write_to_file();
 }
 
 bool running = true;

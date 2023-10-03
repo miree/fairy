@@ -92,16 +92,16 @@ public:
 	double canvas2world_delta(in double dx) const pure {
 		return dx/b;
 	}
-	@property double pixel_width() const pure {
+	double pixel_width() const pure {
 		return abs(1.0/b);
 	}
-	@property double min() const pure {
+	double min() const pure {
 		return minimum - delta;
 	}
-	@property double max() const pure {
+	double max() const pure {
 		return min + width;
 	}
-	@property double width() const pure {
+	double width() const pure {
 		return (maximum - minimum)*scale;
 	}
 	void set_minmax(in double min, in double max) {
@@ -244,7 +244,7 @@ unittest {
 	assert(lt.world2canvas(0)==30);
 	assert(lt.world2canvas(10)==40);
 
-	JSONValue json;
-	serialize(lt,json);
+	JSONValue json = serialize(lt);
 	json.toString.writeln;
+	auto lt2 = deserialize!Transform(json);
 }

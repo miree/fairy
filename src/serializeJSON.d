@@ -97,6 +97,7 @@ T deserialize_struct(T)(in JSONValue json) pure {
 		static if (!isSomeFunction!(typeof(member))) {
 			if (isSERIALIZEd!(T,memberName)(result)) {
 				try {
+					//pragma(msg,"result." ~ memberName ~ " = deserialize!(typeof(T."~memberName~"))(json[\"" ~ memberName ~ "\"]);" );
 					mixin("result." ~ memberName ~ " = deserialize!(typeof(T."~memberName~"))(json[\"" ~ memberName ~ "\"]);");
 				} catch (Exception e) {
 					// nothing, just maybe a report
@@ -188,11 +189,13 @@ unittest {
 		struct S {
 			@SERIALIZE int a;
 			@SERIALIZE double b;
+			           double b2;
 			@SERIALIZE string x;
 			@SERIALIZE N n;
 			@SERIALIZE N[3] na;
 			@SERIALIZE N[] da;
 			@SERIALIZE N[string] aa;
+			           double b3;
 		}
 		string json_string = `{"a":1,"b":2.0,"c":"extra"}`;
 		auto json = parseJSON(json_string);
