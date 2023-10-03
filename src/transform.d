@@ -6,7 +6,7 @@ import serializeJSON;
 
 struct Transform 
 {
-//private:
+//private: // serialization does (of course)_not work if this is private
 	@SERIALIZE double minimum = -1;
 	@SERIALIZE double maximum =  1;
 	@SERIALIZE double delta = 0;

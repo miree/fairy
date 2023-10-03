@@ -1,7 +1,7 @@
 fairy: src/*.d
 	dmd -Isrc -i src/app.d -of=fairy
 
-test: test-serializeJSON test-transform test-draw
+test: test-serializeJSON test-transform test-graphics
 
 test-serializeJSON:
 	dmd -g -cov -Isrc -i -unittest -main -run src/serializeJSON.d && tail -n 1 src-serializeJSON.lst
@@ -9,8 +9,8 @@ test-serializeJSON:
 test-transform:
 	dmd -g -cov -Isrc -i -unittest -main -run src/transform.d     && tail -n 1 src-transform.lst
 
-test-draw:
-	dmd -g -cov -Isrc -i -unittest -main -run src/draw.d          && tail -n 1 src-draw.lst
+test-graphics:
+	dmd -g -cov -Isrc -i -unittest -main -run src/graphics.d      && tail -n 1 src-graphics.lst
 
 clean:
 	rm fairy fairy.o

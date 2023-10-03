@@ -1,4 +1,4 @@
-module draw;
+module graphics;
 @safe:
 
 
@@ -102,9 +102,15 @@ import serializeJSON;
 
 
 struct Canvas {
-	GraphicsInterface graphics;
+	this(int w, int h) {
+		canvas_width[0] = w;
+		canvas_width[1] = h;
+	}
+
+	GraphicsInterface graphics = null;
 
 	@SERIALIZE Transform[3] transform;
+	@SERIALIZE int[2]       canvas_width     = [600,400];
 	@SERIALIZE int          window_text_size = 0;
 	@SERIALIZE bool[2]      grid             = [true,true];
 	@SERIALIZE bool         grid_ontop       = true;
