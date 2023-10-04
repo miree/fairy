@@ -19,7 +19,7 @@ bool is_pixel(in ubyte p) {
 }
 wchar render_pixel(in Pixel p) {
 	with(Pixel) switch(p) {
-		case empty: return ('.');
+		case empty: return ('·');
 		case white: return (' ');
 		case light: return ('░');
 		case gray:  return ('▒');

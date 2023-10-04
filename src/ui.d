@@ -102,6 +102,15 @@ string lswin() {
 	return fairy.session.list_windows();
 }
 
+@UI_EXPORT("execute shell command",
+	       ["Command and arguments, for example: shell [\"ls\",\"..\"]"])
+@trusted
+string shell(string[] args) {
+	import std.process;
+	return execute(args).output;
+}
+
+
 
 
 alias helper(alias T) = T;
