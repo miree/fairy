@@ -51,28 +51,18 @@ string win(string name, int w = 600, int h = 400) {
 string showwin(string name, string mode = "double", int w = -1, int h = -1) {
 	import std.stdio;
 	import std.typecons, std.array, std.algorithm, std.conv;
-	Tuple!(int,"status",string,"output") stty_size;
-	int stty_w, stty_h;	
-	if (w<0 || h<0) {
-		import std.process;
-		stty_size = execute(["stty","size"]);
-		auto output = stty_size.output.stripRight('\n').stripRight('\r').split(' ');
-		stty_w = output[1].to!int;
-		stty_h = output[0].to!int;
-		//writeln("stty_w:", stty_w, " stty_h:",stty_h);
+	int tty_w, tty_h;	
+	version(windows) {
+		// TODO: implement
+	} else {
+		import core.sys.posix.unistd, core.sys.posix.sys.ioctl;
+		winsize ws;
+		ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
+		tty_h = ws.ws_row;
+		tty_w = ws.ws_col;
 	}
-	if (w<0) {
-		if (stty_size.status != 0) {
-			writeln("could not determine width");
-			w = 80;
-		} else w = stty_w;
-	}
-	if (h<0) {
-		if (stty_size.status != 0) {
-			writeln("could not determine height");
-			h = 80;
-		} else h = stty_h-1;
-	}
+	if (w<0) w = tty_w;
+	if (h<0) h = tty_h-1;
 
 	import fairy, asciirender;
 	import std.typecons;
@@ -83,8 +73,7 @@ string showwin(string name, string mode = "double", int w = -1, int h = -1) {
 	if (m==AsciiRender.Mode.quad_pixel) w *= 2;
 
 	auto renderer = scoped!AsciiRender(w,h,m);
-	//renderer.horizontal_line(h/2, 0,w);
-	//renderer.vertical_line(w/2,0,h);
+
 	renderer.rectangle(0,0,w-1,h-1);
 	renderer.stroke();
 	for (int i = 0; i < w; i+=10) renderer.text(i,h,i.to!string);
@@ -92,7 +81,7 @@ string showwin(string name, string mode = "double", int w = -1, int h = -1) {
 	renderer.text_extent("0",tw,th);
 	for (int i = 0; i < w; i+=10) renderer.text(i,th,i.to!string);
 
-	return renderer.render;
+	return w.to!string~"x"~h.to!string~"\n"~renderer.render;
 }
 
 @UI_EXPORT("list all windows")
