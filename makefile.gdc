@@ -1,0 +1,9 @@
+VPATH=src
+OBJECTS=app.o  asciirender.o  cmdline.o  fairy.o  graphics.o  serializeJSON.o  transform.o  ui.o
+
+fairy: $(OBJECTS)
+	gdc -o $@ $(OBJECTS)
+
+%.o: %.d
+	gdc -Isrc -c $<
+

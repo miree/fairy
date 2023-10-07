@@ -1,6 +1,9 @@
 fairy: src/*.d
 	dmd -Isrc -i src/app.d -of=fairy
 
+gdc:
+	make -j -f makefile.gdc
+
 test: test-serializeJSON test-transform test-graphics
 
 test-serializeJSON:
@@ -13,4 +16,4 @@ test-graphics:
 	dmd -g -cov -Isrc -i -unittest -main -run src/graphics.d      && tail -n 1 src-graphics.lst
 
 clean:
-	rm fairy fairy.o
+	rm fairy *.o
