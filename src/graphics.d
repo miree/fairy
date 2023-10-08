@@ -102,16 +102,22 @@ import serializeJSON;
 
 
 struct Canvas {
-	this(int w, int h) {
-		canvas_width[0] = w;
-		canvas_width[1] = h;
+	this(int w, int h, int x, int y) {
+		width  = w;
+		height = h;
+		xpos   = x;
+		ypos   = y;
 	}
 
 	GraphicsInterface graphics = null;
 
 	@SERIALIZE Transform[3] transform;
-	@SERIALIZE int[2]       canvas_width     = [600,400];
-	@SERIALIZE int          window_text_size = 0;
+	// window properties
+	@SERIALIZE int          xpos             = -1;
+	@SERIALIZE int          ypos             = -1;
+	@SERIALIZE int          width            = 600;
+	@SERIALIZE int          height           = 600;
+	@SERIALIZE int          text_size        = 0;
 	@SERIALIZE bool[2]      grid             = [true,true];
 	@SERIALIZE bool         grid_ontop       = true;
 	@SERIALIZE bool[2]      numbers          = [true,true];

@@ -37,12 +37,23 @@ string quit() {
 	return "";
 }
 
+@UI_EXPORT("enable gui sysbem")
+@trusted
+string gui() {
+	import fairy;
+	if (fairy.start_gui) {
+		throw new Exception("gui already started");
+	}
+	fairy.start_gui = true;
+	return "gui system started";
+}
+
 
 @UI_EXPORT("create new window")
 @trusted
-string win(string name, int w = 600, int h = 400) {
+string win(string name, int width = 600, int height = 400, int xpos = -1, int ypos = -1) {
 	import fairy;
-	fairy.session.add_window(name, w, h);
+	fairy.session.add_window(name, width, height, xpos, ypos);
 	return "created new window "~name;
 }
 

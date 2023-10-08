@@ -10,12 +10,27 @@ struct Session {
 	Canvas[string] windows;
 
 
-	void add_window(string name, int w, int h) {
+	void add_window(string name, int w, int h, int xpos, int ypos) {
 		if (name[0] >= '0' && name[0] <= '9') {
 			throw new Exception("window name must not start with numerical digit");
 		}
 		if ((name in windows) is null) {
-			windows[name] = Canvas(w,h);
+			windows[name] = Canvas(w,h,xpos,ypos);
+			if (start_gui) {
+				version(allegro5) {
+					import graphics_allegro5;
+					gui_add_window(name,windows[name]);
+					return;
+				}
+				else version(gtk3) {
+					import graphics_gtk;
+					return;
+				}
+				else version(gtk4) {
+					import graphics_gtk;
+					return;
+				}
+			}
 		} else {
 			throw new Exception("window with name \""~name~"\" already exists");
 		}
@@ -26,9 +41,9 @@ struct Session {
 		foreach(name; windows.byKey.array.sort) {
 			result ~= name 
 			        ~ " " 
-			        ~ windows[name].canvas_width[0].to!string 
+			        ~ windows[name].width.to!string 
 			        ~ "x" 
-			        ~ windows[name].canvas_width[1].to!string ~ "\n";
+			        ~ windows[name].height.to!string ~ "\n";
 		}
 		return result;
 	}
@@ -78,18 +93,52 @@ void run(string[] args) {
 	session.write_to_file();
 }
 
-bool running = true;
+public bool start_gui = false;
+public bool running = true;
+@trusted
 void loop(string[] args) {
-	while (running) {
+
+	while(running) {
+
 		import std.stdio;
-		"fairy> ".write;
-		iterate;
+		stdout.write("fairy> ");
+		stdout.flush();
+		while (running && !start_gui) {
+			if (iterate(10)) {
+				stdout.write("fairy> ");
+				stdout.flush();
+			}
+		}
+
+		if (start_gui) {
+			version(allegro5) {
+				import graphics_allegro5;
+				gui_loop();
+				return;
+			}
+			else version(gtk3) {
+				import graphics_gtk;
+				return;
+			}
+			else version(gtk4) {
+				import graphics_gtk;
+				return;
+			}
+			else {
+				stdout.writeln("Error: no graphics back-end available");
+				start_gui = false;
+			}
+		}
+
 	}
+
 }
 
 @trusted
-void iterate() {
-	receive(
+// return false in case of timeout
+bool iterate(uint timeout_ms) {
+	import std.datetime;
+	return receiveTimeout(dur!"msecs"(timeout_ms),
 		&cmdline_Command,
 		&cmdline_Quit,
 		&cmdline_QuitWithError
