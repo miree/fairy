@@ -1,11 +1,17 @@
 fairy: src/*.d
 	dmd -Isrc -i src/app.d -of=fairy
 
-fairy-allegro5: src/*.d
+allegro5: src/*.d
 	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color 
+
+ldc-allegro5: src/*.d
+	ldc -Isrc -i src/app.d -of=fairy --d-version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color 
 
 gdc:
 	make -j -f makefile.gdc
+
+gdc-allegro5:
+	make allegro5 -j -f makefile.gdc
 
 test: test-serializeJSON test-transform test-graphics
 
@@ -19,4 +25,4 @@ test-graphics:
 	dmd -g -cov -Isrc -i -unittest -main -run src/graphics.d      && tail -n 1 src-graphics.lst
 
 clean:
-	rm fairy *.o
+	rm -f fairy *.o

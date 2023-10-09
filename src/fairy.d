@@ -53,11 +53,13 @@ struct Session {
 	void read_from_file() {
 		try {
 			JSONValue json = readText(name~".session").parseJSON;
-			JSONValue window_jsons = json["windows"];
-			windows = deserialize!(Canvas[string])(window_jsons);
+			if (!json["windows"].isNull) {
+				JSONValue window_jsons = json["windows"];
+				windows = deserialize!(Canvas[string])(window_jsons);
+			}
 		} catch (Exception e) {
 			import std.stdio;
-			writeln(e.msg, ", creating a new session!");
+			writeln("Cannot load session: ", e.msg, ", creating a new session!");
 		}
 	}
 	void write_to_file() {

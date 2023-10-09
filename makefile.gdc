@@ -2,8 +2,11 @@ VPATH=src
 OBJECTS=app.o  asciirender.o  cmdline.o  fairy.o  graphics.o  serializeJSON.o  transform.o  ui.o
 
 fairy: $(OBJECTS)
-	gdc -o $@ $(OBJECTS)
+	gdc -o fairy $(OBJECTS)
+
+allegro5: $(OBJECTS)
+	gdc -o fairy $(OBJECTS) -lallegro_ttf -lallegro_font -lallegro -lallegro_primitives -lallegro_color
 
 %.o: %.d
-	gdc -Isrc -c $<
+	gdc -Isrc -c $< -fversion=allegro5 
 
