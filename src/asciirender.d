@@ -232,7 +232,7 @@ import graphics, ui;
 //}
 
 import graphics;
-class AsciiRender: GraphicsInterface {
+class AsciiRender: BackendInterface {
 private:
 	ubyte[][] bitmap;
 	long w, h;

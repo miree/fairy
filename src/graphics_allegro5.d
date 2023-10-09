@@ -82,8 +82,8 @@ void gui_loop() {
 				//	refresh(window.name);
 				//}
 				if (window.redraw_scheduled/+ && window.time_since_last_redraw.peek() > msecs(20)+/) {
-					//window.init();
-					//window.drawFunc();
+					window.init();
+					window.draw();
 					//window.time_since_last_redraw.reset();
 					window.draw();
 				}
@@ -108,7 +108,7 @@ void gui_loop() {
 }
 
 
-class MainWindow 
+class MainWindow : BackendInterface
 {
 private:
 	static MainWindow[ALLEGRO_DISPLAY*] main_windows;
@@ -120,10 +120,11 @@ private:
 
 	bool redraw_scheduled = false;
 
-public
+public:
 	import graphics;
 	this (string canvas_name, Canvas *canvas_pointer) {
 		canvas = canvas_pointer;
+		canvas.transform[1].set_inverse();
 		name = canvas_name;
 
 		with (ALLEGRO_DISPLAY_OPTIONS)
@@ -155,13 +156,29 @@ public
 	}
 
 	void draw() {
-		ALLEGRO_COLOR color;
-		color.r = 1;
-		color.g = 1;
-		color.b = 1;
+		color.r = 0.9;
+		color.g = 0.9;
+		color.b = 0.9;
 		color.a = 1;
 		al_set_target_bitmap(al_get_backbuffer(display));
 		al_clear_to_color(color);
+
+		canvas.transform[0].update_coefficients(0,1,canvas.width);
+		canvas.transform[1].update_coefficients(0,1,canvas.height);
+		vertical_grid(this, canvas);
+		horizontal_grid(this, canvas);
+
+		//color.r = 1;
+		//color.g = 0;
+		//color.b = 0;
+		//color.a = 1;
+		//set_line_width(4);
+		////al_draw_line(0,0,canvas.width,canvas.height, color, 4);
+
+		//line(0,0,canvas.width,canvas.height);
+		//line(0,canvas.height,canvas.width,0);
+		stroke();
+
 		al_flip_display();
 		redraw_scheduled = false;
 	}
@@ -182,6 +199,211 @@ public
 		//gui_windows.remove(name);
 
 	}
+
+	////////////////////////////////////////
+	// BackendInterface functions
+	////////////////////////////////////////
+	ALLEGRO_COLOR color;
+	double line_width = 1.0;
+	double rect_x1, rect_x2, rect_y1, rect_y2;
+	bool draw_rectangle = false;
+	double mouse_x, mouse_y, mouse_z, mouse_value;
+	string mouse_itemname;
+	bool space_pressed = false;
+
+	override void init() {
+		al_set_target_bitmap(al_get_backbuffer(display));
+		set_text_size(default_font_size);
+	}
+
+	override void reset_clip() {
+		al_set_clipping_rectangle(cast(int)0,cast(int)0, cast(int)canvas.width,cast(int)canvas.height);
+	}
+	override void set_clip(double x1, double y1, double x2, double y2) {
+		al_set_clipping_rectangle(cast(int)x1,cast(int)y1, cast(int)(x2-x1),cast(int)(y2-y1));
+	}
+
+	override void clear(double r, double g, double b) {
+		color.r = r;
+		color.g = g;
+		color.b = b;
+		color.a = 1;
+		al_clear_to_color(color);
+	}
+	override void set_color(double r, double g, double b) {
+		color.r = r;
+		color.g = g;
+		color.b = b;
+		color.a = 1;
+	}
+	override void set_line_width(double w) {
+		line_width = w;
+	}
+	override double get_line_width() {
+		return line_width;
+	}
+	override void vertical_line(double x, double y1, double y2) {
+		al_draw_line(x,y1, x,y2, color, line_width);
+	}
+	override void horizontal_line(double y, double x1, double x2) {
+		al_draw_line(x1,y, x2,y, color, line_width);
+	}
+	override void line(double x1, double y1, double x2, double y2) {
+		al_draw_line(x1,y1, x2,y2, color, line_width);
+	}
+	void rectangle(double x1, double y1, double x2, double y2)
+	{
+		draw_rectangle = true;
+		rect_x1 = x1;
+		rect_y1 = y1;
+		rect_x2 = x2;
+		rect_y2 = y2;
+	}
+	override void fill() {
+		if (draw_rectangle) {
+			al_draw_filled_rectangle(rect_x1,rect_y1, rect_x2,rect_y2, color);
+			draw_rectangle = false;
+		}
+	}
+	override void stroke() {
+		if (draw_rectangle) {
+			al_draw_rectangle(rect_x1,rect_y1, rect_x2,rect_y2, color, line_width);
+			draw_rectangle = false;
+		}
+	}
+
+
+	ALLEGRO_BITMAP*[ulong] bitmaps;
+	ulong bitmap_counter = 0;
+	@trusted
+	override ulong create_bitmap(int w, int h) {
+		//import allegro5.allegro;
+		al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
+		al_set_new_bitmap_format(ALLEGRO_PIXEL_FORMAT.ALLEGRO_PIXEL_FORMAT_ARGB_8888);
+		auto bitmap = al_create_bitmap(w,h);
+		++bitmap_counter;
+		auto handle = bitmap_counter;
+		bitmaps[handle] = bitmap;
+		return handle;
+	}
+	override void destroy_bitmap(ulong handle) {
+		bitmaps.remove(handle);
+	}
+	@trusted
+	override uint[] access_bitmap_data(ulong handle) {
+		auto bitmap = bitmaps[handle];
+		auto lock = al_lock_bitmap(bitmap,ALLEGRO_PIXEL_FORMAT.ALLEGRO_PIXEL_FORMAT_ARGB_8888,0);
+		auto width = al_get_bitmap_width(bitmap);
+		auto height = al_get_bitmap_height(bitmap);
+		return (cast(uint*)lock.data)[0..width*height*lock.pixel_size/4]; 
+	}
+	override void access_bitmap_done(ulong handle) {
+		al_unlock_bitmap(bitmaps[handle]);
+	}
+
+	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
+		                                    double dx, double dy, double dw, double dh) {
+
+		import std.math;
+		long sxi = cast(long)floor(sx);
+		long syi = cast(long)floor(sy);
+		long swi = cast(long)ceil(sx+sw)-sxi;
+		long shi = cast(long)ceil(sy+sh)-syi;
+		al_draw_scaled_bitmap(bitmaps[handle], sxi,syi, swi,shi, dx,dy, dw,dh, 0);
+	}
+
+
+	override void finish() {
+		if (space_pressed) {
+
+			double w,h,w_item,h_item;
+			import std.conv;
+			string x_str = "x=" ~ mouse_x.to!string; 
+			string y_str = "y=" ~ mouse_y.to!string;
+			string z_str = "z=" ~ mouse_z.to!string;
+			string v_str = mouse_value.to!string;
+			al_set_clipping_rectangle(cast(int)0,cast(int)0, cast(int)canvas.width,cast(int)canvas.height);
+			text_extent("0", w,h);
+			text_extent(mouse_itemname, w_item, h_item);
+			double width = 16*w;
+			if (w_item > width) width = w_item;
+			set_color(1.0,1.0,1.0);
+			rectangle(0,0,width,h*7.5);
+			fill();
+			set_color(0,0,0);
+			text(0, 1.5*h, x_str);
+			text(0, 3.0*h, y_str);
+			text(0, 4.5*h, z_str);
+			if (mouse_itemname !is null && mouse_itemname != "") {
+				text(0, 6.0*h, mouse_itemname);
+				text(0, 7.5*h, v_str);
+			}
+		}
+
+		al_flip_display();
+	}
+
+
+	override void set_text_size(int s) {
+		auto f = s in fonts;
+		if (f is null) {
+			fonts[s] = al_load_ttf_font("/usr/share/fonts/TTF/DejaVuSans.ttf", 20, 0);
+			if (!fonts[s]) {
+				throw new Exception("cannot load font.ttf");
+			}				
+			font = fonts[s];
+		} else {
+			font = *f;
+		}
+	}
+
+	void set_overlay(bool overlay) {
+		canvas.display_mode = DisplayMode.overlay;
+		need_redraw();
+	}
+	void set_rows(int rows) {
+		canvas.display_mode    = DisplayMode.rows;
+		canvas.columns_or_rows = rows;
+		need_redraw();
+	}
+	void set_columns(int columns) {
+		canvas.display_mode    = DisplayMode.columns;
+		canvas.columns_or_rows = columns;
+		need_redraw();
+	}
+
+	override void text_extent(string str, out double w, out double h) {
+		import std.string;
+		int xi, yi, wi, hi;
+		al_get_text_dimensions(font, str.toStringz, &xi, &yi, &wi, &hi);
+		//x=xi;
+		//y=yi;
+		w=wi;
+		h=hi;
+	}
+	override void text(double x, double y, string str) {
+		import std.string;
+		int xi, yi, wi, hi;
+		al_get_text_dimensions(font, str.toStringz, &xi, &yi, &wi, &hi);
+		al_draw_text(font, color, x, y-yi-hi-2, ALLEGRO_ALIGN_LEFT, str.toStringz); 
+	}
+	import std.datetime.stopwatch;
+	StopWatch time_since_last_redraw;
+	override void show_mouse_pos(double x, double y, double z) {
+		import std.stdio;
+		mouse_x = x;
+		mouse_y = y;
+		mouse_z = z;
+		need_redraw();
+		//writeln("mouse ", x, " ", y);
+	}
+
+	override void show_value(double value, string itemname) {
+		mouse_value = value;
+		mouse_itemname = itemname;
+		need_redraw();
+	}
+
 
 }
 
