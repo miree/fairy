@@ -3,7 +3,9 @@ module graphics;
 
 
 interface BackendInterface {
-	void init();   // must be called before anything else
+	bool inverted_y_direction(); // true if the y-coordinates go from top to bottom
+
+	void initialize();   // must be called before anything else
 	void finish(); // must be called after anything else
 
 	void reset_clip();
@@ -102,7 +104,7 @@ import serializeJSON;
 
 
 import transform;
-struct Canvas {
+struct CanvasProperties {
 	@SERIALIZE int          width            = 600;
 	@SERIALIZE int          height           = 400;
 	@SERIALIZE int          xpos             = -1;
@@ -119,10 +121,23 @@ struct Canvas {
 	@SERIALIZE double       color_key_width  = 0.05; // percent of canvas width
 	@SERIALIZE bool[3]      autoscale        = [false,false,false];
 	@SERIALIZE bool         autorefresh      = false;
+	@SERIALIZE string[]     itemnames        = [];
 	@SERIALIZE Transform[3] transform;
 
-	int columns = 1;
-	int rows    = 1;
+	int rows() {
+		with(DisplayMode) final switch(display_mode) {
+			case overlay: return 1;
+			case rows:    return columns_or_rows;
+			case columns: return cast(int)itemnames.length/columns_or_rows;
+		}
+	}
+	int columns() {
+		with(DisplayMode) final switch(display_mode) {
+			case overlay: return 1;
+			case rows:    return cast(int)itemnames.length/columns_or_rows;
+			case columns: return columns_or_rows;
+		}		
+	}
 }
 
 unittest {
@@ -130,46 +145,49 @@ unittest {
 	import serializeJSON;
 	import std.stdio;
 
-	Canvas canvas;
+	CanvasProperties canvas;
 	JSONValue json;
 	serialize(canvas,json);
 	json.toString(JSONOptions.specialFloatLiterals).writeln;
 }
 
 
-struct DrawArea {
-	Canvas *canvas;
+struct CanvasPainter {
+	CanvasProperties *canvas;
+	BackendInterface backend;
 
-	//struct NameVisualizer {
-	//	string name;
-	//	Visualizer visualizer;
-	//}
-
-	//NameVisualizer[] visualizers;
-
-	void resize(int w, int h) {
-		canvas.width  = w;
-		canvas.height = h;
+	this(CanvasProperties *c, BackendInterface b) {
+		assert(c !is null);
+		assert(b !is null);
+		canvas = c;
+		backend = b;
 	}
+
+	Visualizer[string] visualizers;
+
+	//void resize(int w, int h) {
+	//	canvas.width  = w;
+	//	canvas.height = h;
+	//}
 
 
 
 	// min is the smallest value larger than 0
-	bool set_log(int dim, double min) {
-		assert(dim >= 0 && dim < 3);
-		return canvas.transform[dim].set_logscale(min);
-	}
-	bool set_lin(int dim) {
-		assert(dim >= 0 && dim < 3);
-		return canvas.transform[dim].set_linscale();
-	}
+	//bool set_log(int dim, double min) {
+	//	assert(dim >= 0 && dim < 3);
+	//	return canvas.transform[dim].set_logscale(min);
+	//}
+	//bool set_lin(int dim) {
+	//	assert(dim >= 0 && dim < 3);
+	//	return canvas.transform[dim].set_linscale();
+	//}
 
 
 
 
-	void draw_grid(BackendInterface backend_interface) {
-		if (canvas.grid[0]) vertical_grid(backend_interface, canvas);
-		if (canvas.grid[1]) horizontal_grid(backend_interface, canvas);
+	void draw_grid() {
+		if (canvas.grid[0]) vertical_grid(backend, canvas);
+		if (canvas.grid[1]) horizontal_grid(backend, canvas);
 	}
 /+
 	void draw_grid_numbers() {
@@ -239,161 +257,164 @@ struct DrawArea {
 			             mouse_pos_x, mouse_pos_y);
 		drawer.stroke();
 	}
-
++/
 	void draw_content() {
-		// nested functions
+		backend.initialize();
+		backend.set_clip(0,0,canvas.width, canvas.height);
+		backend.clear(0.9, 0.9, 0.9);
 
-		drawer.init();
-		drawer.set_clip(0,0,width,height);
-		drawer.clear(0.9, 0.9, 0.9);
-
-		// text size
-		drawer.set_text_size(global_text_size);
-		if (window_text_size > 0) {
-			drawer.set_text_size(window_text_size);
-		}
+		//// text size
+		//backend.set_text_size(global_text_size);
+		//if (window_text_size > 0) {
+		//	backend.set_text_size(window_text_size);
+		//}
 
 
-		if (overlay) {
+		if (canvas.display_mode == DisplayMode.overlay) {
 
-			// find min left and max right of all visualizers
-			if (autoscale_x) fit_content_x();
-			if (autoscale_y) fit_content_y();
-			if (autoscale_z) {
-				import std.stdio;
+		//	// find min left and max right of all visualizers
+		//	if (autoscale_x) fit_content_x();
+		//	if (autoscale_y) fit_content_y();
+		//	if (autoscale_z) {
+		//		import std.stdio;
 
-				fit_content_z();
-				//writeln("fit_content_z ", transform._zmin, " " , transform._zmax);
-			}
+		//		fit_content_z();
+		//		//writeln("fit_content_z ", transform._zmin, " " , transform._zmax);
+		//	}
 
-			transform.setRowsColumns(1,1);
-			transform.update_coefficients(0,0, width,height);
-			grid_transforms.length = 1;
-			grid_transforms[0] = transform;
+		//	transform.setRowsColumns(1,1);
+			canvas.transform[0].update_coefficients(0, 1, canvas.width);
+			canvas.transform[1].update_coefficients(0, 1, canvas.height, backend.inverted_y_direction);
+		//	transform.update_coefficients(0,0, width,height);
+		//	grid_transforms.length = 1;
+		//	grid_transforms[0] = transform;
 
-			if (!draw_grid_ontop) draw_grid();
-			if (!draw_nums_ontop) draw_grid_numbers();
-			foreach(n_v; visualizers) {
-				n_v.visualizer.draw(drawer,transform);
-			}
-			if (draw_grid_ontop) draw_grid();
-			if (draw_nums_ontop) draw_grid_numbers();
-			//draw_grid_numbers();
+		//	if (!draw_grid_ontop) draw_grid();
+		//	if (!draw_nums_ontop) draw_grid_numbers();
+		//	foreach(n_v; visualizers) {
+		//		n_v.visualizer.draw(drawer,transform);
+		//	}
+			//if (draw_grid_ontop) {
+				draw_grid();
+			//} 
+		//	if (draw_nums_ontop) draw_grid_numbers();
+		//	//draw_grid_numbers();
 
-			if (draw_color_bar) {
-				draw_colorkey(drawer, transform, color_key_width);
-				color_grid_numbers(drawer, transform, color_key_width);
-			}	
+		//	if (draw_color_bar) {
+		//		draw_colorkey(drawer, transform, color_key_width);
+		//		color_grid_numbers(drawer, transform, color_key_width);
+		//	}	
 
-			//if (dim == 2) {
-			//	draw_colorkey(drawer, transform, color_key_width);
-			//}
+		//	//if (dim == 2) {
+		//	//	draw_colorkey(drawer, transform, color_key_width);
+		//	//}
 
-			if (draw_selection_box) draw_selection_box_helper();
+		//	if (draw_selection_box) draw_selection_box_helper();
 
-		} else { 
-			// grid mode
-			// find number of rows and columns
-			int rows = columns_or_rows;
-			int columns = 1;
-			while (columns*rows < visualizers.length) { 
-				++columns; 
-			}
-			if (row_major) {
-				import std.algorithm;
-				swap(columns, rows);
-			}
+		} 
+		//else { 
+		//	// grid mode
+		//	// find number of rows and columns
+		//	int rows = columns_or_rows;
+		//	int columns = 1;
+		//	while (columns*rows < visualizers.length) { 
+		//		++columns; 
+		//	}
+		//	if (row_major) {
+		//		import std.algorithm;
+		//		swap(columns, rows);
+		//	}
 
 
-			//drawer.set_color(0.2,0.2,0.2);
-			//drawer.set_line_width(2);
-			//foreach(row;    1..rows) {
-			//	drawer.horizontal_line(row*(height-1)/rows,0,width);
-			//	drawer.stroke();
-			//}
-			//foreach(column; 1..columns) {
-			//	drawer.vertical_line(column*(width-1)/columns,0,height);
-			//	drawer.stroke();
-			//}
+		//	//backend.set_color(0.2,0.2,0.2);
+		//	//backend.set_line_width(2);
+		//	//foreach(row;    1..rows) {
+		//	//	backend.horizontal_line(row*(height-1)/rows,0,width);
+		//	//	backend.stroke();
+		//	//}
+		//	//foreach(column; 1..columns) {
+		//	//	backend.vertical_line(column*(width-1)/columns,0,height);
+		//	//	backend.stroke();
+		//	//}
 
-			transform.setRowsColumns(rows, columns);
+		//	transform.setRowsColumns(rows, columns);
 
-			grid_transforms.length = rows*columns;
-			grid_transforms[0] = transform;
+		//	grid_transforms.length = rows*columns;
+		//	grid_transforms[0] = transform;
 
-			foreach(row; 0..rows) {
-				foreach(column; 0..columns) {
+		//	foreach(row; 0..rows) {
+		//		foreach(column; 0..columns) {
 
-					uint idx = column * rows + row;
-					if (row_major) {
-						idx = row * columns + column;
-					}
+		//			uint idx = column * rows + row;
+		//			if (row_major) {
+		//				idx = row * columns + column;
+		//			}
 
-					transform._content_idx = -1;
-					if (idx < visualizers.length) {
-						transform._content_idx = idx;
-						double left,right, bottom,top, zmin,zmax;
-						if (autoscale_x && visualizers[idx].visualizer.get_leftright(left,right,transform)) {
-							canvas.transformX.set_minmax(left,right);
-						}
-						if (left  is double.init) left = transform.getLeft();
-						if (right is double.init) right= transform.getRight();
-						if (autoscale_y && visualizers[idx].visualizer.getBottomTopInLeftRight(bottom,top, left,right, transform)) {
-							canvas.transformY.set_minmax(bottom,top);
-						} else {
-							bottom = transform.getBottom();
-							top    = transform.getTop();
-						}
-						if (autoscale_z) {
-							//import std.stdio;writeln("autoscale_z");
-							if (visualizers[idx].visualizer.getZminZmaxInLeftRightBottomTop(zmin,zmax, left,right, bottom,top, transform)) {
-								canvas.transformY.set_minmax(zmin,zmax);
-							}
-						}
-					}
+		//			transform._content_idx = -1;
+		//			if (idx < visualizers.length) {
+		//				transform._content_idx = idx;
+		//				double left,right, bottom,top, zmin,zmax;
+		//				if (autoscale_x && visualizers[idx].visualizer.get_leftright(left,right,transform)) {
+		//					canvas.transformX.set_minmax(left,right);
+		//				}
+		//				if (left  is double.init) left = transform.getLeft();
+		//				if (right is double.init) right= transform.getRight();
+		//				if (autoscale_y && visualizers[idx].visualizer.getBottomTopInLeftRight(bottom,top, left,right, transform)) {
+		//					canvas.transformY.set_minmax(bottom,top);
+		//				} else {
+		//					bottom = transform.getBottom();
+		//					top    = transform.getTop();
+		//				}
+		//				if (autoscale_z) {
+		//					//import std.stdio;writeln("autoscale_z");
+		//					if (visualizers[idx].visualizer.getZminZmaxInLeftRightBottomTop(zmin,zmax, left,right, bottom,top, transform)) {
+		//						canvas.transformY.set_minmax(zmin,zmax);
+		//					}
+		//				}
+		//			}
 
-					transform.update_coefficients(row, column, width, height);
-					grid_transforms[idx] = transform;
+		//			transform.update_coefficients(row, column, width, height);
+		//			grid_transforms[idx] = transform;
 
-					drawer.set_clip(     column *width/columns,      row *height/rows, 
-						            (1.0+column)*width/columns, (1.0+row)*height/rows);
+		//			backend.set_clip(     column *width/columns,      row *height/rows, 
+		//				            (1.0+column)*width/columns, (1.0+row)*height/rows);
 
-					if (!draw_grid_ontop) draw_grid();
-					if (!draw_nums_ontop) draw_grid_numbers();
-					if (idx < visualizers.length) {
-						visualizers[idx].visualizer.draw(drawer,transform);
-					}
-					if (draw_grid_ontop) draw_grid();
-					if (draw_nums_ontop) draw_grid_numbers();
-					//draw_grid_numbers();
+		//			if (!draw_grid_ontop) draw_grid();
+		//			if (!draw_nums_ontop) draw_grid_numbers();
+		//			if (idx < visualizers.length) {
+		//				visualizers[idx].visualizer.draw(drawer,transform);
+		//			}
+		//			if (draw_grid_ontop) draw_grid();
+		//			if (draw_nums_ontop) draw_grid_numbers();
+		//			//draw_grid_numbers();
 
-					if (draw_color_bar) {
-						draw_colorkey(drawer, transform, color_key_width);
-						color_grid_numbers(drawer, transform, color_key_width);
-					}	
+		//			if (draw_color_bar) {
+		//				draw_colorkey(drawer, transform, color_key_width);
+		//				color_grid_numbers(drawer, transform, color_key_width);
+		//			}	
 
-					if (draw_selection_box) draw_selection_box_helper();
-				}
-			}
+		//			if (draw_selection_box) draw_selection_box_helper();
+		//		}
+		//	}
 
-			drawer.set_clip(0,0,width,height);
-			drawer.set_color(0.2,0.2,0.2);
-			drawer.set_line_width(2);
-			foreach(row;    1..rows) {
-				drawer.horizontal_line(row*(height-1)/rows,0,width);
-				drawer.stroke();
-			}
-			foreach(column; 1..columns) {
-				drawer.vertical_line(column*(width-1)/columns,0,height);
-				drawer.stroke();
-			}
+		//	backend.set_clip(0,0,width,height);
+		//	backend.set_color(0.2,0.2,0.2);
+		//	backend.set_line_width(2);
+		//	foreach(row;    1..rows) {
+		//		backend.horizontal_line(row*(height-1)/rows,0,width);
+		//		backend.stroke();
+		//	}
+		//	foreach(column; 1..columns) {
+		//		backend.vertical_line(column*(width-1)/columns,0,height);
+		//		backend.stroke();
+		//	}
 
-		}		
+		//}		
 
-		drawer.finish();
+		backend.finish();
 
 	}
-
+/+
 	void mouse_motion(double x, double y, bool ctrl = false, bool shift = false) {
 		mouse_pos_x = x;
 		mouse_pos_y = y;
@@ -520,7 +541,7 @@ struct DrawArea {
 }
 
 
-void vertical_grid(BackendInterface backend_interface, Canvas *canvas) {
+void vertical_grid(BackendInterface backend_interface, CanvasProperties *canvas) {
 	//if (canvas.transform[0].logscale) {
 	//	//vertical_grid_log(canvas);
 	//	return;
@@ -558,7 +579,7 @@ void vertical_grid(BackendInterface backend_interface, Canvas *canvas) {
 		backend_interface.stroke();
 	}
 }
-void horizontal_grid(BackendInterface backend_interface, Canvas *canvas) {
+void horizontal_grid(BackendInterface backend_interface, CanvasProperties *canvas) {
 	//if (canvas.transform[1].logscale) {
 	//	//horizontal_grid_log(canvas);
 	//	return;

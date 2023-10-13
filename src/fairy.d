@@ -7,7 +7,7 @@ struct Session {
 	import graphics;
 	string name = "default";
 
-	Canvas[string] windows;
+	CanvasProperties[string] windows;
 
 
 	void add_window(string name, int w, int h, int xpos, int ypos) {
@@ -15,7 +15,7 @@ struct Session {
 			throw new Exception("window name must not start with numerical digit");
 		}
 		if ((name in windows) is null) {
-			windows[name] = Canvas(w,h,xpos,ypos);
+			windows[name] = CanvasProperties(w,h,xpos,ypos);
 			if (start_gui) {
 				version(allegro5) {
 					import graphics_allegro5;
@@ -55,7 +55,7 @@ struct Session {
 			JSONValue json = readText(name~".session").parseJSON;
 			if (!json["windows"].isNull) {
 				JSONValue window_jsons = json["windows"];
-				windows = deserialize!(Canvas[string])(window_jsons);
+				windows = deserialize!(CanvasProperties[string])(window_jsons);
 			}
 		} catch (Exception e) {
 			import std.stdio;

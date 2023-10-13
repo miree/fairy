@@ -10,7 +10,7 @@ private ALLEGRO_FONT*[int] fonts;
 private ALLEGRO_FONT*      font;
 private int default_font_size = 10;
 
-void gui_add_window(string name, ref Canvas canvas) {
+void gui_add_window(string name, ref CanvasProperties canvas) {
 	new MainWindow(name, &canvas);
 }
 
@@ -82,10 +82,10 @@ void gui_loop() {
 				//	refresh(window.name);
 				//}
 				if (window.redraw_scheduled/+ && window.time_since_last_redraw.peek() > msecs(20)+/) {
-					window.init();
+					window.initialize();
 					window.draw();
 					//window.time_since_last_redraw.reset();
-					window.draw();
+					//window.draw();
 				}
 			}
 		}
@@ -113,8 +113,10 @@ class MainWindow : BackendInterface
 private:
 	static MainWindow[ALLEGRO_DISPLAY*] main_windows;
 
-	Canvas *canvas;
+	CanvasProperties *canvas;
 	ALLEGRO_DISPLAY* display;
+
+	CanvasPainter painter;
 
 	string name;
 
@@ -122,9 +124,9 @@ private:
 
 public:
 	import graphics;
-	this (string canvas_name, Canvas *canvas_pointer) {
+	this (string canvas_name, CanvasProperties *canvas_pointer) {
 		canvas = canvas_pointer;
-		canvas.transform[1].set_inverse();
+		painter = CanvasPainter(canvas_pointer, this);
 		name = canvas_name;
 
 		with (ALLEGRO_DISPLAY_OPTIONS)
@@ -156,17 +158,18 @@ public:
 	}
 
 	void draw() {
-		color.r = 0.9;
-		color.g = 0.9;
-		color.b = 0.9;
-		color.a = 1;
-		al_set_target_bitmap(al_get_backbuffer(display));
-		al_clear_to_color(color);
+		painter.draw_content();
+		//color.r = 0.9;
+		//color.g = 0.9;
+		//color.b = 0.9;
+		//color.a = 1;
+		//al_set_target_bitmap(al_get_backbuffer(display));
+		//al_clear_to_color(color);
 
-		canvas.transform[0].update_coefficients(0,1,canvas.width);
-		canvas.transform[1].update_coefficients(0,1,canvas.height);
-		vertical_grid(this, canvas);
-		horizontal_grid(this, canvas);
+		//canvas.transform[0].update_coefficients(0,1,canvas.width);
+		//canvas.transform[1].update_coefficients(0,1,canvas.height);
+		//vertical_grid(this, canvas);
+		//horizontal_grid(this, canvas);
 
 		//color.r = 1;
 		//color.g = 0;
@@ -177,7 +180,7 @@ public:
 
 		//line(0,0,canvas.width,canvas.height);
 		//line(0,canvas.height,canvas.width,0);
-		stroke();
+		//stroke();
 
 		al_flip_display();
 		redraw_scheduled = false;
@@ -211,7 +214,10 @@ public:
 	string mouse_itemname;
 	bool space_pressed = false;
 
-	override void init() {
+	override bool inverted_y_direction() {
+		return true;
+	}
+	override void initialize() {
 		al_set_target_bitmap(al_get_backbuffer(display));
 		set_text_size(default_font_size);
 	}

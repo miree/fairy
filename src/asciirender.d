@@ -260,8 +260,10 @@ public:
 		output_mode = mode;
 		reset_clip();
 	}
-
-	override void init() {
+	override bool inverted_y_direction() {
+		return true;
+	}
+	override void initialize() {
 
 	}
 	override void finish() {

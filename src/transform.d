@@ -15,12 +15,10 @@ struct Transform
 	@SERIALIZE double max_width = 1e10;
 	@SERIALIZE bool   logscale = false;
 
-	bool inverse = false; // needs to be set to true if the max correspond to canvas=0 and min corresponds to canvas_width
-
 	double a,b; // transformation coefficients
 	// use with negative canvas_width, if the positive 
 	//  canvas coordinates go from top to bottom (e.g. the y-axis)
-	void update_coefficients(in int segment, in int num_segments, in int canvas_width) {
+	void update_coefficients(in int segment, in int num_segments, in int canvas_width, in bool inverse = false) {
 		double segment_width  = 1.0*canvas_width/num_segments;
 		if (inverse) {
 			b = -segment_width / width;
@@ -37,9 +35,6 @@ struct Transform
 	double scaling_start_world;
 
 public:
-	void set_inverse() {
-		inverse = true;
-	}
 	void translate_start(in double canvas_start, in int num_segments, in int canvas_width) {
 		update_coefficients(0, num_segments, canvas_width);
 		translating_start_canvas = canvas_start;
@@ -156,13 +151,12 @@ unittest {
 
 	Transform lt;
 	int segment, num_segments, canvas_width;
+	bool inverse;
 	lt.set_minmax(-1,1);
 	assert(lt.reduce_canvas(75,num_segments=2,canvas_width= 100) == 25);
 	assert(lt.reduce_canvas(90,num_segments=5,canvas_width= 100) == 10);
-	lt.inverse=true;
 	assert(lt.reduce_canvas(10,num_segments=5,canvas_width= 100) == 10);
 	assert(lt.reduce_canvas(90,num_segments=5,canvas_width= 100) == 10);
-	lt.inverse=false;
 
 
 	lt.set_minmax(-1,1);
@@ -207,8 +201,7 @@ unittest {
 
 
 	lt.set_minmax(-1,1);
-	lt.inverse = true;
-	lt.update_coefficients(segment=1, num_segments=3,canvas_width=120);
+	lt.update_coefficients(segment=1, num_segments=3,canvas_width=120, inverse=true);
 	lt.scale_start(canvas_start=60, num_segments=3, canvas_width=120);
 	lt.scale_ongoing(canvas_stop=90);
 	lt.scale_finish();
@@ -221,7 +214,6 @@ unittest {
 	lt.scale_ongoing(canvas_stop=50);
 	lt.scale_finish();
 	assert(lt.max+lt.min == 0);
-	lt.inverse = false;
 
 	lt.set_minmax(2,4);
 	lt.set_logscale(0.1);
