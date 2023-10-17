@@ -89,6 +89,43 @@ void gui_loop() {
 				}
 			}
 		}
+		else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) 
+		{
+			auto window = MainWindow.main_windows[event.mouse.display];
+			import std.stdio;
+			if (event.mouse.button == 1) {
+				window.painter.left_button_pressed(1, event.mouse.x, event.mouse.y);
+			} else if (event.mouse.button == 2) { // right button
+				window.painter.right_button_pressed(1, event.mouse.x, event.mouse.y);
+			} else if (event.mouse.button == 3) { // middle button
+				window.painter.mid_button_pressed(1, event.mouse.x, event.mouse.y);
+			}
+		} 
+		else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP) 
+		{
+			auto window = MainWindow.main_windows[event.mouse.display];
+			import std.stdio;
+			if (event.mouse.button == 1) {
+				window.painter.left_button_released(1, event.mouse.x, event.mouse.y);
+			} else if (event.mouse.button == 2) { // right button
+				window.painter.right_button_released(1, event.mouse.x, event.mouse.y);
+			} else if (event.mouse.button == 3) { // middle button
+				window.painter.mid_button_released(1, event.mouse.x, event.mouse.y);
+			}
+		} 
+		else if (event.type == ALLEGRO_EVENT_MOUSE_AXES) 
+		{
+			auto window = MainWindow.main_windows[event.mouse.display];
+			if (event.mouse.dx || event.mouse.dy) {
+				window.painter.mouse_motion(event.mouse.x, event.mouse.y);
+			}
+			if (event.mouse.dz || event.mouse.dw) {
+				window.painter.scroll(event.mouse.dw,   // w-axis is left right
+					                 -event.mouse.dz    // z-axis is up down (normal mouse wheel movement)
+					                 );
+			}
+
+		} 
 
 		if (fairy.iterate(0)) {
 			import std.stdio;
@@ -158,14 +195,21 @@ public:
 	}
 
 	void draw() {
-		painter.draw_content();
+		al_set_target_bitmap(al_get_backbuffer(display));
+
 		//color.r = 0.9;
 		//color.g = 0.9;
 		//color.b = 0.9;
 		//color.a = 1;
-		//al_set_target_bitmap(al_get_backbuffer(display));
 		//al_clear_to_color(color);
 
+		//color.r = 0;
+		//color.g = 0;
+		//color.b = 0;
+		//color.a = 1;
+		//text(canvas.width/2,canvas.height/2,"hallo");
+
+		painter.draw_content();
 		//canvas.transform[0].update_coefficients(0,1,canvas.width);
 		//canvas.transform[1].update_coefficients(0,1,canvas.height);
 		//vertical_grid(this, canvas);

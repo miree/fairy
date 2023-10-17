@@ -156,6 +156,23 @@ struct CanvasPainter {
 	CanvasProperties *canvas;
 	BackendInterface backend;
 
+	Transform[3][] grid_transforms; // remember the transform settings for each section in grid mode
+	Transform[3]   mouse_transform; // the transformation box where the mouse cursor is located in
+
+	double mouse_pos_x;
+	double mouse_pos_y;
+
+	// variables for selection box
+	double start_selection_x;
+	double start_selection_y;
+	bool draw_selection_box;
+	double current_selection_x;
+	double current_selection_y;
+
+	bool translating_ongoing = false;
+	bool scaling_ongoing     = false;
+
+
 	this(CanvasProperties *c, BackendInterface b) {
 		assert(c !is null);
 		assert(b !is null);
@@ -189,86 +206,90 @@ struct CanvasPainter {
 		if (canvas.grid[0]) vertical_grid(backend, canvas);
 		if (canvas.grid[1]) horizontal_grid(backend, canvas);
 	}
-/+
+
 	void draw_grid_numbers() {
-		//if (draw_nums_vertical)	  vertical_grid_numbers(drawer, transform);
-		//if (draw_nums_horizontal) horizontal_grid_numbers(drawer, transform);			
+		if (canvas.numbers[0]) vertical_grid_numbers(backend, canvas);
+		if (canvas.numbers[1]) horizontal_grid_numbers(backend, canvas);			
 	}
 
-	void fit_content_x() {
-		import std.algorithm;
-		double left,right;
-		foreach(ref vis; visualizers.map!(nv=>nv.visualizer)) {
-					double l,r; 
-					if (!vis.get_leftright(l,r,transform)) continue;
-					left =(left  is double.init)?l:min(left,l);
-					right=(right is double.init)?r:max(right,r);
-		}
-		if (left !is double.init && right !is double.init) {
-			canvas.transformX.set_minmax(left,right);
-		}
-	}
+	//void fit_content_x() {
+	//	import std.algorithm;
+	//	double left,right;
+	//	foreach(ref vis; visualizers.map!(nv=>nv.visualizer)) {
+	//				double l,r; 
+	//				if (!vis.get_leftright(l,r,transform)) continue;
+	//				left =(left  is double.init)?l:min(left,l);
+	//				right=(right is double.init)?r:max(right,r);
+	//	}
+	//	if (left !is double.init && right !is double.init) {
+	//		canvas.transformX.set_minmax(left,right);
+	//	}
+	//}
 
-	void fit_content_y() {
-		import std.algorithm;
-		double bottom,top;
-		double left = transform.getLeft();
-		double right= transform.getRight();
-		foreach(ref vis; visualizers.map!(nv=>nv.visualizer)) {
-			double b,t;
-			if (!vis.getBottomTopInLeftRight(b,t, left,right, transform)) continue;
-			bottom = (bottom is double.init)?b:min(bottom,b);
-			top    = (top    is double.init)?t:max(top   ,t);
-		}
-		if (bottom !is double.init && top !is double.init) {
-			canvas.transformY.set_minmax(bottom,top);		
-		}
-	}
+	//void fit_content_y() {
+	//	import std.algorithm;
+	//	double bottom,top;
+	//	double left = transform.getLeft();
+	//	double right= transform.getRight();
+	//	foreach(ref vis; visualizers.map!(nv=>nv.visualizer)) {
+	//		double b,t;
+	//		if (!vis.getBottomTopInLeftRight(b,t, left,right, transform)) continue;
+	//		bottom = (bottom is double.init)?b:min(bottom,b);
+	//		top    = (top    is double.init)?t:max(top   ,t);
+	//	}
+	//	if (bottom !is double.init && top !is double.init) {
+	//		canvas.transformY.set_minmax(bottom,top);		
+	//	}
+	//}
 
-	void fit_content_z() {
-		import std.algorithm;
-		double zmin, zmax;
-		double left = transform.getLeft();
-		double right= transform.getRight();
-		double bottom = transform.getBottom();
-		double top    = transform.getTop();
-		foreach(ref vis; visualizers.map!(nv=>nv.visualizer)) {
-			double z1, z2;
-			if (!vis.getZminZmaxInLeftRightBottomTop(z1,z2, left,right, bottom,top, transform)) continue;
-			//import std.stdio; writeln("inside fit_content_z ", z1," " ,z2);
-			zmin = (z1 is double.init)?z1:(zmin is double.init)?z1:min(zmin,z1);
-			zmax = (z2 is double.init)?z2:(zmax is double.init)?z2:min(zmax,z2);
-		}
-		//import std.stdio; writeln("inside fit_content_z ", z1," " ,z2);
-		if (zmin !is double.init && zmax !is double.init) {
-			canvas.transformY.set_minmax(zmin,zmax);		
-		}
-	}
+	//void fit_content_z() {
+	//	import std.algorithm;
+	//	double zmin, zmax;
+	//	double left = transform.getLeft();
+	//	double right= transform.getRight();
+	//	double bottom = transform.getBottom();
+	//	double top    = transform.getTop();
+	//	foreach(ref vis; visualizers.map!(nv=>nv.visualizer)) {
+	//		double z1, z2;
+	//		if (!vis.getZminZmaxInLeftRightBottomTop(z1,z2, left,right, bottom,top, transform)) continue;
+	//		//import std.stdio; writeln("inside fit_content_z ", z1," " ,z2);
+	//		zmin = (z1 is double.init)?z1:(zmin is double.init)?z1:min(zmin,z1);
+	//		zmax = (z2 is double.init)?z2:(zmax is double.init)?z2:min(zmax,z2);
+	//	}
+	//	//import std.stdio; writeln("inside fit_content_z ", z1," " ,z2);
+	//	if (zmin !is double.init && zmax !is double.init) {
+	//		canvas.transformY.set_minmax(zmin,zmax);		
+	//	}
+	//}
 
 	void draw_selection_box_helper() {
-		drawer.set_line_width(3);
-		drawer.set_color(0.9,0.9,0.9);
-		drawer.rectangle(start_selection_x, start_selection_y,
+		backend.set_line_width(3);
+		backend.set_color(0.9,0.9,0.9);
+		backend.rectangle(start_selection_x, start_selection_y,
 			             mouse_pos_x, mouse_pos_y);
-		drawer.stroke();
-		drawer.set_line_width(1);
-		drawer.set_color(0,0,0);
-		drawer.rectangle(start_selection_x, start_selection_y,
+		backend.stroke();
+		backend.set_line_width(1);
+		backend.set_color(0,0,0);
+		backend.rectangle(start_selection_x, start_selection_y,
 			             mouse_pos_x, mouse_pos_y);
-		drawer.stroke();
+		backend.stroke();
 	}
-+/
+
 	void draw_content() {
+		//import std.stdio;
+		//writeln("draw_content");
 		backend.initialize();
-		backend.set_clip(0,0,canvas.width, canvas.height);
+		//backend.set_clip(0,0,canvas.width, canvas.height);
 		backend.clear(0.9, 0.9, 0.9);
 
 		//// text size
-		//backend.set_text_size(global_text_size);
+		backend.set_text_size(global_text_size);
 		//if (window_text_size > 0) {
 		//	backend.set_text_size(window_text_size);
 		//}
 
+		backend.set_color(0,0,0);
+		backend.text(100,100,"hallo");
 
 		if (canvas.display_mode == DisplayMode.overlay) {
 
@@ -282,23 +303,22 @@ struct CanvasPainter {
 		//		//writeln("fit_content_z ", transform._zmin, " " , transform._zmax);
 		//	}
 
-		//	transform.setRowsColumns(1,1);
 			canvas.transform[0].update_coefficients(0, 1, canvas.width);
 			canvas.transform[1].update_coefficients(0, 1, canvas.height, backend.inverted_y_direction);
-		//	transform.update_coefficients(0,0, width,height);
-		//	grid_transforms.length = 1;
-		//	grid_transforms[0] = transform;
+			grid_transforms.length = 1;
+			grid_transforms[0] = canvas.transform;
+			import std.stdio;
+			//writeln("tranform x", canvas.transform[0]);
+			//writeln("tranform y", canvas.transform[1]);
 
-		//	if (!draw_grid_ontop) draw_grid();
-		//	if (!draw_nums_ontop) draw_grid_numbers();
+			if (!canvas.grid_ontop)    draw_grid();
+			if (!canvas.numbers_ontop) draw_grid_numbers();
 		//	foreach(n_v; visualizers) {
 		//		n_v.visualizer.draw(drawer,transform);
 		//	}
-			//if (draw_grid_ontop) {
-				draw_grid();
-			//} 
-		//	if (draw_nums_ontop) draw_grid_numbers();
-		//	//draw_grid_numbers();
+			if (canvas.grid_ontop)    draw_grid();
+			if (canvas.numbers_ontop) draw_grid_numbers();
+			draw_grid_numbers();
 
 		//	if (draw_color_bar) {
 		//		draw_colorkey(drawer, transform, color_key_width);
@@ -309,7 +329,7 @@ struct CanvasPainter {
 		//	//	draw_colorkey(drawer, transform, color_key_width);
 		//	//}
 
-		//	if (draw_selection_box) draw_selection_box_helper();
+			if (draw_selection_box) draw_selection_box_helper();
 
 		} 
 		//else { 
@@ -414,68 +434,78 @@ struct CanvasPainter {
 		backend.finish();
 
 	}
-/+
+
 	void mouse_motion(double x, double y, bool ctrl = false, bool shift = false) {
 		mouse_pos_x = x;
 		mouse_pos_y = y;
 
+		//import std.stdio;
+		//writeln("motion ", x, " ", y);
 		// determine mouse position and update the mouse_pos label
 		foreach( idx, transform ; grid_transforms) {
 			import std.math;
-			double x_world = transform.transform_canvas2world_x(x);
-			double y_world = transform.transform_canvas2world_y(y);
-			double z_world = transform.transform_canvas2world_z((y_world - transform.getBottom())/transform.getHeight());
+			double x_world = canvas.transform[0].canvas2world(x);
+			double y_world = canvas.transform[1].canvas2world(y);
+			double z_world = canvas.transform[2].canvas2world((y_world - transform[1].min)/transform[1].width);
 
-			if (x_world > transform.getLeft()   && x_world < transform.getRight() &&
-				y_world > transform.getBottom() && y_world < transform.getTop()) {
-				mouse_transform = transform;
-				if (transform._logx) {
+			if (x_world > canvas.transform[0].min && x_world < canvas.transform[0].max &&
+				y_world > canvas.transform[1].min && y_world < canvas.transform[1].max) {
+				mouse_transform = canvas.transform;
+				if (canvas.transform[0].logscale) {
 					x_world = exp(x_world);
 				}
-				if (transform._logy) {
+				if (canvas.transform[1].logscale) {
 					y_world = exp(y_world);
 				}
-				if (transform._logz) {
+				if (canvas.transform[2].logscale) {
 					z_world = exp(z_world);
 				}
 
-				drawer.show_mouse_pos(x_world, y_world, z_world);
-				if (!overlay) {
-					if (transform._content_idx >= 0) {
-						auto value = visualizers[cast(uint)transform._content_idx].visualizer.getValue(x_world, y_world);
-						drawer.show_value(value, visualizers[cast(uint)transform._content_idx].name);
-					} else {
-						drawer.show_value(double.init, "");
-					}
-				} else {
-					double last_not_nan_value;
-					string itemname;
-					foreach(v; visualizers) {
-						//import std.stdio;writeln(v.name);
-						auto value = v.visualizer.getValue(x_world, y_world);
-						if (value !is double.init) {
-							last_not_nan_value = value;
-							itemname = v.name;
-						}
-					}
-					drawer.show_value(last_not_nan_value, itemname);
-				}
+				backend.show_mouse_pos(x_world, y_world, z_world);
+				//if (!canvas.display_mode == DisplayplayMode.overlay) {
+				//	if (canvas.transform._content_idx >= 0) {
+				//		auto value = visualizers[cast(uint)canvas.transform._content_idx].visualizer.getValue(x_world, y_world);
+				//		drawer.show_value(value, visualizers[cast(uint)canvas.transform._content_idx].name);
+				//	} else {
+				//		drawer.show_value(double.init, "");
+				//	}
+				//} else {
+				//	double last_not_nan_value;
+				//	string itemname;
+				//	foreach(v; visualizers) {
+				//		//import std.stdio;writeln(v.name);
+				//		auto value = v.visualizer.getValue(x_world, y_world);
+				//		if (value !is double.init) {
+				//			last_not_nan_value = value;
+				//			itemname = v.name;
+				//		}
+				//	}
+				//	drawer.show_value(last_not_nan_value, itemname);
+				//}
 			}
 		}
 
 		//drawer.show_mouse_pos(transform.transform_canvas2world_x(x), transform.transform_canvas2world_y(y));
-		with (transform) {
-			if (scaling.active)     scale_ongoing(x, y);
-			if (translating.active) translate_ongoing(x, y);
-			if (scaling.active || translating.active) {
-				drawer.need_redraw();
+		with (canvas.transform[0]) {
+			if (scaling_ongoing)     scale_ongoing(x, -0.01);
+			if (translating_ongoing) translate_ongoing(x);
+			if (scaling_ongoing || translating_ongoing) {
+				backend.need_redraw();
+				//import std.stdio; writeln("need_redraw 1");
+			}
+		}
+		with (canvas.transform[1]) {
+			if (scaling_ongoing)     scale_ongoing(y, +0.01);
+			if (translating_ongoing) translate_ongoing(y);
+			if (scaling_ongoing || translating_ongoing) {
+				backend.need_redraw();
 				//import std.stdio; writeln("need_redraw 1");
 			}
 		}
 		if (draw_selection_box) {
 			current_selection_x = x;
 			current_selection_y = y;
-			drawer.need_redraw();
+			backend.need_redraw();
 			//import std.stdio; writeln("need_redraw 2");
 		}
 	}
@@ -483,27 +513,35 @@ struct CanvasPainter {
 	void right_button_pressed(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		//writeln("right click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
-		transform.scale_start(x,y, width,height, draw_color_bar?color_key_width:0.0);
+		canvas.transform[0].scale_start(x, canvas.columns,  canvas.width, false);
+		canvas.transform[1].scale_start(y, canvas.rows,     canvas.height, true);
+		scaling_ongoing = true;
 	}
 	void right_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		//writeln("right release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
-		transform.scale_finish(x,y);
-		drawer.need_redraw();
+		canvas.transform[0].scale_finish();
+		canvas.transform[1].scale_finish();
+		backend.need_redraw();
+		scaling_ongoing = false;
 	}
 
 	void mid_button_pressed(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		//writeln("middle click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
-		transform.translate_start(x,y,width,height, draw_color_bar?color_key_width:0.0);
-		
+		canvas.transform[0].translate_start(x, canvas.columns,  canvas.width);
+		canvas.transform[1].translate_start(y, canvas.rows,     canvas.height);
+		translating_ongoing = true;
 	}
 	void mid_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		//writeln("middle release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
-		transform.translate_finish(x,y);
-		drawer.need_redraw();
+		canvas.transform[0].translate_finish();
+		canvas.transform[1].translate_finish();
+		backend.need_redraw();
+		translating_ongoing = false;
 	}
+
 
 	void left_button_pressed(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
@@ -516,28 +554,31 @@ struct CanvasPainter {
 		import std.stdio;
 		//writeln("left release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
 		draw_selection_box = false;
-		drawer.need_redraw();
+		backend.need_redraw();
 	}
+
 	/////////////////////////////////////////////////////////
 	// scrolling functions (mouse wheel)
 	/////////////////////////////////////////////////////////
 	void scroll(double dx, double dy, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		if (dx) {
-			double amount = dy*(ctrl?-5:-50);
-			transform.translate_one_step(mouse_pos_x, mouse_pos_y, width, height, amount, 0, draw_color_bar?color_key_width:0.0);
+			//double amount = dy*(ctrl?-5:-50);
+			//transform.translate_one_step(mouse_pos_x, mouse_pos_y, width, height, amount, 0, draw_color_bar?color_key_width:0.0);
 		}
 		if (dy) {
-			double amount = dy*(ctrl?-5:-50);
-			transform.scale_one_step(mouse_pos_x, mouse_pos_y, width, height, amount, amount, draw_color_bar?color_key_width:0.0);
+			double amount = dy*(ctrl?5:50);
+			canvas.transform[0].scale_one_step(mouse_pos_x, canvas.columns, canvas.width,  amount,  0.001, false);
+			canvas.transform[1].scale_one_step(mouse_pos_y, canvas.rows,    canvas.height, amount,  0.001, true);
+
+			//transform.scale_one_step(mouse_pos_x, mouse_pos_y, width, height, amount, amount, draw_color_bar?color_key_width:0.0);
 		}
 		if (dx || dy) {
-			drawer.need_redraw();
+			backend.need_redraw();
 		}
 
 		//writeln("scroll ", x , " " , y , "       " , dx , " " , dy, "    width=",size.width, " height=",size.height, "     ctrl=", ctrl, "    shift=",shift);
 	}
-+/
 }
 
 
@@ -547,11 +588,11 @@ void vertical_grid(BackendInterface backend_interface, CanvasProperties *canvas)
 	//	return;
 	//}
 
-	import std.stdio;
-	backend_interface.set_color(1,0,0);
-	backend_interface.set_line_width(4);
-	backend_interface.vertical_line(canvas.width/2,0,canvas.height);
-	backend_interface.stroke();
+	//import std.stdio;
+	//backend_interface.set_color(1,0,0);
+	//backend_interface.set_line_width(4);
+	//backend_interface.vertical_line(canvas.width/2,0,canvas.height);
+	//backend_interface.stroke();
 
 	for (int i = 0; i < 3; ++i) {
 		double c = 0.7-0.2*i;
@@ -659,3 +700,335 @@ private void horizontal_grid_log(Draw drawer, in Transform t) {
 	} while (log_bottom <= t.getTop);
 }
 +/
+
+void draw_number_label_x(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, string text) {
+	double we, he;
+	backend_interface.text_extent(text, we,he);
+	backend_interface.set_color(0.9,0.9,0.9);
+	backend_interface.rectangle(canvas.transform[0].world2canvas(x)-we/2+1, canvas.transform[1].world2canvas(y)-he, 
+		             canvas.transform[0].world2canvas(x)+we/2+1, canvas.transform[1].world2canvas(y));
+	backend_interface.fill();
+	backend_interface.set_color(0,0,0);
+	backend_interface.text(canvas.transform[0].world2canvas(x)-we/2+1, canvas.transform[1].world2canvas(y), text);
+	backend_interface.stroke();
+}
+void vertical_grid_numbers(BackendInterface backend_interface, CanvasProperties *canvas)
+{
+	//if (t._logx) {
+	//	vertical_grid_numbers_log(drawer, t);
+	//	return;
+	//}
+	import std.math, std.algorithm;
+	import std.stdio;
+	double left  = canvas.transform[0].min;
+	double right = canvas.transform[0].max;
+	double bottom = canvas.transform[1].min;
+	double oom_delta = log(right-left)/log(10.0); // order of magnitude for the dx value
+
+	//writeln("vertical_grid_numbers");
+	next_scaling: foreach (scaling; [0.1,0.2,0.5,1.0,2.0,5.0,10.0]) {
+		double dx = exp(log(10.0)*floor(oom_delta))*scaling;
+		double xmin = dx*floor(left/dx);
+		double xmax = dx* ceil(right/dx);
+		// check if there is any overlap between number labels
+		//writeln("s min max dx   ", scaling, " ", xmin, " ", xmax, " ", dx);
+		double last_text_right = canvas.transform[0].world2canvas(xmin);
+		for(double x=xmin; x<(xmax+dx/2); x+=dx) {
+			import std.conv;
+			double tw, th; // text width and height
+			if (x<dx/2 && x>(-dx/2)) x = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
+			backend_interface.text_extent(x.to!string, tw, th);
+			double text_left = canvas.transform[0].world2canvas(x);
+			double text_right = text_left + tw*1.4;
+			if (last_text_right > text_left) continue next_scaling;
+			last_text_right = text_right;
+		}
+		// no collision was found -> draw the numbers
+		for(double x=xmin; x<(xmax+dx/2); x+=dx) {
+			import std.conv;
+			if (x<dx/2 && x>(-dx/2)) x = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
+			draw_number_label_x(backend_interface, canvas, x,bottom, x.to!string);
+		}
+		break;
+	}
+}
+
+//void vertical_grid_numbers_log(Draw drawer, in Transform t) 
+//{
+//	import std.stdio, std.math, std.conv;
+
+//	double left  = t.getLeft();
+//	double right = t.getRight();
+//	double bottom = t.getBottom();
+
+//	next_scaling: for(double dx=1.0; ;dx+=1.0) {
+//		//writeln("next_scaling ", dx);
+//		double xmin = dx*floor(left/log(10.0)/dx);
+//		double xmax = dx*ceil(right/log(10.0)/dx);
+//		//writeln(xmin, " / ", xmax, " / ", dx);
+//		double last_text_right;
+//		for (double x0=xmin; x0<(xmax+dx/2); x0+=dx) {
+//			double x = x0*log(10.0);
+//			double tw, th; // text width and height
+//			drawer.text_extent(exp(x).to!string, tw, th);
+//			//writeln("=>",exp(x).to!string);
+//			double text_left = t.transform_world2canvas_x(x);
+//			double text_right = text_left + tw*1.2;
+//			if (last_text_right !is double.init && last_text_right > text_left) continue next_scaling;
+//			last_text_right = text_right;
+//		}
+//		for(double x0=xmin; x0<(xmax-dx/2); x0+=dx) {
+//			double x = x0*log(10.0); // log(10^(x0)) = log(exp(x0*log(10)))
+//			draw_number_label_x(drawer,t, x,bottom, exp(x).to!string);
+//			if (dx > 1.5) continue;
+//			double x2 = (x0+dx)*log(10.0);
+//			double tw, th;
+//			drawer.text_extent(exp(x).to!string, tw, th);
+//			last_text_right = t.transform_world2canvas_x(x)+tw*1.4;
+//			double end = t.transform_world2canvas_x(x2);
+
+//			for (int i = 1; i < 10; ++i) {
+//				double xx  = exp(x0*log(10.0));
+//				double xxi = xx*(1.0+i);
+//				double xi = log(xxi);
+//				drawer.text_extent(xxi.to!string, tw,th);
+//				double text_left = t.transform_world2canvas_x(xi);
+//				double text_right = text_left + tw*1.4;
+//				if (last_text_right < text_left && text_right < end) {
+//					draw_number_label_x(drawer, t, xi,bottom, xxi.to!string);
+//					last_text_right = text_right;
+//				} 
+//			}
+//		}
+//		break;
+//	}
+//}
+
+
+void draw_number_label_y(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, string text) {
+	double we, he;
+	backend_interface.text_extent(text, we,he);
+	backend_interface.set_color(0.9,0.9,0.9);
+	backend_interface.rectangle(canvas.transform[0].world2canvas(x)   +1, canvas.transform[1].world2canvas(y)-he/2+1, 
+		                        canvas.transform[0].world2canvas(x)+we+1, canvas.transform[1].world2canvas(y)+he/2+1);
+	backend_interface.fill();
+	backend_interface.set_color(0,0,0);
+	backend_interface.text(canvas.transform[0].world2canvas(x)+1, canvas.transform[1].world2canvas(y)+he/2+1, text);
+	backend_interface.stroke();
+}
+void horizontal_grid_numbers(BackendInterface backend_interface, CanvasProperties *canvas)
+{
+//	if (t._logy) {
+//		horizontal_grid_numbers_log(drawer, t);
+//		return;
+//	}
+	import std.math, std.algorithm;
+	import std.stdio;
+	double bottom = canvas.transform[1].min;
+	double top    = canvas.transform[1].max;
+	double left  = canvas.transform[0].min;
+	double oom_delta = log(top-bottom)/log(10.0); // order of magnitude for the dy value
+
+	next_scaling: foreach (scaling; [0.1,0.2,0.5,1.0,2.0,5.0,10.0]) {
+		double dy = exp(log(10.0)*floor(oom_delta))*scaling;
+		double ymin = dy*floor(bottom/dy);
+		double ymax = dy* ceil(top/dy);
+		// check if there is any overlap between number labels
+		double last_text_top = -canvas.transform[1].world2canvas(ymin);
+		for(double y=ymin; y<(ymax+dy/2); y+=dy) {
+			import std.conv;
+			double tw, th; // text width and height
+			if (y<dy/2 && y>(-dy/2)) y = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
+			backend_interface.text_extent(y.to!string, tw, th);
+			double text_bot = -canvas.transform[1].world2canvas(y);
+			double text_top = text_bot + th*1.4;
+			if (last_text_top > text_bot) continue next_scaling;
+			last_text_top = text_top;
+		}
+		// no collision was found -> draw the numbers
+		for(double y=ymin; y<(ymax+dy/2); y+=dy) {
+			import std.conv;
+			if (y<dy/2 && y>(-dy/2)) y = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
+			draw_number_label_y(backend_interface, canvas, left,y, y.to!string);
+		}
+		break;
+	}
+}
+
+
+//void horizontal_grid_numbers_log(Draw drawer, in Transform t) 
+//{
+//	import std.stdio, std.math, std.conv;
+
+//	double bottom  = t.getBottom();
+//	double top = t.getTop();
+//	double left = t.getLeft();
+
+//	next_scaling: for(double dy=1.0; ;dy+=1.0) {
+//		//writeln("next_scaling ", dy);
+//		double ymin = dy*floor(bottom/log(10.0)/dy);
+//		double ymax = dy*ceil(top/log(10.0)/dy);
+//		//writeln(ymin, " / ", ymax, " / ", dy);
+//		double last_text_top;
+//		for (double y0=ymin; y0<(ymax+dy/2); y0+=dy) {
+//			double y = y0*log(10.0);
+//			double tw, th; // text width and height
+//			drawer.text_extent(exp(y).to!string, tw, th);
+//			//writeln("=>",exp(x).to!string);
+//			double text_bot = -t.transform_world2canvas_y(y);
+//			double text_top = text_bot + th*1.4;
+//			if (last_text_top !is double.init && last_text_top > text_bot) continue next_scaling;
+//			last_text_top = text_top;
+//		}
+//		for(double y0=ymin; y0<(ymax-dy/2); y0+=dy) {
+//			double y = y0*log(10.0); // log(10^(y0)) = log(exp(y0*log(10)))
+//			draw_number_label_y(drawer,t, left,y, exp(y).to!string);
+//			if (dy > 1.5) continue;
+//			double y2 = (y0+dy)*log(10.0);
+//			double tw, th;
+//			drawer.text_extent(exp(y).to!string, tw, th);
+//			last_text_top = -t.transform_world2canvas_y(y)+th*1.4;
+//			double end = -t.transform_world2canvas_y(y2);
+
+//			for (int i = 1; i < 10; ++i) {
+//				double yy  = exp(y0*log(10.0));
+//				double yyi = yy*(1.0+i);
+//				double yi = log(yyi);
+//				drawer.text_extent(yyi.to!string, tw,th);
+//				double text_bot = -t.transform_world2canvas_y(yi);
+//				double text_top = text_bot + th*1.4;
+//				if (last_text_top < text_bot && text_top < end) {
+//					draw_number_label_y(drawer, t, left,yi, yyi.to!string);
+//					last_text_top = text_top;
+//				} 
+//			}
+//		}
+//		break;
+//	}
+//}
+
+//void draw_number_label_z(Draw drawer, in Transform t, double x, double y, double twmax, double thmax, string text) {
+//	double we, he;
+//	drawer.text_extent(text, we,he);
+//	drawer.set_color(0.9,0.9,0.9);
+//	drawer.rectangle(t.transform_world2canvas_x(x)-we-1, t.transform_world2canvas_y(y)-thmax/2+1, 
+//		             t.transform_world2canvas_x(x)-1      , t.transform_world2canvas_y(y)+thmax/2+1);
+//	drawer.fill();
+//	drawer.set_color(0,0,0);
+//	drawer.text(t.transform_world2canvas_x(x)-we-1, t.transform_world2canvas_y(y)+thmax/2+1, text);
+//	drawer.stroke();
+//}
+//void color_grid_numbers(Draw drawer, in Transform t, double color_key_width)
+//{
+//	if (t._logz) {
+//		color_grid_numbers_log(drawer, t, color_key_width);
+//		return;
+//	}
+//	import std.math, std.algorithm;
+//	import std.stdio;
+//	double bottom = t.getBottom();
+//	double top    = t.getTop();
+//	double Zmin   = t.getZmin();
+//	double Zmax   = t.getZmax();
+//	double right  = t.getRight();
+//	double left   = t.getLeft();
+//	double oom_delta = log(Zmax-Zmin)/log(10.0); // order of magnitude for the dy value
+
+//	next_scaling: foreach (scaling; [0.1,0.2,0.5,1.0,2.0,5.0,10.0]) {
+//		double dz = exp(log(10.0)*floor(oom_delta))*scaling;
+//		double zmin = dz*floor(Zmin/dz);
+//		double zmax = dz* ceil(Zmax/dz);
+//		// check if there is any overlap between number labels
+//		double ymin = bottom+(top-bottom)*t.transform_world2canvas_z(zmin);
+//		//double ymax = bottom+(top-bottom)*t.transform_world2canvas_z(zmax);
+//		double last_text_top = -t.transform_world2canvas_y(ymin);
+//		double twmax=0;
+//		double thmax=0;
+//		for(double z=zmin; z<(zmax+dz/2); z+=dz) {
+//			import std.conv;
+//			if (z<dz/2 && z>(-dz/2)) z = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
+//			double tw, th; // text width and height
+//			drawer.text_extent(z.to!string, tw, th);
+//			if (tw > twmax) twmax = tw;
+//			if (th > thmax) thmax = th;
+//			double y = bottom+(top-bottom)*t.transform_world2canvas_z(z);
+//			double text_bot = -t.transform_world2canvas_y(y);
+//			double text_top = text_bot + th*1.4;
+//			if (last_text_top > text_bot) continue next_scaling;
+//			last_text_top = text_top;
+//		}
+//		// no collision was found -> draw the numbers
+//		for(double z=zmin; z<(zmax+dz/2); z+=dz) {
+//			import std.conv;
+//			if (z<dz/2 && z>(-dz/2)) z = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
+//			double y = bottom+(top-bottom)*t.transform_world2canvas_z(z);
+//			draw_number_label_z(drawer,t, right-color_key_width*(right-left),y, twmax, thmax, z.to!string);
+//		}
+//		break;
+//	}
+//}
+
+//void color_grid_numbers_log(Draw drawer, in Transform t, double color_key_width) 
+//{
+//	import std.stdio, std.math, std.conv;
+
+//	double bottom  = t.getBottom();
+//	double top = t.getTop();
+//	double left = t.getLeft();
+//	double right = t.getRight();
+//	double Zmin = t.getZmin();
+//	double Zmax = t.getZmax();
+
+//	next_scaling: for(double dz=1.0; ;dz+=1.0) {
+//		//writeln("next_scaling ", dy);
+//		double zmin = dz*floor(Zmin/log(10.0)/dz);
+//		double zmax = dz*ceil(Zmax/log(10.0)/dz);
+//		//writeln(ymin, " / ", ymax, " / ", dy);
+//		double last_text_top;
+//		double twmax=0;
+//		double thmax=0;
+//		for (double z0=zmin; z0<(zmax+dz/2); z0+=dz) {
+//			double z = z0*log(10.0);
+//			double tw, th; // text width and height
+//			drawer.text_extent(exp(z).to!string, tw, th);
+//			//writeln("=>",exp(x).to!string);
+//			if (tw > twmax) twmax = tw;
+//			if (th > thmax) thmax = th;
+//			double y = bottom+(top-bottom)*t.transform_world2canvas_z(z);
+//			double text_bot = -t.transform_world2canvas_y(y);
+//			double text_top = text_bot + th*1.4;
+//			if (last_text_top !is double.init && last_text_top > text_bot) continue next_scaling;
+//			last_text_top = text_top;
+//		}
+//		for(double z0=zmin; z0<(zmax-dz/2); z0+=dz) {
+//			double z = z0*log(10.0); // log(10^(y0)) = log(exp(y0*log(10)))
+//			double y = bottom+(top-bottom)*t.transform_world2canvas_z(z);
+//			draw_number_label_z(drawer,t, right-color_key_width*(right-left),y, twmax, thmax, exp(z).to!string);
+//			//draw_number_label_y(drawer,t, left,y, exp(y).to!string);
+//			if (dz > 1.5) continue;
+//			double z2 = (z0+dz)*log(10.0);
+//			double y2 = bottom+(top-bottom)*t.transform_world2canvas_z(z2);
+//			double tw, th;
+//			drawer.text_extent(exp(z).to!string, tw, th);
+//			last_text_top = -t.transform_world2canvas_y(y)+th*1.4;
+//			double end = -t.transform_world2canvas_y(y2);
+
+//			for (int i = 1; i < 10; ++i) {
+//				double zz  = exp(z0*log(10.0));
+//				double zzi = zz*(1.0+i);
+//				double zi = log(zzi);
+//				double yi = bottom+(top-bottom)*t.transform_world2canvas_z(zi);
+//				drawer.text_extent(zzi.to!string, tw,th);
+//				double text_bot = -t.transform_world2canvas_y(yi);
+//				double text_top = text_bot + th*1.4;
+//				if (last_text_top < text_bot && text_top < end) {
+//					draw_number_label_z(drawer,t, right-color_key_width*(right-left),yi, twmax, thmax, zzi.to!string);
+//					//draw_number_label_y(drawer, t, left,yi, zzi.to!string);
+//					last_text_top = text_top;
+//				} 
+//			}
+//		}
+//		break;
+//	}
+//}
+

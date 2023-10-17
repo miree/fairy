@@ -30,11 +30,16 @@ struct Transform
 	}
 
 	// for translation and scaling operation
-	double translating_start_canvas;
-	double scaling_start_canvas;
-	double scaling_start_world;
+	double translating_start_canvas = 0.0;
+	double scaling_start_canvas     = 0.0;
+	double scaling_start_world      = 0.0;
 
 public:
+	void translate_one_step(in double canvas_start, in int num_segments, in int canvas_width, in double canvas_step) {
+		translate_start(canvas_start, num_segments, canvas_width);
+		translate_ongoing(canvas_step);
+		translate_finish();
+	}
 	void translate_start(in double canvas_start, in int num_segments, in int canvas_width) {
 		update_coefficients(0, num_segments, canvas_width);
 		translating_start_canvas = canvas_start;
@@ -47,24 +52,25 @@ public:
 		maximum -= delta;
 		delta = 0;
 	}
-	void scale_start(in double canvas_start, in int num_segments, in int canvas_width) {
-		update_coefficients(0, num_segments, canvas_width);
+	void scale_one_step(in double canvas_start, in int num_segments, in int canvas_width, in double canvas_step, in double factor, in bool inverse)
+	{
+		scale_start(canvas_start, num_segments, canvas_width, inverse);
+		scale_ongoing(canvas_start+canvas_step, factor);
+		scale_finish();
+	}
+	void scale_start(in double canvas_start, in int num_segments, in int canvas_width, in bool inverse) {
+		update_coefficients(0, num_segments, canvas_width, inverse);
 		scaling_start_canvas = canvas_start;
 		double reduced_canvas_start = reduce_canvas(canvas_start, num_segments, canvas_width);
 		import std.stdio;
 		//writeln("canvas_start:", canvas_start, " reduced_canvas_start:", reduced_canvas_start);
 		scaling_start_world  = canvas2world(reduced_canvas_start);
 	}
-	void scale_ongoing(in double canvas_current) {
+	void scale_ongoing(in double canvas_current, in double factor) {
 		double scale_distance = canvas_current - scaling_start_canvas;
-		import std.stdio;
-		//writeln("scale_distance:", scale_distance);
-		scale = std.math.exp(scale_distance/100.0);
-		//writeln("scale:", scale, " start_world:", scaling.start_world);
+		scale = std.math.exp(scale_distance*factor);
 		double new_minimum = scaling_start_world - scale*(scaling_start_world-minimum);
-		//writeln("new_minimum:", new_minimum);
 		delta = minimum - new_minimum;
-		//writeln("delta:",delta);
 	}
 	void scale_finish() {
 		double w = width;
@@ -161,6 +167,7 @@ unittest {
 
 	lt.set_minmax(-1,1);
 	int canvas_start, canvas_stop;
+	double factor;
 	lt.translate_start(canvas_start=0, num_segments=1, canvas_width=100);
 	lt.translate_ongoing(canvas_stop=100);
 	//writeln(lt.min, " ", lt.max);
@@ -170,8 +177,8 @@ unittest {
 	assert(lt.min == -3 && lt.max == -1);
 
 	// caling around left edge (= -3 in world coordinates) of canvas must not change lt.min
-	lt.scale_start(canvas_start=0, num_segments=1, canvas_width=100);
-	lt.scale_ongoing(canvas_stop=10);
+	lt.scale_start(canvas_start=0, num_segments=1, canvas_width=100, inverse=false);
+	lt.scale_ongoing(canvas_stop=10, factor=0.01);
 	writeln(lt.min, " ", lt.max);
 	assert(lt.min == -3);
 	lt.scale_finish();
@@ -180,38 +187,53 @@ unittest {
 
 
 	lt.set_minmax(-1,1);
-	lt.scale_start(canvas_start=100, num_segments=1, canvas_width=100);
-	lt.scale_ongoing(canvas_stop=90);
+	lt.scale_start(canvas_start=100, num_segments=1, canvas_width=100, inverse=false);
+	lt.scale_ongoing(canvas_stop=90, factor=0.01);
 	lt.scale_finish();
 	assert(lt.max == 1);
 
 	lt.set_minmax(-1,1);
-	lt.scale_start(canvas_start=50, num_segments=1, canvas_width=100);
-	lt.scale_ongoing(canvas_stop=90);
+	lt.scale_start(canvas_start=100, num_segments=1, canvas_width=100, inverse=true);
+	lt.scale_ongoing(canvas_stop=90, factor=0.01);
+	lt.scale_finish();
+	writeln("lt.min,lt.max = ", lt.min,",",lt.max);
+	assert(lt.min == -1);
+
+	lt.set_minmax(-1,1);
+	lt.scale_start(canvas_start=0, num_segments=1, canvas_width=100, inverse=true);
+	lt.scale_ongoing(canvas_stop=90, factor=0.01);
+	lt.scale_finish();
+	writeln("lt.min,lt.max = ", lt.min,",",lt.max);
+	assert(lt.max == 1);
+
+
+	lt.set_minmax(-1,1);
+	lt.scale_start(canvas_start=50, num_segments=1, canvas_width=100, inverse=false);
+	lt.scale_ongoing(canvas_stop=90, factor=0.01);
 	lt.scale_finish();
 	assert(lt.max+lt.min == 0);
 
 
 	lt.set_minmax(-1,1);
 	lt.update_coefficients(segment=1, num_segments=3,canvas_width=120);
-	lt.scale_start(canvas_start=60, num_segments=3, canvas_width=120);
-	lt.scale_ongoing(canvas_stop=90);
+	lt.scale_start(canvas_start=60, num_segments=3, canvas_width=120, inverse=false);
+	lt.scale_ongoing(canvas_stop=90, factor=0.01);
 	lt.scale_finish();
 	assert(lt.max+lt.min == 0);
 
 
 	lt.set_minmax(-1,1);
 	lt.update_coefficients(segment=1, num_segments=3,canvas_width=120, inverse=true);
-	lt.scale_start(canvas_start=60, num_segments=3, canvas_width=120);
-	lt.scale_ongoing(canvas_stop=90);
+	lt.scale_start(canvas_start=60, num_segments=3, canvas_width=120, inverse=true);
+	lt.scale_ongoing(canvas_stop=90, factor=0.01);
 	lt.scale_finish();
 	assert(lt.max+lt.min == 0);
-	lt.scale_start(canvas_start=20, num_segments=3, canvas_width=120);
-	lt.scale_ongoing(canvas_stop=30);
+	lt.scale_start(canvas_start=20, num_segments=3, canvas_width=120, inverse=false);
+	lt.scale_ongoing(canvas_stop=30, factor=0.01);
 	lt.scale_finish();
 	assert(lt.max+lt.min == 0);
-	lt.scale_start(canvas_start=100, num_segments=3, canvas_width=120);
-	lt.scale_ongoing(canvas_stop=50);
+	lt.scale_start(canvas_start=100, num_segments=3, canvas_width=120, inverse=false);
+	lt.scale_ongoing(canvas_stop=50, factor=0.01);
 	lt.scale_finish();
 	assert(lt.max+lt.min == 0);
 
