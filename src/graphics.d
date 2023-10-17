@@ -432,6 +432,7 @@ struct CanvasPainter {
 		//}		
 
 		backend.finish();
+		backend.need_redraw();
 
 	}
 

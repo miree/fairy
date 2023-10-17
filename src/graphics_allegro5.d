@@ -81,11 +81,9 @@ void gui_loop() {
 				//	import ui;
 				//	refresh(window.name);
 				//}
-				if (window.redraw_scheduled/+ && window.time_since_last_redraw.peek() > msecs(20)+/) {
+				if (window.redraw_scheduled && window.time_since_last_redraw.peek() > msecs(20)) {
 					window.initialize();
 					window.draw();
-					//window.time_since_last_redraw.reset();
-					//window.draw();
 				}
 			}
 		}
@@ -161,7 +159,7 @@ private:
 
 public:
 	import graphics;
-	this (string canvas_name, CanvasProperties *canvas_pointer) {
+	this(string canvas_name, CanvasProperties *canvas_pointer) {
 		canvas = canvas_pointer;
 		painter = CanvasPainter(canvas_pointer, this);
 		name = canvas_name;
@@ -187,7 +185,10 @@ public:
 
 		main_windows[display] = this;
 		al_register_event_source(queue, al_get_display_event_source(display));
+
 		draw();
+
+		time_since_last_redraw.start();
 	}
 
 	void need_redraw() {
@@ -196,37 +197,8 @@ public:
 
 	void draw() {
 		al_set_target_bitmap(al_get_backbuffer(display));
-
-		//color.r = 0.9;
-		//color.g = 0.9;
-		//color.b = 0.9;
-		//color.a = 1;
-		//al_clear_to_color(color);
-
-		//color.r = 0;
-		//color.g = 0;
-		//color.b = 0;
-		//color.a = 1;
-		//text(canvas.width/2,canvas.height/2,"hallo");
-
 		painter.draw_content();
-		//canvas.transform[0].update_coefficients(0,1,canvas.width);
-		//canvas.transform[1].update_coefficients(0,1,canvas.height);
-		//vertical_grid(this, canvas);
-		//horizontal_grid(this, canvas);
-
-		//color.r = 1;
-		//color.g = 0;
-		//color.b = 0;
-		//color.a = 1;
-		//set_line_width(4);
-		////al_draw_line(0,0,canvas.width,canvas.height, color, 4);
-
-		//line(0,0,canvas.width,canvas.height);
-		//line(0,canvas.height,canvas.width,0);
-		//stroke();
-
-		al_flip_display();
+		time_since_last_redraw.reset();
 		redraw_scheduled = false;
 	}
 
