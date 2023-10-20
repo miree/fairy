@@ -73,6 +73,24 @@ void gui_loop() {
 			auto window = MainWindow.main_windows[event.display.source];
 			window.need_redraw();
 		} 
+		else if (event.type == ALLEGRO_EVENT_KEY_DOWN) {
+			//import std.stdio;
+			//writeln("KEY_DOWN", event.keyboard.keycode, " ", cast(char)event.keyboard.keycode);
+
+			auto window = MainWindow.main_windows[event.keyboard.display];
+			int key = event.keyboard.keycode;
+			//window.keypress(key);
+			if (key == ALLEGRO_KEY_SPACE) window.space_pressed = true;
+			window.need_redraw();
+		}
+		else if (event.type == ALLEGRO_EVENT_KEY_UP) {
+			//import std.stdio;
+			//writeln("KEY_UP", event.keyboard.keycode, " ", cast(char)event.keyboard.keycode);
+			auto window = MainWindow.main_windows[event.keyboard.display];
+			int key = event.keyboard.keycode;
+			if (key == ALLEGRO_KEY_SPACE) window.space_pressed = false;
+			window.need_redraw();
+		}
 		else if (event.type == ALLEGRO_EVENT_TIMER) 
 		{
 			foreach(display, window; MainWindow.main_windows) {
@@ -394,20 +412,22 @@ public:
 		need_redraw();
 	}
 
+	immutable text_margin_x = 1;
+	immutable text_margin_y = 3;
 	override void text_extent(string str, out double w, out double h) {
 		import std.string;
 		int xi, yi, wi, hi;
 		al_get_text_dimensions(font, str.toStringz, &xi, &yi, &wi, &hi);
 		//x=xi;
 		//y=yi;
-		w=wi;
-		h=hi;
+		w=wi+2*text_margin_x;
+		h=hi+2*text_margin_y;
 	}
 	override void text(double x, double y, string str) {
 		import std.string;
 		int xi, yi, wi, hi;
 		al_get_text_dimensions(font, str.toStringz, &xi, &yi, &wi, &hi);
-		al_draw_text(font, color, x, y-yi-hi-2, ALLEGRO_ALIGN_LEFT, str.toStringz); 
+		al_draw_text(font, color, x+text_margin_x, y-yi-hi-text_margin_y, ALLEGRO_ALIGN_LEFT, str.toStringz); 
 	}
 	import std.datetime.stopwatch;
 	StopWatch time_since_last_redraw;

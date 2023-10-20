@@ -169,8 +169,10 @@ struct CanvasPainter {
 	double current_selection_x;
 	double current_selection_y;
 
-	bool translating_ongoing = false;
-	bool scaling_ongoing     = false;
+	bool translating_ongoing   = false;
+	bool scaling_ongoing       = false;
+	bool z_translating_ongoing = false;
+	bool z_scaling_ongoing     = false;
 
 
 	this(CanvasProperties *c, BackendInterface b) {
@@ -210,6 +212,50 @@ struct CanvasPainter {
 	void draw_grid_numbers() {
 		if (canvas.numbers[0]) vertical_grid_numbers(backend, canvas);
 		if (canvas.numbers[1]) horizontal_grid_numbers(backend, canvas);			
+	}
+
+	static void get_rgb(double c, out uint rgb) {
+		// grayscale
+		//uint i = cast(uint)(255*c);
+		//rgb = 0xff000000 | (i<<16) | (i<<8) | (i<<0);
+
+		// bluish color
+		rgb = 0xff000000;
+		if (c>1.0) c = 1.0;
+		if (c<0.0) c = 0.0;
+		c *= 3;
+		if (c < 1.0) { // back to blue
+			rgb |= cast(uint)(0xff*c);
+			return;
+		}
+		rgb = 0xff0000ff;
+		if (c < 2.0)  { // blue to lightblue
+			c -= 1.0; 
+			rgb |=  (cast(uint)(0x0000ff00*c) & 0x0000ff00) ; 
+			return;
+		}
+		rgb = 0xff00ffff; // lightblue to white
+		c -= 2.0;
+		rgb |= cast(uint)(0xff*c)<<16;
+	}
+
+	void draw_colorkey() {
+		long N=50;
+		foreach(i;0..N) {
+			double x1 = canvas.transform[0].world2canvas(canvas.transform[0].min+(canvas.transform[0].max-canvas.transform[0].min)*(1.0-canvas.color_key_width));
+			double x2 = canvas.transform[0].world2canvas(canvas.transform[0].max);
+			double y1 = canvas.transform[1].world2canvas(canvas.transform[1].min+(canvas.transform[1].max-canvas.transform[1].min)*(i+0)/N);
+			double y2 = canvas.transform[1].world2canvas(canvas.transform[1].min+(canvas.transform[1].max-canvas.transform[1].min)*(i+1)/N);
+			uint rgb;
+			double c = 1.0*i/N;
+			get_rgb(c,rgb);
+			rgb &= 0x00ffffff;
+			backend.set_color((rgb>>16)/255.0,((rgb&0xffff)>>8)/255.0,((rgb&0xff)/255.0));
+			backend.set_line_width(2);
+			backend.rectangle(x1,y1, x2,y2-1);
+			backend.fill();	
+
+		}
 	}
 
 	//void fit_content_x() {
@@ -305,6 +351,7 @@ struct CanvasPainter {
 
 			canvas.transform[0].update_coefficients(0, 1, canvas.width);
 			canvas.transform[1].update_coefficients(0, 1, canvas.height, backend.inverted_y_direction);
+			canvas.transform[2].update_coefficients(0, 1, 1);
 			grid_transforms.length = 1;
 			grid_transforms[0] = canvas.transform;
 			import std.stdio;
@@ -318,12 +365,12 @@ struct CanvasPainter {
 		//	}
 			if (canvas.grid_ontop)    draw_grid();
 			if (canvas.numbers_ontop) draw_grid_numbers();
-			draw_grid_numbers();
+			//draw_grid_numbers();
 
-		//	if (draw_color_bar) {
-		//		draw_colorkey(drawer, transform, color_key_width);
-		//		color_grid_numbers(drawer, transform, color_key_width);
-		//	}	
+			if (canvas.color_bar) {
+				draw_colorkey();
+				color_grid_numbers(backend, canvas, canvas.color_key_width);
+			}	
 
 		//	//if (dim == 2) {
 		//	//	draw_colorkey(drawer, transform, color_key_width);
@@ -331,44 +378,37 @@ struct CanvasPainter {
 
 			if (draw_selection_box) draw_selection_box_helper();
 
-		} 
-		//else { 
-		//	// grid mode
-		//	// find number of rows and columns
-		//	int rows = columns_or_rows;
-		//	int columns = 1;
-		//	while (columns*rows < visualizers.length) { 
-		//		++columns; 
-		//	}
-		//	if (row_major) {
-		//		import std.algorithm;
-		//		swap(columns, rows);
-		//	}
+		} else { 
+			// grid mode
+			// find number of rows and columns
+			int rows    = canvas.rows;
+			int columns = canvas.columns;
 
 
-		//	//backend.set_color(0.2,0.2,0.2);
-		//	//backend.set_line_width(2);
-		//	//foreach(row;    1..rows) {
-		//	//	backend.horizontal_line(row*(height-1)/rows,0,width);
-		//	//	backend.stroke();
-		//	//}
-		//	//foreach(column; 1..columns) {
-		//	//	backend.vertical_line(column*(width-1)/columns,0,height);
-		//	//	backend.stroke();
-		//	//}
+			//backend.set_color(0.2,0.2,0.2);
+			//backend.set_line_width(2);
+			//foreach(row;    1..rows) {
+			//	backend.horizontal_line(row*(height-1)/rows,0,width);
+			//	backend.stroke();
+			//}
+			//foreach(column; 1..columns) {
+			//	backend.vertical_line(column*(width-1)/columns,0,height);
+			//	backend.stroke();
+			//}
 
-		//	transform.setRowsColumns(rows, columns);
+			//transform.setRowsColumns(rows, columns);
 
-		//	grid_transforms.length = rows*columns;
-		//	grid_transforms[0] = transform;
+			grid_transforms.length = rows*columns;
+			grid_transforms[0] = canvas.transform;
 
-		//	foreach(row; 0..rows) {
-		//		foreach(column; 0..columns) {
+			foreach(row; 0..rows) {
+				foreach(column; 0..columns) {
 
-		//			uint idx = column * rows + row;
-		//			if (row_major) {
-		//				idx = row * columns + column;
-		//			}
+
+					uint idx = column * rows + row;
+					if (canvas.display_mode == DisplayMode.columns) {
+						idx = row * columns + column;
+					}
 
 		//			transform._content_idx = -1;
 		//			if (idx < visualizers.length) {
@@ -393,11 +433,26 @@ struct CanvasPainter {
 		//				}
 		//			}
 
-		//			transform.update_coefficients(row, column, width, height);
-		//			grid_transforms[idx] = transform;
 
-		//			backend.set_clip(     column *width/columns,      row *height/rows, 
-		//				            (1.0+column)*width/columns, (1.0+row)*height/rows);
+					canvas.transform[0].update_coefficients(column, columns, canvas.width);
+					canvas.transform[1].update_coefficients(row,    rows,    canvas.height , backend.inverted_y_direction);
+					canvas.transform[2].update_coefficients(0, 1, 1);
+					grid_transforms[idx] = canvas.transform;
+					double x1 =      column  * cast(double)canvas.width  / columns;
+					double y1 =         row  * cast(double)canvas.height / rows;
+					double x2 = (1.0+column) * cast(double)canvas.width  / columns;
+					double y2 = (1.0+   row) * cast(double)canvas.height / rows;
+					backend.set_clip(x1,y1, x2,y2);
+
+
+					if (!canvas.grid_ontop)    draw_grid();
+					if (!canvas.numbers_ontop) draw_grid_numbers();
+
+
+					backend.set_color(1,0,0);
+					backend.rectangle( canvas.transform[0].world2canvas(-1),  canvas.transform[1].world2canvas(-1), 
+					                   canvas.transform[0].world2canvas( 1),  canvas.transform[1].world2canvas( 1)  );
+					backend.fill();
 
 		//			if (!draw_grid_ontop) draw_grid();
 		//			if (!draw_nums_ontop) draw_grid_numbers();
@@ -408,28 +463,36 @@ struct CanvasPainter {
 		//			if (draw_nums_ontop) draw_grid_numbers();
 		//			//draw_grid_numbers();
 
+					if (canvas.grid_ontop)    draw_grid();
+					if (canvas.numbers_ontop) draw_grid_numbers();
+
+					if (canvas.color_bar) {
+						draw_colorkey();
+						color_grid_numbers(backend, canvas, canvas.color_key_width);
+					}	
+
 		//			if (draw_color_bar) {
 		//				draw_colorkey(drawer, transform, color_key_width);
 		//				color_grid_numbers(drawer, transform, color_key_width);
 		//			}	
 
 		//			if (draw_selection_box) draw_selection_box_helper();
-		//		}
-		//	}
+				}
+			}
 
-		//	backend.set_clip(0,0,width,height);
-		//	backend.set_color(0.2,0.2,0.2);
-		//	backend.set_line_width(2);
-		//	foreach(row;    1..rows) {
-		//		backend.horizontal_line(row*(height-1)/rows,0,width);
-		//		backend.stroke();
-		//	}
-		//	foreach(column; 1..columns) {
-		//		backend.vertical_line(column*(width-1)/columns,0,height);
-		//		backend.stroke();
-		//	}
+			backend.set_clip(0,0,canvas.width,canvas.height);
+			backend.set_color(0.2,0.2,0.2);
+			backend.set_line_width(2);
+			foreach(row;    1..rows) {
+				backend.horizontal_line(row*(canvas.height-1)/rows,0,canvas.width);
+				backend.stroke();
+			}
+			foreach(column; 1..columns) {
+				backend.vertical_line(column*(canvas.width-1)/columns,0,canvas.height);
+				backend.stroke();
+			}
 
-		//}		
+		}		
 
 		backend.finish();
 		backend.need_redraw();
@@ -441,13 +504,13 @@ struct CanvasPainter {
 		mouse_pos_y = y;
 
 		//import std.stdio;
-		//writeln("motion ", x, " ", y);
+		//write("motion ", x, " ", y, "  "); 
 		// determine mouse position and update the mouse_pos label
 		foreach( idx, transform ; grid_transforms) {
 			import std.math;
-			double x_world = canvas.transform[0].canvas2world(x);
-			double y_world = canvas.transform[1].canvas2world(y);
-			double z_world = canvas.transform[2].canvas2world((y_world - transform[1].min)/transform[1].width);
+			double x_world = transform[0].canvas2world(x);
+			double y_world = transform[1].canvas2world(y);
+			double z_world = transform[2].canvas2world((y_world - transform[1].min)/transform[1].width);
 
 			if (x_world > canvas.transform[0].min && x_world < canvas.transform[0].max &&
 				y_world > canvas.transform[1].min && y_world < canvas.transform[1].max) {
@@ -697,12 +760,21 @@ private void horizontal_grid_log(BackendInterface backend_interface, CanvasPrope
 void draw_number_label_x(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, string text) {
 	double we, he;
 	backend_interface.text_extent(text, we,he);
-	backend_interface.set_color(0.9,0.9,0.9);
-	backend_interface.rectangle(canvas.transform[0].world2canvas(x)-we/2+1, canvas.transform[1].world2canvas(y)-he, 
-		             canvas.transform[0].world2canvas(x)+we/2+1, canvas.transform[1].world2canvas(y));
-	backend_interface.fill();
+	double bg_color = 0.9;
+	backend_interface.set_color(bg_color, bg_color, bg_color);
+	//backend_interface.set_color(0.9,0.9,0.9);
+	//backend_interface.rectangle(canvas.transform[0].world2canvas(x)-we/2, canvas.transform[1].world2canvas(y)-he, 
+	//                            canvas.transform[0].world2canvas(x)+we/2, canvas.transform[1].world2canvas(y));
+	//backend_interface.fill();
+	double xpos = canvas.transform[0].world2canvas(x)-we/2;
+	double ypos = canvas.transform[1].world2canvas(y);
+	backend_interface.text(xpos-1, ypos-1, text);
+	backend_interface.text(xpos-1, ypos+1, text);
+	backend_interface.text(xpos+1, ypos-1, text);
+	backend_interface.text(xpos+1, ypos+1, text);
+	backend_interface.stroke();
 	backend_interface.set_color(0,0,0);
-	backend_interface.text(canvas.transform[0].world2canvas(x)-we/2+1, canvas.transform[1].world2canvas(y), text);
+	backend_interface.text(xpos, ypos, text);
 	backend_interface.stroke();
 }
 void vertical_grid_numbers(BackendInterface backend_interface, CanvasProperties *canvas)
@@ -804,11 +876,18 @@ void draw_number_label_y(BackendInterface backend_interface, CanvasProperties *c
 	double we, he;
 	backend_interface.text_extent(text, we,he);
 	backend_interface.set_color(0.9,0.9,0.9);
-	backend_interface.rectangle(canvas.transform[0].world2canvas(x)   +1, canvas.transform[1].world2canvas(y)-he/2+1, 
-		                        canvas.transform[0].world2canvas(x)+we+1, canvas.transform[1].world2canvas(y)+he/2+1);
-	backend_interface.fill();
+	//backend_interface.rectangle(canvas.transform[0].world2canvas(x)   , canvas.transform[1].world2canvas(y)-he/2, 
+	//	                        canvas.transform[0].world2canvas(x)+we, canvas.transform[1].world2canvas(y)+he/2);
+	//backend_interface.fill();
+	double xpos = canvas.transform[0].world2canvas(x);
+	double ypos = canvas.transform[1].world2canvas(y)+he/2;
+	backend_interface.text(xpos-1, ypos-1, text);
+	backend_interface.text(xpos-1, ypos+1, text);
+	backend_interface.text(xpos+1, ypos-1, text);
+	backend_interface.text(xpos+1, ypos+1, text);
+	backend_interface.stroke();
 	backend_interface.set_color(0,0,0);
-	backend_interface.text(canvas.transform[0].world2canvas(x)+1, canvas.transform[1].world2canvas(y)+he/2+1, text);
+	backend_interface.text(xpos, ypos, text);
 	backend_interface.stroke();
 }
 void horizontal_grid_numbers(BackendInterface backend_interface, CanvasProperties *canvas)
@@ -902,128 +981,128 @@ void horizontal_grid_numbers_log(BackendInterface backend_interface, CanvasPrope
 	}
 }
 
-//void draw_number_label_z(Draw drawer, in Transform t, double x, double y, double twmax, double thmax, string text) {
-//	double we, he;
-//	drawer.text_extent(text, we,he);
-//	drawer.set_color(0.9,0.9,0.9);
-//	drawer.rectangle(t.transform_world2canvas_x(x)-we-1, t.transform_world2canvas_y(y)-thmax/2+1, 
-//		             t.transform_world2canvas_x(x)-1      , t.transform_world2canvas_y(y)+thmax/2+1);
-//	drawer.fill();
-//	drawer.set_color(0,0,0);
-//	drawer.text(t.transform_world2canvas_x(x)-we-1, t.transform_world2canvas_y(y)+thmax/2+1, text);
-//	drawer.stroke();
-//}
-//void color_grid_numbers(Draw drawer, in Transform t, double color_key_width)
-//{
-//	if (t._logz) {
-//		color_grid_numbers_log(drawer, t, color_key_width);
-//		return;
-//	}
-//	import std.math, std.algorithm;
-//	import std.stdio;
-//	double bottom = t.getBottom();
-//	double top    = t.getTop();
-//	double Zmin   = t.getZmin();
-//	double Zmax   = t.getZmax();
-//	double right  = t.getRight();
-//	double left   = t.getLeft();
-//	double oom_delta = log(Zmax-Zmin)/log(10.0); // order of magnitude for the dy value
+void draw_number_label_z(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, double twmax, double thmax, string text) {
+	double we, he;
+	backend_interface.text_extent(text, we,he);
+	backend_interface.set_color(0.9,0.9,0.9);
+	backend_interface.rectangle(canvas.transform[0].world2canvas(x)-we-1, canvas.transform[1].world2canvas(y)-thmax/2+1, 
+		             canvas.transform[0].world2canvas(x)-1      , canvas.transform[1].world2canvas(y)+thmax/2+1);
+	backend_interface.fill();
+	backend_interface.set_color(0,0,0);
+	backend_interface.text(canvas.transform[0].world2canvas(x)-we-1, canvas.transform[1].world2canvas(y)+thmax/2+1, text);
+	backend_interface.stroke();
+}
+void color_grid_numbers(BackendInterface backend_interface, CanvasProperties *canvas, double color_key_width)
+{
+	if (canvas.transform[2].logscale) {
+		color_grid_numbers_log(backend_interface, canvas, color_key_width);
+		return;
+	}
+	import std.math, std.algorithm;
+	import std.stdio;
+	double left   = canvas.transform[0].min;
+	double right  = canvas.transform[0].max;
+	double bottom = canvas.transform[1].min;
+	double top    = canvas.transform[1].max;
+	double Zmin   = canvas.transform[2].min;
+	double Zmax   = canvas.transform[2].max;
+	double oom_delta = log(Zmax-Zmin)/log(10.0); // order of magnitude for the dy value
 
-//	next_scaling: foreach (scaling; [0.1,0.2,0.5,1.0,2.0,5.0,10.0]) {
-//		double dz = exp(log(10.0)*floor(oom_delta))*scaling;
-//		double zmin = dz*floor(Zmin/dz);
-//		double zmax = dz* ceil(Zmax/dz);
-//		// check if there is any overlap between number labels
-//		double ymin = bottom+(top-bottom)*t.transform_world2canvas_z(zmin);
-//		//double ymax = bottom+(top-bottom)*t.transform_world2canvas_z(zmax);
-//		double last_text_top = -t.transform_world2canvas_y(ymin);
-//		double twmax=0;
-//		double thmax=0;
-//		for(double z=zmin; z<(zmax+dz/2); z+=dz) {
-//			import std.conv;
-//			if (z<dz/2 && z>(-dz/2)) z = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
-//			double tw, th; // text width and height
-//			drawer.text_extent(z.to!string, tw, th);
-//			if (tw > twmax) twmax = tw;
-//			if (th > thmax) thmax = th;
-//			double y = bottom+(top-bottom)*t.transform_world2canvas_z(z);
-//			double text_bot = -t.transform_world2canvas_y(y);
-//			double text_top = text_bot + th*1.4;
-//			if (last_text_top > text_bot) continue next_scaling;
-//			last_text_top = text_top;
-//		}
-//		// no collision was found -> draw the numbers
-//		for(double z=zmin; z<(zmax+dz/2); z+=dz) {
-//			import std.conv;
-//			if (z<dz/2 && z>(-dz/2)) z = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
-//			double y = bottom+(top-bottom)*t.transform_world2canvas_z(z);
-//			draw_number_label_z(drawer,t, right-color_key_width*(right-left),y, twmax, thmax, z.to!string);
-//		}
-//		break;
-//	}
-//}
+	//writeln("zmin,zmax ", Zmin, ",", Zmax);
+	next_scaling: foreach (scaling; [0.1,0.2,0.5,1.0,2.0,5.0,10.0]) {
+		double dz = exp(log(10.0)*floor(oom_delta))*scaling;
+		double zmin = dz*floor(Zmin/dz);
+		double zmax = dz* ceil(Zmax/dz);
+		// check if there is any overlap between number labels
+		double ymin = bottom+(top-bottom)*canvas.transform[2].world2canvas(zmin);
+		//double ymax = bottom+(top-bottom)*canvas.transform[].world2canvas(zmax);
+		double last_text_top = -canvas.transform[1].world2canvas(ymin);
+		double twmax=0;
+		double thmax=0;
+		for(double z=zmin; z<(zmax+dz/2); z+=dz) {
 
-//void color_grid_numbers_log(Draw drawer, in Transform t, double color_key_width) 
-//{
-//	import std.stdio, std.math, std.conv;
+			import std.conv;
+			if (z<dz/2 && z>(-dz/2)) z = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
+			double tw, th; // text width and height
+			backend_interface.text_extent(z.to!string, tw, th);
+			if (tw > twmax) twmax = tw;
+			if (th > thmax) thmax = th;
+			double y = bottom+(top-bottom)*canvas.transform[2].world2canvas(z);
+			double text_bot = -canvas.transform[1].world2canvas(y);
+			double text_top = text_bot + th*1.4;
+			if (last_text_top > text_bot) continue next_scaling;
+			last_text_top = text_top;
+		}
+		// no collision was found -> draw the numbers
+		for(double z=zmin; z<(zmax+dz/2); z+=dz) {
+			import std.conv;
+			if (z<dz/2 && z>(-dz/2)) z = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
+			double y = bottom+(top-bottom)*canvas.transform[2].world2canvas(z);
+			draw_number_label_z(backend_interface, canvas, right-color_key_width*(right-left),y, twmax, thmax, z.to!string);
+		}
+		break;
+	}
+}
 
-//	double bottom  = t.getBottom();
-//	double top = t.getTop();
-//	double left = t.getLeft();
-//	double right = t.getRight();
-//	double Zmin = t.getZmin();
-//	double Zmax = t.getZmax();
+void color_grid_numbers_log(BackendInterface backend_interface, CanvasProperties *canvas, double color_key_width) 
+{
+	import std.stdio, std.math, std.conv;
 
-//	next_scaling: for(double dz=1.0; ;dz+=1.0) {
-//		//writeln("next_scaling ", dy);
-//		double zmin = dz*floor(Zmin/log(10.0)/dz);
-//		double zmax = dz*ceil(Zmax/log(10.0)/dz);
-//		//writeln(ymin, " / ", ymax, " / ", dy);
-//		double last_text_top;
-//		double twmax=0;
-//		double thmax=0;
-//		for (double z0=zmin; z0<(zmax+dz/2); z0+=dz) {
-//			double z = z0*log(10.0);
-//			double tw, th; // text width and height
-//			drawer.text_extent(exp(z).to!string, tw, th);
-//			//writeln("=>",exp(x).to!string);
-//			if (tw > twmax) twmax = tw;
-//			if (th > thmax) thmax = th;
-//			double y = bottom+(top-bottom)*t.transform_world2canvas_z(z);
-//			double text_bot = -t.transform_world2canvas_y(y);
-//			double text_top = text_bot + th*1.4;
-//			if (last_text_top !is double.init && last_text_top > text_bot) continue next_scaling;
-//			last_text_top = text_top;
-//		}
-//		for(double z0=zmin; z0<(zmax-dz/2); z0+=dz) {
-//			double z = z0*log(10.0); // log(10^(y0)) = log(exp(y0*log(10)))
-//			double y = bottom+(top-bottom)*t.transform_world2canvas_z(z);
-//			draw_number_label_z(drawer,t, right-color_key_width*(right-left),y, twmax, thmax, exp(z).to!string);
-//			//draw_number_label_y(drawer,t, left,y, exp(y).to!string);
-//			if (dz > 1.5) continue;
-//			double z2 = (z0+dz)*log(10.0);
-//			double y2 = bottom+(top-bottom)*t.transform_world2canvas_z(z2);
-//			double tw, th;
-//			drawer.text_extent(exp(z).to!string, tw, th);
-//			last_text_top = -t.transform_world2canvas_y(y)+th*1.4;
-//			double end = -t.transform_world2canvas_y(y2);
+	double left   = canvas.transform[0].min;
+	double right  = canvas.transform[0].max;
+	double bottom = canvas.transform[1].min;
+	double top    = canvas.transform[1].max;
+	double Zmin   = canvas.transform[2].min;
+	double Zmax   = canvas.transform[2].max;
 
-//			for (int i = 1; i < 10; ++i) {
-//				double zz  = exp(z0*log(10.0));
-//				double zzi = zz*(1.0+i);
-//				double zi = log(zzi);
-//				double yi = bottom+(top-bottom)*t.transform_world2canvas_z(zi);
-//				drawer.text_extent(zzi.to!string, tw,th);
-//				double text_bot = -t.transform_world2canvas_y(yi);
-//				double text_top = text_bot + th*1.4;
-//				if (last_text_top < text_bot && text_top < end) {
-//					draw_number_label_z(drawer,t, right-color_key_width*(right-left),yi, twmax, thmax, zzi.to!string);
-//					//draw_number_label_y(drawer, t, left,yi, zzi.to!string);
-//					last_text_top = text_top;
-//				} 
-//			}
-//		}
-//		break;
-//	}
-//}
+	next_scaling: for(double dz=1.0; ;dz+=1.0) {
+		//writeln("next_scaling ", dy);
+		double zmin = dz*floor(Zmin/log(10.0)/dz);
+		double zmax = dz*ceil(Zmax/log(10.0)/dz);
+		//writeln(ymin, " / ", ymax, " / ", dy);
+		double last_text_top;
+		double twmax=0;
+		double thmax=0;
+		for (double z0=zmin; z0<(zmax+dz/2); z0+=dz) {
+			double z = z0*log(10.0);
+			double tw, th; // text width and height
+			backend_interface.text_extent(exp(z).to!string, tw, th);
+			//writeln("=>",exp(x).to!string);
+			if (tw > twmax) twmax = tw;
+			if (th > thmax) thmax = th;
+			double y = bottom+(top-bottom)*canvas.transform[2].world2canvas(z);
+			double text_bot = -canvas.transform[1].world2canvas(y);
+			double text_top = text_bot + th*1.4;
+			if (last_text_top !is double.init && last_text_top > text_bot) continue next_scaling;
+			last_text_top = text_top;
+		}
+		for(double z0=zmin; z0<(zmax-dz/2); z0+=dz) {
+			double z = z0*log(10.0); // log(10^(y0)) = log(exp(y0*log(10)))
+			double y = bottom+(top-bottom)*canvas.transform[2].world2canvas(z);
+			draw_number_label_z(backend_interface, canvas, right-color_key_width*(right-left),y, twmax, thmax, exp(z).to!string);
+			if (dz > 1.5) continue;
+			double z2 = (z0+dz)*log(10.0);
+			double y2 = bottom+(top-bottom)*canvas.transform[2].world2canvas(z2);
+			double tw, th;
+			backend_interface.text_extent(exp(z).to!string, tw, th);
+			last_text_top = -canvas.transform[1].world2canvas(y)+th*1.4;
+			double end = -canvas.transform[1].world2canvas(y2);
+
+			for (int i = 1; i < 10; ++i) {
+				double zz  = exp(z0*log(10.0));
+				double zzi = zz*(1.0+i);
+				double zi = log(zzi);
+				double yi = bottom+(top-bottom)*canvas.transform[2].world2canvas(zi);
+				backend_interface.text_extent(zzi.to!string, tw,th);
+				double text_bot = -canvas.transform[1].world2canvas(yi);
+				double text_top = text_bot + th*1.4;
+				if (last_text_top < text_bot && text_top < end) {
+					draw_number_label_z(backend_interface, canvas, right-color_key_width*(right-left),yi, twmax, thmax, zzi.to!string);
+					last_text_top = text_top;
+				} 
+			}
+		}
+		break;
+	}
+}
 
