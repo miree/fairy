@@ -569,8 +569,8 @@ struct CanvasPainter {
 		}
 		if (dy) {
 			double amount = dy*(ctrl?5:50);
-			canvas.transform[0].scale_one_step(mouse_pos_x, canvas.columns, canvas.width,  amount,  0.001, false);
-			canvas.transform[1].scale_one_step(mouse_pos_y, canvas.rows,    canvas.height, amount,  0.001, true);
+			canvas.transform[0].scale_one_step(mouse_pos_x, canvas.columns, canvas.width,  amount,  0.01, false);
+			canvas.transform[1].scale_one_step(mouse_pos_y, canvas.rows,    canvas.height, amount,  0.01, true);
 
 			//transform.scale_one_step(mouse_pos_x, mouse_pos_y, width, height, amount, amount, draw_color_bar?color_key_width:0.0);
 		}
@@ -584,16 +584,10 @@ struct CanvasPainter {
 
 
 void vertical_grid(BackendInterface backend_interface, CanvasProperties *canvas) {
-	//if (canvas.transform[0].logscale) {
-	//	//vertical_grid_log(canvas);
-	//	return;
-	//}
-
-	//import std.stdio;
-	//backend_interface.set_color(1,0,0);
-	//backend_interface.set_line_width(4);
-	//backend_interface.vertical_line(canvas.width/2,0,canvas.height);
-	//backend_interface.stroke();
+	if (canvas.transform[0].logscale) {
+		vertical_grid_log(backend_interface, canvas);
+		return;
+	}
 
 	for (int i = 0; i < 3; ++i) {
 		double c = 0.7-0.2*i;
@@ -622,10 +616,10 @@ void vertical_grid(BackendInterface backend_interface, CanvasProperties *canvas)
 	}
 }
 void horizontal_grid(BackendInterface backend_interface, CanvasProperties *canvas) {
-	//if (canvas.transform[1].logscale) {
-	//	//horizontal_grid_log(canvas);
-	//	return;
-	//}
+	if (canvas.transform[1].logscale) {
+		horizontal_grid_log(backend_interface, canvas);
+		return;
+	}
 	for (int i = 0; i < 3; ++i) {
 		double c = 0.7-0.2*i;
 		backend_interface.set_color(c,c,c);
@@ -653,54 +647,52 @@ void horizontal_grid(BackendInterface backend_interface, CanvasProperties *canva
 	}
 }
 
-/+
 
 
-void vertical_grid_log(Draw drawer, in Transform t) {
+void vertical_grid_log(BackendInterface backend_interface, CanvasProperties *canvas) {
 	import std.math;
 
 	// vertical lines
-	double log_left = log(10.0)*cast(long)(t.getLeft()/log(10.0));
-	double bottom = t.getBottom;
-	double top    = t.getTop;
-	drawer.set_line_width(1);
+	double log_left = log(10.0)*cast(long)(canvas.transform[0].min/log(10.0));
+	double bottom = canvas.transform[1].min;
+	double top    = canvas.transform[1].max;
+	backend_interface.set_line_width(1);
 	do {
 		double color = 0.5;
-		drawer.set_color(color, color, color);
-		vertical_line(drawer, t, log_left, bottom, top);
-		drawer.stroke();
+		backend_interface.set_color(color, color, color);
+		backend_interface.vertical_line(canvas.transform[0].world2canvas(log_left), 0, canvas.height);
+		backend_interface.stroke();
 		color = 0.8;
-		drawer.set_color(color, color, color);
+		backend_interface.set_color(color, color, color);
 		foreach(i ; 2..10) {
-			vertical_line(drawer, t, log_left+log(cast(double)i), bottom, top);
+			backend_interface.vertical_line(canvas.transform[0].world2canvas(log_left+log(cast(double)i)), 0, canvas.height);
 		}
-		drawer.stroke();
+		backend_interface.stroke();
 		log_left += log(10.0);
-	} while (log_left <= t.getRight);
+	} while (log_left <= canvas.transform[0].max);
 }
-private void horizontal_grid_log(Draw drawer, in Transform t) {
+private void horizontal_grid_log(BackendInterface backend_interface, CanvasProperties *canvas) {
 	import std.math;
 
 	// vertical lines
-	double log_bottom = log(10.0)*cast(long)(t.getBottom()/log(10.0));
-	double left = t.getLeft;
-	double right = t.getRight;
-	drawer.set_line_width(1);
+	double log_bottom = log(10.0)*cast(long)(canvas.transform[1].min/log(10.0));
+	double left = canvas.transform[0].min;
+	double right = canvas.transform[0].max;
+	backend_interface.set_line_width(1);
 	do {
 		double color = 0.5;
-		drawer.set_color(color, color, color);
-		horizontal_line(drawer, t, log_bottom, left, right);
-		drawer.stroke();
+		backend_interface.set_color(color, color, color);
+		backend_interface.horizontal_line(canvas.transform[1].world2canvas(log_bottom), 0, canvas.width);
+		backend_interface.stroke();
 		color = 0.8;
-		drawer.set_color(color, color, color);
+		backend_interface.set_color(color, color, color);
 		foreach(i ; 2..10) {
-			horizontal_line(drawer, t, log_bottom+log(cast(double)i), left, right);
+			backend_interface.horizontal_line(canvas.transform[1].world2canvas(log_bottom+log(cast(double)i)), 0, canvas.width);
 		}
-		drawer.stroke();
+		backend_interface.stroke();
 		log_bottom += log(10.0);
-	} while (log_bottom <= t.getTop);
+	} while (log_bottom <= canvas.transform[1].max);
 }
-+/
 
 void draw_number_label_x(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, string text) {
 	double we, he;
