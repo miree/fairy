@@ -707,10 +707,10 @@ void draw_number_label_x(BackendInterface backend_interface, CanvasProperties *c
 }
 void vertical_grid_numbers(BackendInterface backend_interface, CanvasProperties *canvas)
 {
-	//if (t._logx) {
-	//	vertical_grid_numbers_log(drawer, t);
-	//	return;
-	//}
+	if (canvas.transform[0].logscale) {
+		vertical_grid_numbers_log(backend_interface, canvas);
+		return;
+	}
 	import std.math, std.algorithm;
 	import std.stdio;
 	double left  = canvas.transform[0].min;
@@ -746,56 +746,58 @@ void vertical_grid_numbers(BackendInterface backend_interface, CanvasProperties 
 	}
 }
 
-//void vertical_grid_numbers_log(Draw drawer, in Transform t) 
-//{
-//	import std.stdio, std.math, std.conv;
+void vertical_grid_numbers_log(BackendInterface backend_interface, CanvasProperties *canvas) 
+{
+	import std.stdio, std.math, std.conv;
 
-//	double left  = t.getLeft();
-//	double right = t.getRight();
-//	double bottom = t.getBottom();
+	double left  = canvas.transform[0].min;
+	double right = canvas.transform[0].max;
+	double bottom = canvas.transform[1].min;
 
-//	next_scaling: for(double dx=1.0; ;dx+=1.0) {
-//		//writeln("next_scaling ", dx);
-//		double xmin = dx*floor(left/log(10.0)/dx);
-//		double xmax = dx*ceil(right/log(10.0)/dx);
-//		//writeln(xmin, " / ", xmax, " / ", dx);
-//		double last_text_right;
-//		for (double x0=xmin; x0<(xmax+dx/2); x0+=dx) {
-//			double x = x0*log(10.0);
-//			double tw, th; // text width and height
-//			drawer.text_extent(exp(x).to!string, tw, th);
-//			//writeln("=>",exp(x).to!string);
-//			double text_left = t.transform_world2canvas_x(x);
-//			double text_right = text_left + tw*1.2;
-//			if (last_text_right !is double.init && last_text_right > text_left) continue next_scaling;
-//			last_text_right = text_right;
-//		}
-//		for(double x0=xmin; x0<(xmax-dx/2); x0+=dx) {
-//			double x = x0*log(10.0); // log(10^(x0)) = log(exp(x0*log(10)))
-//			draw_number_label_x(drawer,t, x,bottom, exp(x).to!string);
-//			if (dx > 1.5) continue;
-//			double x2 = (x0+dx)*log(10.0);
-//			double tw, th;
-//			drawer.text_extent(exp(x).to!string, tw, th);
-//			last_text_right = t.transform_world2canvas_x(x)+tw*1.4;
-//			double end = t.transform_world2canvas_x(x2);
+	next_scaling: for(double dx=1.0; ;dx+=1.0) {
+		//writeln("next_scaling ", dx);
+		double xmin = dx*floor(left/log(10.0)/dx);
+		double xmax = dx*ceil(right/log(10.0)/dx);
+		//writeln(xmin, " / ", xmax, " / ", dx);
+		double last_text_right;
+		for (double x0=xmin; x0<(xmax+dx/2); x0+=dx) {
+			double x = x0*log(10.0);
+			double tw, th; // text width and height
+			backend_interface.text_extent(exp(x).to!string, tw, th);
+			//writeln("=>",exp(x).to!string);
+			double text_left = canvas.transform[0].world2canvas(x);
+			double text_right = text_left + tw*1.2;
+			if (last_text_right !is double.init && last_text_right > text_left) continue next_scaling;
+			last_text_right = text_right;
+		}
+		for(double x0=xmin; x0<(xmax-dx/2); x0+=dx) {
+			double x = x0*log(10.0); // log(10^(x0)) = log(exp(x0*log(10)))
+			draw_number_label_x(backend_interface, canvas, x,bottom, exp(x).to!string);
+			//draw_number_label_x(backend_interface,t, x,bottom, exp(x).to!string);
+			if (dx > 1.5) continue;
+			double x2 = (x0+dx)*log(10.0);
+			double tw, th;
+			backend_interface.text_extent(exp(x).to!string, tw, th);
+			last_text_right = canvas.transform[0].world2canvas(x)+tw*1.4;
+			double end = canvas.transform[0].world2canvas(x2);
 
-//			for (int i = 1; i < 10; ++i) {
-//				double xx  = exp(x0*log(10.0));
-//				double xxi = xx*(1.0+i);
-//				double xi = log(xxi);
-//				drawer.text_extent(xxi.to!string, tw,th);
-//				double text_left = t.transform_world2canvas_x(xi);
-//				double text_right = text_left + tw*1.4;
-//				if (last_text_right < text_left && text_right < end) {
-//					draw_number_label_x(drawer, t, xi,bottom, xxi.to!string);
-//					last_text_right = text_right;
-//				} 
-//			}
-//		}
-//		break;
-//	}
-//}
+			for (int i = 1; i < 10; ++i) {
+				double xx  = exp(x0*log(10.0));
+				double xxi = xx*(1.0+i);
+				double xi = log(xxi);
+				backend_interface.text_extent(xxi.to!string, tw,th);
+				double text_left = canvas.transform[0].world2canvas(xi);
+				double text_right = text_left + tw*1.4;
+				if (last_text_right < text_left && text_right < end) {
+					draw_number_label_x(backend_interface, canvas, xi,bottom, xxi.to!string);
+					//draw_number_label_x(backend_interface, t, xi,bottom, xxi.to!string);
+					last_text_right = text_right;
+				} 
+			}
+		}
+		break;
+	}
+}
 
 
 void draw_number_label_y(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, string text) {
@@ -811,10 +813,10 @@ void draw_number_label_y(BackendInterface backend_interface, CanvasProperties *c
 }
 void horizontal_grid_numbers(BackendInterface backend_interface, CanvasProperties *canvas)
 {
-//	if (t._logy) {
-//		horizontal_grid_numbers_log(drawer, t);
-//		return;
-//	}
+	if (canvas.transform[1].logscale) {
+		horizontal_grid_numbers_log(backend_interface, canvas);
+		return;
+	}
 	import std.math, std.algorithm;
 	import std.stdio;
 	double bottom = canvas.transform[1].min;
@@ -849,56 +851,56 @@ void horizontal_grid_numbers(BackendInterface backend_interface, CanvasPropertie
 }
 
 
-//void horizontal_grid_numbers_log(Draw drawer, in Transform t) 
-//{
-//	import std.stdio, std.math, std.conv;
+void horizontal_grid_numbers_log(BackendInterface backend_interface, CanvasProperties *canvas) 
+{
+	import std.stdio, std.math, std.conv;
 
-//	double bottom  = t.getBottom();
-//	double top = t.getTop();
-//	double left = t.getLeft();
+	double bottom  = canvas.transform[1].min;
+	double top = canvas.transform[1].max;
+	double left = canvas.transform[0].min;
 
-//	next_scaling: for(double dy=1.0; ;dy+=1.0) {
-//		//writeln("next_scaling ", dy);
-//		double ymin = dy*floor(bottom/log(10.0)/dy);
-//		double ymax = dy*ceil(top/log(10.0)/dy);
-//		//writeln(ymin, " / ", ymax, " / ", dy);
-//		double last_text_top;
-//		for (double y0=ymin; y0<(ymax+dy/2); y0+=dy) {
-//			double y = y0*log(10.0);
-//			double tw, th; // text width and height
-//			drawer.text_extent(exp(y).to!string, tw, th);
-//			//writeln("=>",exp(x).to!string);
-//			double text_bot = -t.transform_world2canvas_y(y);
-//			double text_top = text_bot + th*1.4;
-//			if (last_text_top !is double.init && last_text_top > text_bot) continue next_scaling;
-//			last_text_top = text_top;
-//		}
-//		for(double y0=ymin; y0<(ymax-dy/2); y0+=dy) {
-//			double y = y0*log(10.0); // log(10^(y0)) = log(exp(y0*log(10)))
-//			draw_number_label_y(drawer,t, left,y, exp(y).to!string);
-//			if (dy > 1.5) continue;
-//			double y2 = (y0+dy)*log(10.0);
-//			double tw, th;
-//			drawer.text_extent(exp(y).to!string, tw, th);
-//			last_text_top = -t.transform_world2canvas_y(y)+th*1.4;
-//			double end = -t.transform_world2canvas_y(y2);
+	next_scaling: for(double dy=1.0; ;dy+=1.0) {
+		//writeln("next_scaling ", dy);
+		double ymin = dy*floor(bottom/log(10.0)/dy);
+		double ymax = dy*ceil(top/log(10.0)/dy);
+		//writeln(ymin, " / ", ymax, " / ", dy);
+		double last_text_top;
+		for (double y0=ymin; y0<(ymax+dy/2); y0+=dy) {
+			double y = y0*log(10.0);
+			double tw, th; // text width and height
+			backend_interface.text_extent(exp(y).to!string, tw, th);
+			//writeln("=>",exp(x).to!string);
+			double text_bot = -canvas.transform[1].world2canvas(y);
+			double text_top = text_bot + th*1.4;
+			if (last_text_top !is double.init && last_text_top > text_bot) continue next_scaling;
+			last_text_top = text_top;
+		}
+		for(double y0=ymin; y0<(ymax-dy/2); y0+=dy) {
+			double y = y0*log(10.0); // log(10^(y0)) = log(exp(y0*log(10)))
+			draw_number_label_y(backend_interface, canvas, left, y, exp(y).to!string);
+			if (dy > 1.5) continue;
+			double y2 = (y0+dy)*log(10.0);
+			double tw, th;
+			backend_interface.text_extent(exp(y).to!string, tw, th);
+			last_text_top = -canvas.transform[1].world2canvas(y)+th*1.4;
+			double end = -canvas.transform[1].world2canvas(y2);
 
-//			for (int i = 1; i < 10; ++i) {
-//				double yy  = exp(y0*log(10.0));
-//				double yyi = yy*(1.0+i);
-//				double yi = log(yyi);
-//				drawer.text_extent(yyi.to!string, tw,th);
-//				double text_bot = -t.transform_world2canvas_y(yi);
-//				double text_top = text_bot + th*1.4;
-//				if (last_text_top < text_bot && text_top < end) {
-//					draw_number_label_y(drawer, t, left,yi, yyi.to!string);
-//					last_text_top = text_top;
-//				} 
-//			}
-//		}
-//		break;
-//	}
-//}
+			for (int i = 1; i < 10; ++i) {
+				double yy  = exp(y0*log(10.0));
+				double yyi = yy*(1.0+i);
+				double yi = log(yyi);
+				backend_interface.text_extent(yyi.to!string, tw,th);
+				double text_bot = -canvas.transform[1].world2canvas(yi);
+				double text_top = text_bot + th*1.4;
+				if (last_text_top < text_bot && text_top < end) {
+					draw_number_label_y(backend_interface, canvas, left, yi, yyi.to!string);
+					last_text_top = text_top;
+				} 
+			}
+		}
+		break;
+	}
+}
 
 //void draw_number_label_z(Draw drawer, in Transform t, double x, double y, double twmax, double thmax, string text) {
 //	double we, he;
