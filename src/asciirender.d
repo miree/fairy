@@ -263,6 +263,9 @@ public:
 	override bool inverted_y_direction() {
 		return true;
 	}
+	override bool text_with_border() {
+		return false;
+	}
 	override void initialize() {
 
 	}
@@ -280,6 +283,16 @@ public:
 		clip_y2 = cast(long)y2;
 		if (clip_x1 > clip_x2) swap(clip_x1, clip_x2);
 		if (clip_y1 > clip_y2) swap(clip_y1, clip_y2);
+
+		if (clip_x1 <  0) clip_x1 = 0;
+		if (clip_x1 >= w) clip_x1 = w-1;
+		if (clip_x2 <  0) clip_x2 = 0;
+		if (clip_x2 >= w) clip_x2 = w-1;
+
+		if (clip_y1 <  0) clip_y1 = 0;
+		if (clip_y1 >= h) clip_y1 = h-1;
+		if (clip_y2 <  0) clip_y2 = 0;
+		if (clip_y2 >= h) clip_y2 = h-1;
 	}
 
 	override void clear(double r, double g, double b) {

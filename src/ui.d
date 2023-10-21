@@ -23,10 +23,42 @@ bool hasUiExport(alias mem)() {
 	return false;
 }
 
+
+///////////////////////////////////////////////////////////////////////
+// some helper functions for the ui commands
+///////////////////////////////////////////////////////////////////////
+
 auto check_action_helper(string action) {
 	if (action != "toggle" && action != "true" && action != "false") {
 		throw new Exception("invalid action: " ~ action ~ ", expect true, false, or toggle");
 	}
+}
+
+auto axis_helper_xyz(char axis) {
+	if (axis=='x'||axis=='y'||axis=='z') {
+		return axis-'x';
+	}
+	throw new Exception("invalid axis: "~ axis~ ", possible values are x, y, or z");
+}
+auto axis_helper_xy(char axis) {
+	if (axis=='x'||axis=='y') {
+		return axis-'x';
+	}
+	throw new Exception("invalid axis: "~ axis~ ", possible values are x or y");
+}
+
+bool toggle_action(string action, ref bool property) {
+	if (action != "toggle" && action != "true" && action != "false") {
+		throw new Exception("invalid action: " ~ action ~ ", expect true, false, or toggle");
+	}
+	bool active = (action=="true");
+	bool toggle = (action=="toggle");
+	if (toggle) active = !property;
+	if (property != active) {
+		property = active;
+		return true;
+	}
+	return false;
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -100,21 +132,13 @@ void zoomwin(string window_name, double amount) {
 		])
 void logscale(string window_name, char axis, string action="toggle") {
 	import fairy, graphics;
-	check_action_helper(action);
+	int axis_idx = axis_helper_xyz(axis);
 	auto canvas = fairy.session.get_canvas(window_name);
-	bool toggle = (action=="toggle");
-	bool logscale = (action=="true");
-	if (axis=='x'||axis=='y'||axis=='z') {
-		int axis_idx = axis-'x';
-		if (toggle) logscale = !canvas.transform[axis_idx].logscale;
-		if (canvas.transform[axis_idx].logscale != logscale) {
-			if (logscale)  canvas.transform[axis_idx].set_logscale(0.1);
-			if (!logscale) canvas.transform[axis_idx].set_linscale();
-		}
-		fairy.redraw_window(window_name);
-		return;
+	bool logscale = canvas.transform[axis_idx].logscale;
+	if (toggle_action(action, logscale)) {
+		if (logscale)  canvas.transform[axis_idx].set_logscale(0.1);
+		if (!logscale) canvas.transform[axis_idx].set_linscale();
 	}
-	throw new Exception("invalid axis: "~ axis~ ", possible values are x, y, or z");
 }
 
 @UI_EXPORT("set window mode to overlayed view of all items",
@@ -154,18 +178,35 @@ void columns(string window_name, int columns) {
 	}
 }
 
+@UI_EXPORT("autoscale given axis in given window", 
+	[ "name of the window",
+	  "name of axis (x or y or z)",
+	  "true enables, false disables, toggle changes automatic x-axis scaling"] )
+void autoscale(string window_name, char axis, string action="toggle") {
+	import graphics, fairy;
+	if (toggle_action(action, fairy.session.get_canvas(window_name).autoscale[axis_helper_xyz(axis)])) {
+		fairy.redraw_window(window_name);
+	}
+}
+
+@UI_EXPORT("show grid for given axis", 
+	[ "name of the window",
+	  "name of axis (x or y)",
+	  "true enables, false disables, toggle changes automatic x-axis scaling"] )
+void grid(string window_name, char axis, string action="toggle") {
+	import graphics, fairy;
+	if (toggle_action(action, fairy.session.get_canvas(window_name).grid[axis_helper_xy(axis)])) {
+		fairy.redraw_window(window_name);
+	}
+}
+
+
 @UI_EXPORT("draw color bar in window",
 	["name of the window",
 	 "true, false, or toggle"])
 void colorbar(string window_name, string action = "toggle") {
 	import graphics, fairy;
-	auto canvas = fairy.session.get_canvas(window_name);
-	check_action_helper(action);
-	bool active = (action=="true");
-	bool toggle = (action=="toggle");
-	if (toggle) active = !canvas.color_bar;
-	if (canvas.color_bar != active) {
-		canvas.color_bar = active;
+	if (toggle_action(action, fairy.session.get_canvas(window_name).color_bar)) {
 		fairy.redraw_window(window_name);
 	}
 }
@@ -197,14 +238,15 @@ string showwin(string name, string mode = "double", int w = -1, int h = -1) {
 	if (m==AsciiRender.Mode.quad_pixel || m==AsciiRender.Mode.double_pixel) h *= 2;
 	if (m==AsciiRender.Mode.quad_pixel) w *= 2;
 
+	import fairy, graphics;
 	auto renderer = scoped!AsciiRender(w,h,m);
+	CanvasProperties canvas = *fairy.session.get_canvas(name);
+	// modify the canvas properties temporarily (use a copy of the canvas properties)
+	canvas.width = w;
+	canvas.height = h;
+	canvas.grid = [false,false]; // grid is not really useful in text rendering 
+	CanvasPainter(&canvas, renderer).draw_content;
 
-	renderer.rectangle(0,0,w-1,h-1);
-	renderer.stroke();
-	for (int i = 0; i < w; i+=10) renderer.text(i,h,i.to!string);
-	double tw,th;
-	renderer.text_extent("0",tw,th);
-	for (int i = 0; i < w; i+=10) renderer.text(i,th,i.to!string);
 
 	return w.to!string~"x"~h.to!string~"\n"~renderer.render;
 }

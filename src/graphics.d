@@ -4,6 +4,7 @@ module graphics;
 
 interface BackendInterface {
 	bool inverted_y_direction(); // true if the y-coordinates go from top to bottom
+	bool text_with_border(); // true if black text should be rendered with a white border
 
 	void initialize();   // must be called before anything else
 	void finish(); // must be called after anything else
@@ -818,19 +819,20 @@ private void horizontal_grid_log(BackendInterface backend_interface, CanvasPrope
 void draw_number_label_x(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, string text) {
 	double we, he;
 	backend_interface.text_extent(text, we,he);
-	double bg_color = 0.9;
-	backend_interface.set_color(bg_color, bg_color, bg_color);
 	//backend_interface.set_color(0.9,0.9,0.9);
 	//backend_interface.rectangle(canvas.transform[0].world2canvas(x)-we/2, canvas.transform[1].world2canvas(y)-he, 
 	//                            canvas.transform[0].world2canvas(x)+we/2, canvas.transform[1].world2canvas(y));
 	//backend_interface.fill();
 	double xpos = canvas.transform[0].world2canvas(x)-we/2;
 	double ypos = canvas.transform[1].world2canvas(y);
-	backend_interface.text(xpos-1, ypos-1, text);
-	backend_interface.text(xpos-1, ypos+1, text);
-	backend_interface.text(xpos+1, ypos-1, text);
-	backend_interface.text(xpos+1, ypos+1, text);
-	backend_interface.stroke();
+	if (backend_interface.text_with_border()) {
+		backend_interface.set_color(0.9,0.9,0.9);
+		backend_interface.text(xpos-1, ypos-1, text);
+		backend_interface.text(xpos-1, ypos+1, text);
+		backend_interface.text(xpos+1, ypos-1, text);
+		backend_interface.text(xpos+1, ypos+1, text);
+		backend_interface.stroke();
+	}
 	backend_interface.set_color(0,0,0);
 	backend_interface.text(xpos, ypos, text);
 	backend_interface.stroke();
@@ -933,17 +935,19 @@ void vertical_grid_numbers_log(BackendInterface backend_interface, CanvasPropert
 void draw_number_label_y(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, string text) {
 	double we, he;
 	backend_interface.text_extent(text, we,he);
-	backend_interface.set_color(0.9,0.9,0.9);
 	//backend_interface.rectangle(canvas.transform[0].world2canvas(x)   , canvas.transform[1].world2canvas(y)-he/2, 
 	//	                        canvas.transform[0].world2canvas(x)+we, canvas.transform[1].world2canvas(y)+he/2);
 	//backend_interface.fill();
 	double xpos = canvas.transform[0].world2canvas(x);
 	double ypos = canvas.transform[1].world2canvas(y)+he/2;
-	backend_interface.text(xpos-1, ypos-1, text);
-	backend_interface.text(xpos-1, ypos+1, text);
-	backend_interface.text(xpos+1, ypos-1, text);
-	backend_interface.text(xpos+1, ypos+1, text);
-	backend_interface.stroke();
+	if (backend_interface.text_with_border()) {
+		backend_interface.set_color(0.9,0.9,0.9);
+		backend_interface.text(xpos-1, ypos-1, text);
+		backend_interface.text(xpos-1, ypos+1, text);
+		backend_interface.text(xpos+1, ypos-1, text);
+		backend_interface.text(xpos+1, ypos+1, text);
+		backend_interface.stroke();
+	}
 	backend_interface.set_color(0,0,0);
 	backend_interface.text(xpos, ypos, text);
 	backend_interface.stroke();
@@ -1047,11 +1051,14 @@ void draw_number_label_z(BackendInterface backend_interface, CanvasProperties *c
 	//backend_interface.fill();
 	double xpos = canvas.transform[0].world2canvas(x)-we-1;
 	double ypos = canvas.transform[1].world2canvas(y)+thmax/2+1;
-	backend_interface.set_color(0.9,0.9,0.9);
-	backend_interface.text(xpos-1, ypos-1, text);
-	backend_interface.text(xpos-1, ypos+1, text);
-	backend_interface.text(xpos+1, ypos-1, text);
-	backend_interface.text(xpos+1, ypos+1, text);
+	if (backend_interface.text_with_border()) {
+		backend_interface.set_color(0.9,0.9,0.9);
+		backend_interface.text(xpos-1, ypos-1, text);
+		backend_interface.text(xpos-1, ypos+1, text);
+		backend_interface.text(xpos+1, ypos-1, text);
+		backend_interface.text(xpos+1, ypos+1, text);
+		backend_interface.stroke();
+	}
 	backend_interface.set_color(0,0,0);
 	backend_interface.text(xpos, ypos, text);
 	backend_interface.stroke();

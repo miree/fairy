@@ -261,9 +261,9 @@ public:
 			case ALLEGRO_KEY_B: colorbar(name); break;
 			case ALLEGRO_KEY_C: columns(name, canvas.columns_or_rows); break;
 			case ALLEGRO_KEY_R: rows   (name, canvas.columns_or_rows); break;
-			//case ALLEGRO_KEY_X: autoscale  (name, 'x', "toggle");  break;
-			//case ALLEGRO_KEY_Y: autoscale  (name, 'y', "toggle");  break;
-			//case ALLEGRO_KEY_Z: autoscale  (name, 'z', "toggle");  break;
+			case ALLEGRO_KEY_X: autoscale  (name, 'x', "toggle");  break;
+			case ALLEGRO_KEY_Y: autoscale  (name, 'y', "toggle");  break;
+			case ALLEGRO_KEY_Z: autoscale  (name, 'z', "toggle");  break;
 			case ALLEGRO_KEY_L:  logscale(name, canvas.dim==2?'z':'y', "toggle");  break;
 			//case ALLEGRO_KEY_F: fit_content(name);                 break;
 			default: {}
@@ -282,6 +282,9 @@ public:
 	bool space_pressed = false;
 
 	override bool inverted_y_direction() {
+		return true;
+	}
+	override bool text_with_border() {
 		return true;
 	}
 	override void initialize() {
