@@ -138,6 +138,7 @@ void logscale(string window_name, char axis, string action="toggle") {
 	if (toggle_action(action, logscale)) {
 		if (logscale)  canvas.transform[axis_idx].set_logscale(0.1);
 		if (!logscale) canvas.transform[axis_idx].set_linscale();
+		fairy.redraw_window(window_name);
 	}
 }
 
