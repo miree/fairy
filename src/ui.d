@@ -23,6 +23,12 @@ bool hasUiExport(alias mem)() {
 	return false;
 }
 
+auto check_action_helper(string action) {
+	if (action != "toggle" && action != "true" && action != "false") {
+		throw new Exception("invalid action: " ~ action ~ ", expect true, false, or toggle");
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////
 // all user interface functions are here
 ///////////////////////////////////////////////////////////////////////
@@ -55,6 +61,97 @@ string win(string name, int width = 600, int height = 400, int xpos = -1, int yp
 	import fairy;
 	fairy.session.add_window(name, width, height, xpos, ypos);
 	return "created new window "~name;
+}
+
+@UI_EXPORT("set min max for given window and axis", 
+	[ "name of the window",
+	  "name of axis (x or y or z)",
+	  "move by that fraction of width"] )
+void movewin(string window_name, char axis, double amount) {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	if (axis=='x'||axis=='y') {
+		int axis_idx = axis-'x';
+		canvas.transform[axis_idx].set_minmax(canvas.transform[axis_idx].min + canvas.transform[axis_idx].width*amount,
+		                                      canvas.transform[axis_idx].max + canvas.transform[axis_idx].width*amount);
+		fairy.redraw_window(window_name);
+		return;
+	}
+	throw new Exception("invalid axis: "~ axis~ ", possible values are x, y, or z");
+}
+
+@UI_EXPORT("set zoom for given window", 
+	[ "name of the window",
+	  "zoom by that fraction of width"] )
+void zoomwin(string window_name, double amount) {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	foreach (i; 0..2) {
+		canvas.transform[i].set_minmax(canvas.transform[i].max - canvas.transform[i].width*amount,
+		                               canvas.transform[i].min + canvas.transform[i].width*amount);
+	}
+	fairy.redraw_window(window_name);
+}
+
+@UI_EXPORT("enable/disable logscale for given axis",
+		["name of window to affect",
+		 "name of axis: x y z",
+		 "true enables, false disables, toggle toggles logscale for given axis"
+		])
+void logscale(string window_name, char axis, string action="toggle") {
+	import fairy, graphics;
+	check_action_helper(action);
+	auto canvas = fairy.session.get_canvas(window_name);
+	bool toggle = (action=="toggle");
+	bool logscale = (action=="true");
+	if (axis=='x'||axis=='y'||axis=='z') {
+		int axis_idx = axis-'x';
+		if (toggle) logscale = !canvas.transform[axis_idx].logscale;
+		if (canvas.transform[axis_idx].logscale != logscale) {
+			if (logscale)  canvas.transform[axis_idx].set_logscale(0.1);
+			if (!logscale) canvas.transform[axis_idx].set_linscale();
+		}
+		fairy.redraw_window(window_name);
+		return;
+	}
+	throw new Exception("invalid axis: "~ axis~ ", possible values are x, y, or z");
+}
+
+@UI_EXPORT("set window mode to overlayed view of all items",
+	["name of the window"])
+void overlay(string window_name) {
+	import graphics, fairy;
+	auto canvas = fairy.session.get_canvas(window_name);
+	if (canvas.display_mode != DisplayMode.overlay) {
+		canvas.display_mode = DisplayMode.overlay;
+		fairy.redraw_window(window_name);
+	}
+}
+
+@UI_EXPORT("set window mode to grid mode and specify a fixed number of rows",
+	["name of the window",
+	 "number of rows"])
+void rows(string window_name, int rows) {
+	import graphics, fairy;
+	auto canvas = fairy.session.get_canvas(window_name);
+	if (canvas.display_mode != DisplayMode.rows || canvas.columns_or_rows != rows) {
+		canvas.display_mode = DisplayMode.rows;
+		canvas.columns_or_rows = rows;
+		fairy.redraw_window(window_name);
+	}
+}
+
+@UI_EXPORT("set window mode to grid mode and specify a fixed number of columns",
+	["name of the window",
+	 "number of columns"])
+void columns(string window_name, int columns) {
+	import graphics, fairy;
+	auto canvas = fairy.session.get_canvas(window_name);
+	if (canvas.display_mode != DisplayMode.columns || canvas.columns_or_rows != columns) {
+		canvas.display_mode = DisplayMode.columns;
+		canvas.columns_or_rows = columns;
+		fairy.redraw_window(window_name);
+	}
 }
 
 @UI_EXPORT("render window in ascii text")

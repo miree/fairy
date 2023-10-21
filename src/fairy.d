@@ -47,6 +47,13 @@ struct Session {
 		}
 		return result;
 	}
+	CanvasProperties *get_canvas(string name) {
+		auto canvas = name in windows;
+		if (canvas is null) {
+			throw new Exception("there is no window with name ", name);
+		}
+		return canvas;
+	}
 
 	import std.file, std.json, std.algorithm, serializeJSON;
 	@trusted
@@ -135,6 +142,29 @@ void loop(string[] args) {
 	}
 
 }
+
+// this is the central function to initiate a redraw from outside the graphics 
+// backend, for example by all functions in "ui" module that need to redraw a window
+void redraw_window(string name) {
+	if (start_gui) {
+		version(allegro5) {
+			import graphics_allegro5;
+			graphics_allegro5.redraw(name);
+			return;
+		}
+		else version(gtk3) {
+			import graphics_gtk;
+			graphics_gtk.redraw(name);
+			return;
+		}
+		else version(gtk4) {
+			import graphics_gtk;
+			graphics_gtk.redraw(name);
+			return;
+		}
+	}
+}
+
 
 @trusted
 // return false in case of timeout

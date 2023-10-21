@@ -125,18 +125,28 @@ struct CanvasProperties {
 	@SERIALIZE Transform[3] transform;
 
 	int rows() {
+		int len = 1;
+		if (itemnames !is null && itemnames.length != 0) len = cast(int)itemnames.length;
+		int result;
 		with(DisplayMode) final switch(display_mode) {
-			case overlay: return 1;
-			case rows:    return columns_or_rows;
-			case columns: return cast(int)itemnames.length/columns_or_rows;
+			case overlay: result = 1;                    break;
+			case rows:    result = columns_or_rows;      break;
+			case columns: result = len/columns_or_rows;  break;
 		}
+		if (result > 0) return result;
+		return 1;
 	}
 	int columns() {
+		int len = 1;
+		if (itemnames !is null && itemnames.length != 0) len = cast(int)itemnames.length;
+		int result;
 		with(DisplayMode) final switch(display_mode) {
-			case overlay: return 1;
-			case rows:    return cast(int)itemnames.length/columns_or_rows;
-			case columns: return columns_or_rows;
-		}		
+			case overlay: result = 1;                    break;
+			case rows:    result = len/columns_or_rows;  break;
+			case columns: result = columns_or_rows;      break;
+		}
+		if (result > 0) return result;
+		return 1;
 	}
 }
 
@@ -334,8 +344,8 @@ struct CanvasPainter {
 		//	backend.set_text_size(window_text_size);
 		//}
 
-		backend.set_color(0,0,0);
-		backend.text(100,100,"hallo");
+		//backend.set_color(0,0,0);
+		//backend.text(100,100,"hallo");
 
 		if (canvas.display_mode == DisplayMode.overlay) {
 
@@ -499,11 +509,11 @@ struct CanvasPainter {
 
 	}
 
-	void mouse_motion(double x, double y, bool ctrl = false, bool shift = false) {
+	void mouse_motion(double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {
 		mouse_pos_x = x;
 		mouse_pos_y = y;
 
-		//import std.stdio;
+		import std.stdio;
 		//write("motion ", x, " ", y, "  "); 
 		// determine mouse position and update the mouse_pos label
 		foreach( idx, transform ; grid_transforms) {
@@ -514,7 +524,10 @@ struct CanvasPainter {
 
 			if (x_world > canvas.transform[0].min && x_world < canvas.transform[0].max &&
 				y_world > canvas.transform[1].min && y_world < canvas.transform[1].max) {
-				mouse_transform = canvas.transform;
+
+				//writeln("mouse_transfrom idx = ", idx);
+
+				mouse_transform = transform;
 				if (canvas.transform[0].logscale) {
 					x_world = exp(x_world);
 				}
@@ -566,6 +579,16 @@ struct CanvasPainter {
 				//import std.stdio; writeln("need_redraw 1");
 			}
 		}
+		with (canvas.transform[2]) {
+			if (z_scaling_ongoing)     scale_ongoing(y, +0.01);
+			if (z_translating_ongoing) {
+				if (backend.inverted_y_direction) translate_ongoing(-y/canvas.height/canvas.rows);
+				else                              translate_ongoing(y/canvas.height/canvas.rows);
+			}
+			if (z_scaling_ongoing || z_translating_ongoing) {
+				backend.need_redraw();
+			}
+		}
 		if (draw_selection_box) {
 			current_selection_x = x;
 			current_selection_y = y;
@@ -577,33 +600,61 @@ struct CanvasPainter {
 	void right_button_pressed(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		//writeln("right click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
-		canvas.transform[0].scale_start(x, canvas.columns,  canvas.width, false);
-		canvas.transform[1].scale_start(y, canvas.rows,     canvas.height, true);
-		scaling_ongoing = true;
+		double x_world = mouse_transform[0].canvas2world(x);
+		//writeln("x:", x, " y:",y, "  x_world:",x_world, " y_world:",y_world);	
+		if (x_world <= mouse_transform[0].max && 
+			x_world >= mouse_transform[0].max - mouse_transform[0].width*canvas.color_key_width) {
+			//writeln("right click in z-colorbar");
+			canvas.transform[2].scale_start(y, canvas.rows, canvas.height, true);
+			z_scaling_ongoing = true;
+		} else {
+			canvas.transform[0].scale_start(x, canvas.columns,  canvas.width, false);
+			canvas.transform[1].scale_start(y, canvas.rows,     canvas.height, true);
+			scaling_ongoing = true;
+		}
 	}
 	void right_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		//writeln("right release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
-		canvas.transform[0].scale_finish();
-		canvas.transform[1].scale_finish();
-		backend.need_redraw();
-		scaling_ongoing = false;
+		if (scaling_ongoing) {
+			canvas.transform[0].scale_finish();
+			canvas.transform[1].scale_finish();
+			backend.need_redraw();
+			scaling_ongoing = false;		
+		} 
+		if (z_scaling_ongoing) {
+			canvas.transform[2].scale_finish();
+			z_scaling_ongoing = false;
+		} 
 	}
 
-	void mid_button_pressed(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
+	void mid_button_pressed(int nPress, double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		//writeln("middle click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
-		canvas.transform[0].translate_start(x, canvas.columns,  canvas.width);
-		canvas.transform[1].translate_start(y, canvas.rows,     canvas.height);
-		translating_ongoing = true;
+		double x_world = mouse_transform[0].canvas2world(x);
+		if (x_world <= mouse_transform[0].max && 
+			x_world >= mouse_transform[0].max - mouse_transform[0].width*canvas.color_key_width) {
+			if (backend.inverted_y_direction) canvas.transform[2].translate_start(-y/canvas.height/canvas.rows, canvas.rows,     canvas.height);
+			else                              canvas.transform[2].translate_start(y/canvas.height/canvas.rows, canvas.rows,     canvas.height);
+			z_translating_ongoing = true;
+		} else {
+			canvas.transform[0].translate_start(x, canvas.columns,  canvas.width);
+			canvas.transform[1].translate_start(y, canvas.rows,     canvas.height);
+			translating_ongoing = true;
+		}
 	}
 	void mid_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		//writeln("middle release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
-		canvas.transform[0].translate_finish();
-		canvas.transform[1].translate_finish();
-		backend.need_redraw();
-		translating_ongoing = false;
+		if (translating_ongoing) {
+			canvas.transform[0].translate_finish();
+			canvas.transform[1].translate_finish();
+			backend.need_redraw();
+			translating_ongoing = false;
+		} else {
+			canvas.transform[2].translate_finish();
+			z_translating_ongoing = false;
+		}
 	}
 
 
@@ -627,21 +678,28 @@ struct CanvasPainter {
 	void scroll(double dx, double dy, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		if (dx) {
-			//double amount = dy*(ctrl?-5:-50);
-			//transform.translate_one_step(mouse_pos_x, mouse_pos_y, width, height, amount, 0, draw_color_bar?color_key_width:0.0);
+			double amount = dx*(ctrl?0.02:0.2)*canvas.width/canvas.columns;
+			//writeln("amount=", amount);
+			canvas.transform[0].translate_one_step(mouse_pos_x, canvas.columns, canvas.width, mouse_pos_x+amount);
 		}
 		if (dy) {
-			double amount = dy*(ctrl?5:50);
-			canvas.transform[0].scale_one_step(mouse_pos_x, canvas.columns, canvas.width,  amount,  0.01, false);
-			canvas.transform[1].scale_one_step(mouse_pos_y, canvas.rows,    canvas.height, amount,  0.01, true);
 
+			double amount = dy*(ctrl?5:50);
+			double x_world = mouse_transform[0].canvas2world(mouse_pos_x);
+			if (x_world <= mouse_transform[0].max && 
+				x_world >= mouse_transform[0].max - mouse_transform[0].width*canvas.color_key_width) {
+				canvas.transform[2].scale_one_step(mouse_pos_y, canvas.rows, canvas.height, amount, 0.01, true);
+			} else {
+				canvas.transform[0].scale_one_step(mouse_pos_x, canvas.columns, canvas.width,  amount,  0.01, false);
+				canvas.transform[1].scale_one_step(mouse_pos_y, canvas.rows,    canvas.height, amount,  0.01, true);
+			}
 			//transform.scale_one_step(mouse_pos_x, mouse_pos_y, width, height, amount, amount, draw_color_bar?color_key_width:0.0);
 		}
 		if (dx || dy) {
 			backend.need_redraw();
 		}
 
-		//writeln("scroll ", x , " " , y , "       " , dx , " " , dy, "    width=",size.width, " height=",size.height, "     ctrl=", ctrl, "    shift=",shift);
+		//writeln("scroll " , dx , " " , dy, "    ctrl=", ctrl, "    shift=",shift);
 	}
 }
 
@@ -984,12 +1042,18 @@ void horizontal_grid_numbers_log(BackendInterface backend_interface, CanvasPrope
 void draw_number_label_z(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, double twmax, double thmax, string text) {
 	double we, he;
 	backend_interface.text_extent(text, we,he);
+	//backend_interface.rectangle(canvas.transform[0].world2canvas(x)-we-1, canvas.transform[1].world2canvas(y)-thmax/2+1, 
+	//	             canvas.transform[0].world2canvas(x)-1      , canvas.transform[1].world2canvas(y)+thmax/2+1);
+	//backend_interface.fill();
+	double xpos = canvas.transform[0].world2canvas(x)-we-1;
+	double ypos = canvas.transform[1].world2canvas(y)+thmax/2+1;
 	backend_interface.set_color(0.9,0.9,0.9);
-	backend_interface.rectangle(canvas.transform[0].world2canvas(x)-we-1, canvas.transform[1].world2canvas(y)-thmax/2+1, 
-		             canvas.transform[0].world2canvas(x)-1      , canvas.transform[1].world2canvas(y)+thmax/2+1);
-	backend_interface.fill();
+	backend_interface.text(xpos-1, ypos-1, text);
+	backend_interface.text(xpos-1, ypos+1, text);
+	backend_interface.text(xpos+1, ypos-1, text);
+	backend_interface.text(xpos+1, ypos+1, text);
 	backend_interface.set_color(0,0,0);
-	backend_interface.text(canvas.transform[0].world2canvas(x)-we-1, canvas.transform[1].world2canvas(y)+thmax/2+1, text);
+	backend_interface.text(xpos, ypos, text);
 	backend_interface.stroke();
 }
 void color_grid_numbers(BackendInterface backend_interface, CanvasProperties *canvas, double color_key_width)

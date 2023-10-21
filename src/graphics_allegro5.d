@@ -74,18 +74,15 @@ void gui_loop() {
 			window.need_redraw();
 		} 
 		else if (event.type == ALLEGRO_EVENT_KEY_DOWN) {
-			//import std.stdio;
-			//writeln("KEY_DOWN", event.keyboard.keycode, " ", cast(char)event.keyboard.keycode);
-
 			auto window = MainWindow.main_windows[event.keyboard.display];
 			int key = event.keyboard.keycode;
-			//window.keypress(key);
-			if (key == ALLEGRO_KEY_SPACE) window.space_pressed = true;
-			window.need_redraw();
+			window.keypress(key);
+			if (key == ALLEGRO_KEY_SPACE) {
+				window.space_pressed = true;
+				window.need_redraw();
+			}
 		}
 		else if (event.type == ALLEGRO_EVENT_KEY_UP) {
-			//import std.stdio;
-			//writeln("KEY_UP", event.keyboard.keycode, " ", cast(char)event.keyboard.keycode);
 			auto window = MainWindow.main_windows[event.keyboard.display];
 			int key = event.keyboard.keycode;
 			if (key == ALLEGRO_KEY_SPACE) window.space_pressed = false;
@@ -114,7 +111,7 @@ void gui_loop() {
 			} else if (event.mouse.button == 2) { // right button
 				window.painter.right_button_pressed(1, event.mouse.x, event.mouse.y);
 			} else if (event.mouse.button == 3) { // middle button
-				window.painter.mid_button_pressed(1, event.mouse.x, event.mouse.y);
+				window.painter.mid_button_pressed(1, event.mouse.x, event.mouse.y, window);
 			}
 		} 
 		else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP) 
@@ -133,10 +130,10 @@ void gui_loop() {
 		{
 			auto window = MainWindow.main_windows[event.mouse.display];
 			if (event.mouse.dx || event.mouse.dy) {
-				window.painter.mouse_motion(event.mouse.x, event.mouse.y);
+				window.painter.mouse_motion(event.mouse.x, event.mouse.y, window);
 			}
 			if (event.mouse.dz || event.mouse.dw) {
-				window.painter.scroll(event.mouse.dw,   // w-axis is left right
+				window.painter.scroll(-event.mouse.dw,   // w-axis is left right
 					                 -event.mouse.dz    // z-axis is up down (normal mouse wheel movement)
 					                 );
 			}
@@ -160,6 +157,10 @@ void gui_loop() {
 
 }
 
+// this is called from fairy.redraw_window 
+void redraw(string window_name) {
+	foreach(w; MainWindow.main_windows) if (w.name == window_name) w.need_redraw();
+}
 
 class MainWindow : BackendInterface
 {
@@ -176,6 +177,7 @@ private:
 	bool redraw_scheduled = false;
 
 public:
+
 	import graphics;
 	this(string canvas_name, CanvasProperties *canvas_pointer) {
 		canvas = canvas_pointer;
@@ -235,6 +237,37 @@ public:
 		session.windows.remove(name);
 		//gui_windows.remove(name);
 
+	}
+
+	////////////////////////////////////////
+	// handle keyboard shortcuts
+	////////////////////////////////////////
+	void keypress(int keycode) {
+		import ui;
+		switch(keycode) {
+			case ALLEGRO_KEY_1: .. case ALLEGRO_KEY_9:
+				if (canvas.display_mode == DisplayMode.rows)    rows(name, keycode-ALLEGRO_KEY_0);
+				if (canvas.display_mode == DisplayMode.columns) columns(name, keycode-ALLEGRO_KEY_0);
+			break;
+			//case ALLEGRO_KEY_U: refresh(name); break;
+			//case ALLEGRO_KEY_P: autorefresh(name); break;
+			case ALLEGRO_KEY_Q: zoomwin(name,1*1.2); break;
+			case ALLEGRO_KEY_E: zoomwin(name,1/1.1666666666); break;
+			case ALLEGRO_KEY_A: movewin(name,'x',-0.2); break;
+			case ALLEGRO_KEY_D: movewin(name,'x',+0.2); break;
+			case ALLEGRO_KEY_S: movewin(name,'y',-0.2); break;
+			case ALLEGRO_KEY_W: movewin(name,'y',+0.2); break;
+			case ALLEGRO_KEY_O: overlay(name); break;
+			//case ALLEGRO_KEY_B: colorbar(name); break;
+			case ALLEGRO_KEY_C: columns(name, canvas.columns_or_rows); break;
+			case ALLEGRO_KEY_R: rows   (name, canvas.columns_or_rows); break;
+			//case ALLEGRO_KEY_X: autoscale  (name, 'x', "toggle");  break;
+			//case ALLEGRO_KEY_Y: autoscale  (name, 'y', "toggle");  break;
+			//case ALLEGRO_KEY_Z: autoscale  (name, 'z', "toggle");  break;
+			case ALLEGRO_KEY_L:  logscale(name, canvas.dim==2?'z':'y', "toggle");  break;
+			//case ALLEGRO_KEY_F: fit_content(name);                 break;
+			default: {}
+		}
 	}
 
 	////////////////////////////////////////
