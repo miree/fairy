@@ -218,6 +218,7 @@ void colorbar(string window_name, string action = "toggle") {
 string showwin(string name, string mode = "double", int w = -1, int h = -1) {
 	import std.stdio;
 	import std.typecons, std.array, std.algorithm, std.conv;
+	// find terminal dimensions (lines and columns)
 	int tty_w, tty_h;	
 	version(windows) {
 		// TODO: implement
@@ -229,8 +230,9 @@ string showwin(string name, string mode = "double", int w = -1, int h = -1) {
 		tty_w = ws.ws_col;
 	}
 	if (w<0) w = tty_w;
-	if (h<0) h = tty_h-1;
+	if (h<0) h = tty_h-2;
 
+	// create a renderer with the correct mode
 	import fairy, asciirender;
 	import std.typecons;
 	AsciiRender.Mode m = (mode=="quad")?AsciiRender.Mode.quad_pixel:(
@@ -238,18 +240,19 @@ string showwin(string name, string mode = "double", int w = -1, int h = -1) {
 		                 );
 	if (m==AsciiRender.Mode.quad_pixel || m==AsciiRender.Mode.double_pixel) h *= 2;
 	if (m==AsciiRender.Mode.quad_pixel) w *= 2;
-
-	import fairy, graphics;
 	auto renderer = scoped!AsciiRender(w,h,m);
+
+	// adapt the canvas properties to better match the requirements of ascii rendering
+	// e.g. a grid is only disturbing at such low resolutions
+	import fairy, graphics;
 	CanvasProperties canvas = *fairy.session.get_canvas(name);
-	// modify the canvas properties temporarily (use a copy of the canvas properties)
-	canvas.width = w;
+	canvas.width  = w;
 	canvas.height = h;
-	canvas.grid = [false,false]; // grid is not really useful in text rendering 
+	canvas.grid = [false,false]; 
 	CanvasPainter(&canvas, renderer).draw_content;
 
-
-	return w.to!string~"x"~h.to!string~"\n"~renderer.render;
+	// return the output of the ascii renderer
+	return name~"("~w.to!string~"x"~h.to!string~")\n"~renderer.render;
 }
 
 @UI_EXPORT("list all windows")
