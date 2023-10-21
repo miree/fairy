@@ -36,10 +36,11 @@ Pixel blend_pixels(in Pixel p1, in Pixel p2) {
 		if (p1 == line)   return p1;
 		if (p2 == line)   return p2;
 
-		int u1 = (p1==empty)?white:p1;
-		int u2 = (p2==empty)?white:p2;
+		if (p1 == empty && p2 == empty) return empty;
+		if (p1 != empty && p2 == empty) return p1;
+		if (p1 == empty && p2 != empty) return p2;
 		
-		return cast(Pixel)((u1+u2+1)/2);
+		return cast(Pixel)((p1+p2+1)/2);
 	}
 }
 auto convert_direct(in ubyte[][] pixels) {
@@ -285,14 +286,14 @@ public:
 		if (clip_y1 > clip_y2) swap(clip_y1, clip_y2);
 
 		if (clip_x1 <  0) clip_x1 = 0;
-		if (clip_x1 >= w) clip_x1 = w-1;
+		if (clip_x1 >  w) clip_x1 = w;
 		if (clip_x2 <  0) clip_x2 = 0;
-		if (clip_x2 >= w) clip_x2 = w-1;
+		if (clip_x2 >  w) clip_x2 = w;
 
 		if (clip_y1 <  0) clip_y1 = 0;
-		if (clip_y1 >= h) clip_y1 = h-1;
+		if (clip_y1 >  h) clip_y1 = h;
 		if (clip_y2 <  0) clip_y2 = 0;
-		if (clip_y2 >= h) clip_y2 = h-1;
+		if (clip_y2 >  h) clip_y2 = h;
 	}
 
 	override void clear(double r, double g, double b) {
@@ -310,6 +311,10 @@ public:
 	override double get_line_width() {
 		return 0.1;
 	}
+	void set_bitmap(int x, int y, ubyte pixel) {
+		if (is_pixel(bitmap[y][x])) // dont override text
+			bitmap[y][x] = pixel;
+	}
 	override void vertical_line(double x, double y1, double y2) {
 		import std.math;
 		long y1i = cast(long)round(y1);
@@ -322,7 +327,7 @@ public:
 		y1i = max(y1i,clip_y1);
 		y2i = min(y2i+1,clip_y2);
 		foreach(yi; y1i..y2i) {
-			bitmap[cast(uint)yi][cast(uint)xi] = Pixel.line;
+			set_bitmap(cast(uint)xi,cast(uint)yi,Pixel.line);
 		}
 	}
 	override void line(double x1, double y1, double x2, double y2) {
@@ -333,7 +338,7 @@ public:
 			if (cast(int)x1>=w) return;
 			if (cast(int)y1<0) return;
 			if (cast(int)y1>=h) return;
-			bitmap[cast(uint)y1][cast(uint)x1] = Pixel.line;
+			set_bitmap(cast(uint)x1,cast(uint)y1,Pixel.line);
 			return;
 		}
 		if (x1==x2) {
@@ -362,11 +367,11 @@ public:
 
 			if (x_iteration) {
 				if (i >= 0 && i < w && j >= 0 && j < h) {
-					bitmap[j][i] = Pixel.line;
+					set_bitmap(i,j,Pixel.line);
 				}
 			} else {
 				if (i >= 0 && i < h && j >= 0 && j < w) {
-					bitmap[i][j] = Pixel.line;
+					set_bitmap(j,i,Pixel.line);
 				}
 			}
 			if (i == i2) break;
@@ -385,7 +390,7 @@ public:
 		x1i = max(x1i  ,clip_x1);
 		x2i = min(x2i+1,clip_x2);
 		foreach(xi; x1i..x2i) {
-			bitmap[cast(uint)yi][cast(uint)xi] = Pixel.line;
+			set_bitmap(cast(uint)xi,cast(uint)yi,Pixel.line);
 		}
 	}
 	override void rectangle(double x1, double y1, double x2, double y2) {
@@ -580,7 +585,7 @@ public:
 		}
 	}
 	override void need_redraw() {
-		render.writeln;
+		//render.writeln;
 	}
 	override void show_mouse_pos(double x, double y, double z) {
 
