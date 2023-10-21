@@ -154,6 +154,23 @@ void columns(string window_name, int columns) {
 	}
 }
 
+@UI_EXPORT("draw color bar in window",
+	["name of the window",
+	 "true, false, or toggle"])
+void colorbar(string window_name, string action = "toggle") {
+	import graphics, fairy;
+	auto canvas = fairy.session.get_canvas(window_name);
+	check_action_helper(action);
+	bool active = (action=="true");
+	bool toggle = (action=="toggle");
+	if (toggle) active = !canvas.color_bar;
+	if (canvas.color_bar != active) {
+		canvas.color_bar = active;
+		fairy.redraw_window(window_name);
+	}
+}
+
+
 @UI_EXPORT("render window in ascii text")
 @trusted
 string showwin(string name, string mode = "double", int w = -1, int h = -1) {
