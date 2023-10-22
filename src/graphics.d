@@ -939,7 +939,8 @@ void draw_number_label_y(BackendInterface backend_interface, CanvasProperties *c
 	//	                        canvas.transform[0].world2canvas(x)+we, canvas.transform[1].world2canvas(y)+he/2);
 	//backend_interface.fill();
 	double xpos = canvas.transform[0].world2canvas(x);
-	double ypos = canvas.transform[1].world2canvas(y)+he/2;
+	double dy = backend_interface.inverted_y_direction?(+he/2):(-he/2);
+	double ypos = canvas.transform[1].world2canvas(y)+dy;
 	if (backend_interface.text_with_border()) {
 		backend_interface.set_color(0.9,0.9,0.9);
 		backend_interface.text(xpos-1, ypos-1, text);
@@ -1043,14 +1044,15 @@ void horizontal_grid_numbers_log(BackendInterface backend_interface, CanvasPrope
 	}
 }
 
-void draw_number_label_z(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, double twmax, double thmax, string text) {
+void draw_number_label_z(BackendInterface backend_interface, CanvasProperties *canvas, double x, double y, string text) {
 	double we, he;
 	backend_interface.text_extent(text, we,he);
 	//backend_interface.rectangle(canvas.transform[0].world2canvas(x)-we-1, canvas.transform[1].world2canvas(y)-thmax/2+1, 
 	//	             canvas.transform[0].world2canvas(x)-1      , canvas.transform[1].world2canvas(y)+thmax/2+1);
 	//backend_interface.fill();
 	double xpos = canvas.transform[0].world2canvas(x)-we;
-	double ypos = canvas.transform[1].world2canvas(y)+thmax/2;
+	double dy = backend_interface.inverted_y_direction?(+he/2):(-he/2);
+	double ypos = canvas.transform[1].world2canvas(y)+dy;
 	if (backend_interface.text_with_border()) {
 		backend_interface.set_color(0.9,0.9,0.9);
 		backend_interface.text(xpos-1, ypos-1, text);
@@ -1109,7 +1111,7 @@ void color_grid_numbers(BackendInterface backend_interface, CanvasProperties *ca
 			import std.conv;
 			if (z<dz/2 && z>(-dz/2)) z = 0; // prevent long formatting of 0 (e.g. 1.34556e-18)
 			double y = bottom+(top-bottom)*canvas.transform[2].world2canvas(z);
-			draw_number_label_z(backend_interface, canvas, right-color_key_width*(right-left),y, twmax, thmax, z.to!string);
+			draw_number_label_z(backend_interface, canvas, right-color_key_width*(right-left),y, z.to!string);
 		}
 		break;
 	}
@@ -1150,7 +1152,7 @@ void color_grid_numbers_log(BackendInterface backend_interface, CanvasProperties
 		for(double z0=zmin; z0<(zmax-dz/2); z0+=dz) {
 			double z = z0*log(10.0); // log(10^(y0)) = log(exp(y0*log(10)))
 			double y = bottom+(top-bottom)*canvas.transform[2].world2canvas(z);
-			draw_number_label_z(backend_interface, canvas, right-color_key_width*(right-left),y, twmax, thmax, exp(z).to!string);
+			draw_number_label_z(backend_interface, canvas, right-color_key_width*(right-left),y, exp(z).to!string);
 			if (dz > 1.5) continue;
 			double z2 = (z0+dz)*log(10.0);
 			double y2 = bottom+(top-bottom)*canvas.transform[2].world2canvas(z2);
@@ -1168,7 +1170,7 @@ void color_grid_numbers_log(BackendInterface backend_interface, CanvasProperties
 				double text_bot = -canvas.transform[1].world2canvas(yi);
 				double text_top = text_bot + th*1.4;
 				if (last_text_top < text_bot && text_top < end) {
-					draw_number_label_z(backend_interface, canvas, right-color_key_width*(right-left),yi, twmax, thmax, zzi.to!string);
+					draw_number_label_z(backend_interface, canvas, right-color_key_width*(right-left),yi, zzi.to!string);
 					last_text_top = text_top;
 				} 
 			}
