@@ -19,7 +19,10 @@ bool is_pixel(in ubyte p) {
 }
 wchar render_pixel(in Pixel p) {
 	with(Pixel) switch(p) {
-		case empty: return ('·');
+		//case empty: return ('·'); // central dot looks a bit nicer, but is too similar to the minus sign
+		                            // and makes it difficult to the minus here: "·····-10.0·····"
+		                            // (in most terminal fonts)
+		case empty: return ('.');   //       it is easyer to see the minus here: ".....-10.0....."
 		case white: return (' ');
 		case light: return ('░');
 		case gray:  return ('▒');

@@ -1049,8 +1049,8 @@ void draw_number_label_z(BackendInterface backend_interface, CanvasProperties *c
 	//backend_interface.rectangle(canvas.transform[0].world2canvas(x)-we-1, canvas.transform[1].world2canvas(y)-thmax/2+1, 
 	//	             canvas.transform[0].world2canvas(x)-1      , canvas.transform[1].world2canvas(y)+thmax/2+1);
 	//backend_interface.fill();
-	double xpos = canvas.transform[0].world2canvas(x)-we-1;
-	double ypos = canvas.transform[1].world2canvas(y)+thmax/2+1;
+	double xpos = canvas.transform[0].world2canvas(x)-we;
+	double ypos = canvas.transform[1].world2canvas(y)+thmax/2;
 	if (backend_interface.text_with_border()) {
 		backend_interface.set_color(0.9,0.9,0.9);
 		backend_interface.text(xpos-1, ypos-1, text);

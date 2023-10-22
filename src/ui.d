@@ -95,27 +95,36 @@ string win(string name, int width = 600, int height = 400, int xpos = -1, int yp
 	return "created new window "~name;
 }
 
-@UI_EXPORT("set min max for given window and axis", 
+@UI_EXPORT("set visible range for given window and axis", 
+	[ "name of the window",
+	  "name of axis (x or y or z)",
+	  "minimum value of visible range",
+	  "maximum value of visible range"] )
+void winrange(string window_name, char axis, double min, double max) {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	canvas.transform[axis_helper_xyz(axis)].set_minmax(min, max);
+	fairy.redraw_window(window_name);
+}
+
+@UI_EXPORT("move visible range axis", 
 	[ "name of the window",
 	  "name of axis (x or y or z)",
 	  "move by that fraction of width"] )
-void movewin(string window_name, char axis, double amount) {
+void winmove(string window_name, char axis, double amount) {
 	import fairy, graphics;
 	auto canvas = fairy.session.get_canvas(window_name);
-	if (axis=='x'||axis=='y') {
-		int axis_idx = axis-'x';
-		canvas.transform[axis_idx].set_minmax(canvas.transform[axis_idx].min + canvas.transform[axis_idx].width*amount,
-		                                      canvas.transform[axis_idx].max + canvas.transform[axis_idx].width*amount);
-		fairy.redraw_window(window_name);
-		return;
-	}
-	throw new Exception("invalid axis: "~ axis~ ", possible values are x, y, or z");
+	int axis_idx = axis_helper_xyz(axis);
+	canvas.transform[axis_idx]
+	      .set_minmax(canvas.transform[axis_idx].min + canvas.transform[axis_idx].width*amount,
+	                  canvas.transform[axis_idx].max + canvas.transform[axis_idx].width*amount);
+	fairy.redraw_window(window_name);
 }
 
 @UI_EXPORT("set zoom for given window", 
 	[ "name of the window",
 	  "zoom by that fraction of width"] )
-void zoomwin(string window_name, double amount) {
+void winzoom(string window_name, double amount) {
 	import fairy, graphics;
 	auto canvas = fairy.session.get_canvas(window_name);
 	foreach (i; 0..2) {
@@ -215,7 +224,7 @@ void colorbar(string window_name, string action = "toggle") {
 
 @UI_EXPORT("render window in ascii text")
 @trusted
-string showwin(string name, string mode = "double", int w = -1, int h = -1) {
+string winshow(string name, string mode = "double", int w = -1, int h = -1) {
 	import std.stdio;
 	import std.typecons, std.array, std.algorithm, std.conv;
 	// find terminal dimensions (lines and columns)

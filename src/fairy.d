@@ -86,7 +86,8 @@ void run(string[] args) {
 
 	import std.getopt;
 	auto getopt_result = getopt(args,
-		"session|s", "session name (default = session)", &session.name
+		"session|s", "session name (default = session)", &session.name,
+		"gui|g", "start gui at startup", &start_gui
 	);	
 
 	import std.stdio;
