@@ -56,6 +56,10 @@ void set_global_text_size(int size) {
 }
 private int global_text_size = 20;
 
+interface Visual {
+	Visualizer create_visualizer(BackendInterface backend);
+}
+
 class Visualizer
 {
 import transform;
@@ -68,24 +72,24 @@ public:
 		return double.init;
 	}
 
-	bool get_leftright(out double[2] leftright, in Transform t)  {
+	bool get_leftright(out double[2] leftright, in Transform[3] t)  {
 		return false;
 	}
 	bool get_bottomtop_in_leftright(out double[2] bottomtop, 
 		                             in double[2] leftright, 
-		                             in Transform box) 
+		                             in Transform[3] box) 
 	{
 		return false;
 	}
 	bool get_zminmax_in_leftright_bottomtop(out double[2] zminmax, 
 		                                     in double[2] leftright, 
 		                                     in double[2] bottomtop, 
-		                                     in Transform t) 
+		                                     in Transform[3] t) 
 	{
 		return false;
 	}	
 
-	void draw(BackendInterface gi, in Transform t) 
+	void draw(BackendInterface gi, in Transform[3] t) 
 	{}
 
 	final ulong getVersion() {
@@ -354,6 +358,7 @@ struct CanvasPainter {
 		//backend.set_color(0,0,0);
 		//backend.text(100,100,"hallo");
 
+
 		if (canvas.display_mode == DisplayMode.overlay) {
 
 		//	// find min left and max right of all visualizers
@@ -372,48 +377,32 @@ struct CanvasPainter {
 			grid_transforms.length = 1;
 			grid_transforms[0] = canvas.transform;
 			import std.stdio;
-			//writeln("tranform x", canvas.transform[0]);
-			//writeln("tranform y", canvas.transform[1]);
 
 			if (!canvas.grid_ontop)    draw_grid();
 			if (!canvas.numbers_ontop) draw_grid_numbers();
-		//	foreach(n_v; visualizers) {
-		//		n_v.visualizer.draw(drawer,transform);
-		//	}
+			foreach(itemname; canvas.itemnames) {
+				import fairy;
+				try {
+					if ((itemname in visualizers) is null) { // try to get the visualizer
+						visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+					}
+					visualizers[itemname].draw(backend, canvas.transform);
+				} catch (Exception e) {
+					writeln("cannot draw ", itemname , " because ", e.msg);
+				}
+			}
 			if (canvas.grid_ontop)    draw_grid();
 			if (canvas.numbers_ontop) draw_grid_numbers();
-			//draw_grid_numbers();
-
 			if (canvas.color_bar) {
 				draw_colorkey();
 				color_grid_numbers(backend, canvas, canvas.color_key_width);
 			}	
-
-		//	//if (dim == 2) {
-		//	//	draw_colorkey(drawer, transform, color_key_width);
-		//	//}
-
 			if (draw_selection_box) draw_selection_box_helper();
-
 		} else { 
 			// grid mode
 			// find number of rows and columns
 			int rows    = canvas.rows;
 			int columns = canvas.columns;
-
-
-			//backend.set_color(0.2,0.2,0.2);
-			//backend.set_line_width(2);
-			//foreach(row;    1..rows) {
-			//	backend.horizontal_line(row*(height-1)/rows,0,width);
-			//	backend.stroke();
-			//}
-			//foreach(column; 1..columns) {
-			//	backend.vertical_line(column*(width-1)/columns,0,height);
-			//	backend.stroke();
-			//}
-
-			//transform.setRowsColumns(rows, columns);
 
 			grid_transforms.length = rows*columns;
 			grid_transforms[0] = canvas.transform;
@@ -428,7 +417,7 @@ struct CanvasPainter {
 					}
 
 		//			transform._content_idx = -1;
-		//			if (idx < visualizers.length) {
+					//if (idx < canvas.itemnames.length) {
 		//				transform._content_idx = idx;
 		//				double left,right, bottom,top, zmin,zmax;
 		//				if (autoscale_x && visualizers[idx].visualizer.get_leftright(left,right,transform)) {
@@ -448,7 +437,7 @@ struct CanvasPainter {
 		//						canvas.transformY.set_minmax(zmin,zmax);
 		//					}
 		//				}
-		//			}
+					//}
 
 
 					canvas.transform[0].update_coefficients(column, columns, canvas.width);
@@ -471,14 +460,20 @@ struct CanvasPainter {
 					                   canvas.transform[0].world2canvas( 1),  canvas.transform[1].world2canvas( 1)  );
 					backend.fill();
 
-		//			if (!draw_grid_ontop) draw_grid();
-		//			if (!draw_nums_ontop) draw_grid_numbers();
-		//			if (idx < visualizers.length) {
-		//				visualizers[idx].visualizer.draw(drawer,transform);
-		//			}
-		//			if (draw_grid_ontop) draw_grid();
-		//			if (draw_nums_ontop) draw_grid_numbers();
-		//			//draw_grid_numbers();
+
+					if (idx < canvas.itemnames.length) {
+						string itemname = canvas.itemnames[idx];
+						import fairy;
+						try {
+							if ((itemname in visualizers) is null) { // try to get the visualizer
+								visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+							}
+							visualizers[itemname].draw(backend, canvas.transform);
+						} catch (Exception e) {
+							import std.stdio;
+							writeln("cannot draw ", itemname , " because ", e.msg);
+						}
+					}
 
 					if (canvas.grid_ontop)    draw_grid();
 					if (canvas.numbers_ontop) draw_grid_numbers();

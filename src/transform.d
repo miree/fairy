@@ -112,8 +112,8 @@ public:
 		return (maximum - minimum)*scale;
 	}
 	void set_minmax(in double min, in double max) {
-		minimum = min;
-		maximum = max;
+		minimum = log(min);
+		maximum = log(max);
 		if (maximum-minimum < min_width) {
 			double mid = 0.5*(minimum+maximum);
 			minimum = mid - 0.5*min_width;
@@ -149,6 +149,16 @@ public:
 			return true;
 		}
 		return false;
+	}
+	double log(in double x, double xmin = 0.0) const pure {
+		import std.math;
+		if (logscale) return (x>0)?(std.math.log(x)):( (xmin>0.0)?std.math.log(xmin):min);
+		return x;
+	}
+	double exp(in double x) const pure {
+		import std.math;
+		if (logscale) return std.math.exp(x);
+		return x;
 	}
 }
 

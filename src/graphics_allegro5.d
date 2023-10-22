@@ -274,6 +274,7 @@ public:
 			case ALLEGRO_KEY_W: winmove(name,'y',+0.2); break;
 			case ALLEGRO_KEY_O: overlay(name); break;
 			case ALLEGRO_KEY_B: colorbar(name); break;
+			case ALLEGRO_KEY_G: grid(name,"top","toggle"); break;
 			case ALLEGRO_KEY_C: columns(name, canvas.columns_or_rows); break;
 			case ALLEGRO_KEY_R: rows   (name, canvas.columns_or_rows); break;
 			case ALLEGRO_KEY_X: autoscale  (name, 'x', "toggle");  break;

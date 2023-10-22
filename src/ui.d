@@ -115,6 +115,17 @@ string filehistogram(string filename) {
 	return "";
 }
 
+@UI_EXPORT("show item in window",
+	["name of item to display",
+	 "name of window on which the item should be shown"])
+string show(string item_name, string window_name) {
+	import fairy;
+	auto canvas = fairy.session.get_canvas(window_name);
+	auto visual = fairy.session.get_visual_item(item_name);
+	canvas.itemnames ~= item_name;
+	return "";
+}
+
 
 
 
@@ -254,11 +265,15 @@ void autoscale(string window_name, char axis, string action="toggle") {
 
 @UI_EXPORT("show grid for given axis", 
 	[ "name of the window",
-	  "name of axis (x or y)",
+	  "\"top\" or name of axis (x or y)",
 	  "true enables, false disables, toggle changes automatic x-axis scaling"] )
-void grid(string window_name, char axis, string action="toggle") {
+void grid(string window_name, string axis, string action="toggle") {
 	import graphics, fairy;
-	if (toggle_action(action, fairy.session.get_canvas(window_name).grid[axis_helper_xy(axis)])) {
+	if (axis == "top") {
+		if (toggle_action(action, fairy.session.get_canvas(window_name).grid_ontop)) {
+			fairy.redraw_window(window_name);
+		}
+	} else if (toggle_action(action, fairy.session.get_canvas(window_name).grid[axis_helper_xy(axis[0])])) {
 		fairy.redraw_window(window_name);
 	}
 }

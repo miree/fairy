@@ -19,8 +19,8 @@ void add_item_factory(string item_type, ItemFactory factory) {
 
 interface Item {
 	import std.json;
-	JSONValue toJSON();
-	string get_type();
+	JSONValue toJSON() const ;
+	string get_type() const ;
 }
 struct ItemStore {
 	Item item;
@@ -60,7 +60,7 @@ struct Session {
 			if (items[name].item is null) {
 				if (include_null) result ~= name ~ " : unknown type \"" ~ items[name].type ~ "\"\n";
 			} else {
-				result ~= name ~ " : " ~ items[name].type ~ "\n";
+				result ~= name ~ " : " ~ items[name].item.get_type ~ "\n";
 			}
 		}
 		return result;		
@@ -88,7 +88,12 @@ struct Session {
 			        ~ " " 
 			        ~ windows[name].width.to!string 
 			        ~ "x" 
-			        ~ windows[name].height.to!string ~ "\n";
+			        ~ windows[name].height.to!string
+			        ~ ": ";
+			        foreach(itemname; windows[name].itemnames) {
+			        	result ~= itemname ~ " ";
+			        }
+			        result ~= "\n";
 		}
 		return result;
 	}
@@ -98,6 +103,17 @@ struct Session {
 			throw new Exception("there is no window with name ", name);
 		}
 		return canvas;
+	}
+	Visual get_visual_item(string name) {
+		auto item = name in items;
+		if (item is null) {
+			throw new Exception("there is no item with name ", name);
+		}
+		Visual visual = cast(Visual)item.item;
+		if (visual is null) {
+			throw new Exception("item " ~ name ~ " cannot be visualizes");
+		}
+		return visual;
 	}
 
 	void close() {
