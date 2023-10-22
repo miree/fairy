@@ -13,6 +13,14 @@ private int default_font_size = 10;
 void gui_add_window(string name, ref CanvasProperties canvas) {
 	new MainWindow(name, &canvas);
 }
+void gui_remove_window(string name) {
+	foreach(w; MainWindow.main_windows) {
+		if (w.name == name) {
+			w.close_window();
+			break;
+		}
+	}
+}
 
 void gui_loop() {
 	al_install_system((ALLEGRO_VERSION << 24) | (ALLEGRO_SUB_VERSION << 16) | 
@@ -141,18 +149,19 @@ void gui_loop() {
 		} 
 
 		if (fairy.iterate(0)) {
+
 			import std.stdio;
 			stdout.write("fairy> ");
 			stdout.flush();
 		}
-	}
 
-	// copy window position to canvas so that this information is stored in the session file
-	foreach(window; MainWindow.main_windows) {
-		int xpos, ypos;
-		al_get_window_position(window.display, &xpos, &ypos);
-		window.canvas.xpos = xpos-1; // for some reason reading back the position
-		window.canvas.ypos = ypos-1; // has an offset of 1 that needs to be corrected
+		// copy window position to canvas so that this information is stored in the session file
+		foreach(window; MainWindow.main_windows) {
+			int xpos, ypos;
+			al_get_window_position(window.display, &xpos, &ypos);
+			window.canvas.xpos = xpos-1; // for some reason reading back the position
+			window.canvas.ypos = ypos-1; // has an offset of 1 that needs to be corrected
+		}
 	}
 
 }
@@ -180,6 +189,9 @@ public:
 
 	import graphics;
 	this(string canvas_name, CanvasProperties *canvas_pointer) {
+		import std.stdio;
+		writeln("MainWindow this ", canvas_name, " ");
+		assert(canvas_pointer !is null);
 		canvas = canvas_pointer;
 		painter = CanvasPainter(canvas_pointer, this);
 		name = canvas_name;

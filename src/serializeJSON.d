@@ -21,6 +21,7 @@ auto serialize(T)(in T data) {
 }
 void serialize(T)(in T data, ref JSONValue json) {
 	static      if (isAssociativeArray!T) serialize_aa!(KeyType!T,ValueType!T)(data,json);
+	else static if (isSomeString!T)       json = JSONValue(data);
 	else static if (isStaticArray!T)      serialize_sa!(T)(data,json);
 	else static if (isDynamicArray!T)     serialize_da!(T)(data,json);
 	else static if (isAggregateType!T)    serialize_struct!T(data,json);
@@ -62,9 +63,13 @@ void serialize_struct(T)(in T structure, ref JSONValue json) {
 		alias member = helper!(__traits(getMember, T, memberName));
 		static if (!isSomeFunction!(typeof(member))) {
 			if (isSERIALIZEd!(T,memberName)(structure)) {
-				JSONValue member_json;
-				mixin("serialize(structure." ~ memberName ~ ", member_json);");
-				json[memberName] = member_json;
+				static if (is(typeof(member)==JSONValue)) {
+					mixin("json[memberName] = structure." ~ memberName ~ ";");
+				} else {
+					JSONValue member_json;
+					mixin("serialize(structure." ~ memberName ~ ", member_json);");
+					json[memberName] = member_json;
+				}
 			}
 		}
 	}}
@@ -97,8 +102,12 @@ T deserialize_struct(T)(in JSONValue json) pure {
 		static if (!isSomeFunction!(typeof(member))) {
 			if (isSERIALIZEd!(T,memberName)(result)) {
 				try {
+					static if (is(typeof(member)==JSONValue)) {
+						mixin("result." ~ memberName ~ " = json[\"" ~ memberName ~ "\"];");
+					} else {
 					//pragma(msg,"result." ~ memberName ~ " = deserialize!(typeof(T."~memberName~"))(json[\"" ~ memberName ~ "\"]);" );
-					mixin("result." ~ memberName ~ " = deserialize!(typeof(T."~memberName~"))(json[\"" ~ memberName ~ "\"]);");
+						mixin("result." ~ memberName ~ " = deserialize!(typeof(T."~memberName~"))(json[\"" ~ memberName ~ "\"]);");
+					}
 				} catch (Exception e) {
 					// nothing, just maybe a report
 					//import std.stdio; writeln("member " ~ memberName ~ " not found in JSON");
@@ -211,6 +220,20 @@ unittest {
 		//json.toJSON(true).writeln;
 		//assert(serialize(s).toString(JSONOptions.specialFloatLiterals) == `{"a":1,"b":2.0,"n":{"ar":[2,3,4]},"x":""}`);
 		//assert(json_string == json.toString);
+	}
+	{
+		struct J {
+			@SERIALIZE JSONValue jv;
+			@SERIALIZE JSONValue jv2;
+		}
+		auto j = J(JSONValue(1),JSONValue("blub"));
+		j.writeln;
+		JSONValue json;
+		serialize(j,json);
+		json.toString.writeln;
+		auto j2 = deserialize!J(json);
+		j2.writeln;
+		assert(j==j2);
 	}
 
 }

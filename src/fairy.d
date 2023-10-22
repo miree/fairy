@@ -2,18 +2,73 @@ module fairy;
 @safe:
 
 
+interface ItemFactory {
+	import std.json;
+	Item create(ref JSONValue);
+}
+
+ItemFactory[string] item_factories;
+void add_item_factory(string item_type, ItemFactory factory) {
+	auto f = item_type in item_factories;
+	if (f !is null) {
+		// this is not supposed to be caught
+		throw new Error("cannot add ItemFactory " ~ item_type ~ ", it already exists");
+	}
+	item_factories[item_type] = factory;
+}
+
+interface Item {
+	import std.json;
+	JSONValue toJSON();
+	string get_type();
+}
+struct ItemStore {
+	Item item;
+	import serializeJSON;
+	@SERIALIZE string type;
+	@SERIALIZE JSONValue data;
+}
 
 struct Session {
 	import graphics;
 	string name = "default";
 
 	CanvasProperties[string] windows;
+	ItemStore[string] items;
+
+
+	void check_name_helper(string prefix, string name) {
+		if (name[0] >= '0' && name[0] <= '9' || name[0] == '.') {
+			throw new Exception(prefix ~ " name must not start with numerical digit or decimal point");
+		}	
+	}
+
+	void add_item(string name, Item item) {
+		check_name_helper("item ", name);
+		if ((name in items) is null) {
+			items[name] = ItemStore(item);
+		} else {
+			throw new Exception("item with name \""~name~"\" already exists");
+		}
+	}
+
+	string list_items(bool include_null) {
+		import std.algorithm, std.array, std.conv;
+		string result;
+		foreach(name; items.byKey.array.sort) {
+			string is_null = "";
+			if (items[name].item is null) {
+				if (include_null) result ~= name ~ " : unknown type \"" ~ items[name].type ~ "\"\n";
+			} else {
+				result ~= name ~ " : " ~ items[name].type ~ "\n";
+			}
+		}
+		return result;		
+	}
 
 
 	void add_window(string name, int w, int h, int xpos, int ypos) {
-		if (name[0] >= '0' && name[0] <= '9') {
-			throw new Exception("window name must not start with numerical digit");
-		}
+		check_name_helper("window ", name);
 		if ((name in windows) is null) {
 			windows[name] = CanvasProperties(w,h,xpos,ypos);
 			if (start_gui) {
@@ -55,26 +110,67 @@ struct Session {
 		return canvas;
 	}
 
+	void close() {
+		import std.array;
+		auto window_names = windows.byKey.array;
+		foreach(name; window_names) {
+			remove_window(name);
+		}
+		items = null;
+	}
+
 	import std.file, std.json, std.algorithm, serializeJSON;
 	@trusted
 	void read_from_file() {
 		try {
 			JSONValue json = readText(name~".session").parseJSON;
+			// loading windows by deserializing the entire JSONValue
 			if (!json["windows"].isNull) {
 				JSONValue window_jsons = json["windows"];
 				windows = deserialize!(CanvasProperties[string])(window_jsons);
 			}
+			// we first need to read the item types ...
+			if (!json["items"].isNull) {
+				JSONValue item_jsons = json["items"];
+				items = deserialize!(ItemStore[string])(item_jsons);
+			}
+			// ... then restore the item using the type and the item factory
+			import std.stdio;
+			foreach(name, ref item; items) {
+				auto factory = item.type in item_factories;
+				if (factory !is null) {
+					item.item = factory.create(item.data);
+				} else {
+					writeln("Found item \"", name, "\" with unknown type: \"", item.type, "\"");
+				}
+			}
+
 		} catch (Exception e) {
 			import std.stdio;
 			writeln("Cannot load session: ", e.msg, ", creating a new session!");
 		}
+
+
+
 	}
 	void write_to_file() {
 		import std.stdio : writeln;
 		auto filename = name~".session";
 		writeln("save session to file ", filename);
 		JSONValue json_out;
+		// windows are easy, because we can directly serialize the array
 		json_out["windows"] = serialize(windows);
+
+		// items are polymorphic, so we have to call the virtual toJSON for each item
+		// and also store the item type in the surrounding structure so it will be serialized as well
+		foreach(ref item; items) {
+			if (item.item !is null) {
+				item.type = item.item.get_type();
+				item.data = item.item.toJSON();				
+			}
+		}
+		json_out["items"] = serialize(items);
+
 		write(filename, json_out.toJSON(true, JSONOptions.specialFloatLiterals));
 	}
 }
@@ -161,6 +257,24 @@ void redraw_window(string name) {
 		else version(gtk4) {
 			import graphics_gtk;
 			graphics_gtk.redraw(name);
+			return;
+		}
+	}
+}
+
+void remove_window(string name) {
+	if (start_gui) {
+		version(allegro5) {
+			import graphics_allegro5;
+			graphics_allegro5.gui_remove_window(name);
+			return;
+		}
+		else version(gtk3) {
+			import graphics_gtk;
+			return;
+		}
+		else version(gtk4) {
+			import graphics_gtk;
 			return;
 		}
 	}

@@ -65,6 +65,66 @@ bool toggle_action(string action, ref bool property) {
 // all user interface functions are here
 ///////////////////////////////////////////////////////////////////////
 
+@UI_EXPORT("save current session and open a new one",
+	["new session name, file does not exist a new session is created"])
+string session_open(string session_name) {
+	import fairy, histogram;
+	fairy.session.write_to_file();
+	fairy.session.close();
+	fairy.session.name = session_name;
+	fairy.session.read_from_file();
+
+	import std.stdio;
+	fairy.session.windows.byKey.writeln();
+	if (start_gui) {// gui is already running
+		foreach (name, ref window; fairy.session.windows) {
+			version(allegro5) {
+				import graphics_allegro5;
+				gui_add_window(name,window);
+			}
+			else version(gtk3) {
+				import graphics_gtk;
+			}
+			else version(gtk4) {
+				import graphics_gtk;
+			}
+		}
+	}
+	return "";
+}
+
+@UI_EXPORT("save current session under new name",
+	["new session name, file is immediately written"])
+string session_save(string session_name) {
+	import fairy, histogram;
+	fairy.session.name = session_name;
+	fairy.session.write_to_file();
+	return "";
+}
+
+
+
+
+@UI_EXPORT("list all items",
+	["include items that are not initialized (because their type could not be recognized while reading the session file"])
+@trusted
+string ls(bool all = true) {
+	import fairy;
+	return fairy.session.list_items(all);
+}
+
+
+@UI_EXPORT("add histogram that refers to a file on disk",
+	["filename to load the data from"])
+string filehistogram(string filename) {
+	import fairy, histogram;
+	fairy.session.add_item(filename, new FileHistogram(FileHistogram.Data(filename)));
+	return "";
+}
+
+
+
+
 @UI_EXPORT("quit program")
 @trusted
 string quit() {
@@ -266,7 +326,7 @@ string winshow(string name, string mode = "double", int w = -1, int h = -1) {
 
 @UI_EXPORT("list all windows")
 @trusted
-string lswin() {
+string winls() {
 	import fairy;
 	return fairy.session.list_windows();
 }
