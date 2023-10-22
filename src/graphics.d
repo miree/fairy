@@ -1,6 +1,12 @@
 module graphics;
 @safe:
 
+interface Gui {
+	void add_window(string name, ref CanvasProperties canvas);
+	void close_window(string name);
+	void redraw_window(string name);
+	void loop();
+}
 
 interface BackendInterface {
 	bool inverted_y_direction(); // true if the y-coordinates go from top to bottom

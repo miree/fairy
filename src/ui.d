@@ -78,15 +78,8 @@ string session_open(string session_name) {
 	fairy.session.windows.byKey.writeln();
 	if (start_gui) {// gui is already running
 		foreach (name, ref window; fairy.session.windows) {
-			version(allegro5) {
-				import graphics_allegro5;
-				gui_add_window(name,window);
-			}
-			else version(gtk3) {
-				import graphics_gtk;
-			}
-			else version(gtk4) {
-				import graphics_gtk;
+			if (fairy.main_gui !is null) {
+				fairy.main_gui.add_window(name,window);
 			}
 		}
 	}

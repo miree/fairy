@@ -72,18 +72,8 @@ struct Session {
 		if ((name in windows) is null) {
 			windows[name] = CanvasProperties(w,h,xpos,ypos);
 			if (start_gui) {
-				version(allegro5) {
-					import graphics_allegro5;
-					gui_add_window(name,windows[name]);
-					return;
-				}
-				else version(gtk3) {
-					import graphics_gtk;
-					return;
-				}
-				else version(gtk4) {
-					import graphics_gtk;
-					return;
+				if (main_gui !is null) {
+					main_gui.add_window(name, windows[name]);
 				}
 			}
 		} else {
@@ -200,6 +190,8 @@ void run(string[] args) {
 }
 
 public bool start_gui = false;
+import graphics;
+Gui main_gui = null;
 public bool running = true;
 @trusted
 void loop(string[] args) {
@@ -219,7 +211,8 @@ void loop(string[] args) {
 		if (start_gui) {
 			version(allegro5) {
 				import graphics_allegro5;
-				gui_loop();
+				main_gui = new Allegro5Gui;
+				main_gui.loop();
 				return;
 			}
 			else version(gtk3) {
@@ -244,38 +237,16 @@ void loop(string[] args) {
 // backend, for example by all functions in "ui" module that need to redraw a window
 void redraw_window(string name) {
 	if (start_gui) {
-		version(allegro5) {
-			import graphics_allegro5;
-			graphics_allegro5.redraw(name);
-			return;
-		}
-		else version(gtk3) {
-			import graphics_gtk;
-			graphics_gtk.redraw(name);
-			return;
-		}
-		else version(gtk4) {
-			import graphics_gtk;
-			graphics_gtk.redraw(name);
-			return;
+		if (main_gui !is null) {
+			main_gui.redraw_window(name);
 		}
 	}
 }
 
 void remove_window(string name) {
 	if (start_gui) {
-		version(allegro5) {
-			import graphics_allegro5;
-			graphics_allegro5.gui_remove_window(name);
-			return;
-		}
-		else version(gtk3) {
-			import graphics_gtk;
-			return;
-		}
-		else version(gtk4) {
-			import graphics_gtk;
-			return;
+		if (main_gui !is null) {
+			main_gui.close_window(name);
 		}
 	}
 }
