@@ -277,19 +277,20 @@ public:
 			return;
 		}
 		try {
-			auto pixel_width = t[0].pixel_width;
-			auto bin_width = getBinWidth;
-			double line_width = t[0].world2canvas_delta(1);
-			d.set_color(0.0,0.0,0.0);
-			d.set_line_width(line_width);
-			foreach(bin, content; _bin_data) {
-				double x =  t[0].world2canvas(t[0].log(bin));
-				double y0 = t[1].world2canvas(t[1].log(0));
-				double y1 = t[1].world2canvas(t[1].log(content));
-				d.rectangle(x,y0,x+line_width,y1);
-				d.fill();
-			}
-			//drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width);
+			//auto pixel_width = t[0].pixel_width;
+			//auto bin_width = getBinWidth;
+			//double line_width = t[0].world2canvas_delta(1);
+			//d.set_color(0.0,0.0,0.0);
+			//d.set_line_width(line_width);
+			//foreach(bin, content; _bin_data) {
+			//	double x =  t[0].world2canvas(t[0].log(bin));
+			//	double y0 = t[1].world2canvas(t[1].log(0));
+			//	double y1 = t[1].world2canvas(t[1].log(content));
+			//	d.rectangle(x,y0,x+line_width,y1);
+			//	d.fill();
+			//}
+			double line_width = 2.0;
+			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width);
 		} catch(Exception e) {
 			import std.stdio;
 			writeln ("there was an Exception: ", e.file, ":", e.line, " -> ", e.msg, "\r");
@@ -463,7 +464,7 @@ d.set_color(1,0,0);
 	// find the starting index of the visible part of the histogram
 	double xhist = min;
 	import std.math;
-	double x_start = t[0].logscale?exp(t[0].min):(t[0].max);
+	double x_start = t[0].exp(min);//logscale?exp(t[0].min):(t[0].min);
 	uint idx_start = 0;
 	double index = ((x_start-min)/bin_width);
 	if (index < 0) index = 0;
@@ -477,6 +478,7 @@ d.set_color(1,0,0);
 	xhist += bin_width;
 	x2 = t[0].world2canvas(t[0].log(xhist));
 	d.horizontal_line(y1, x1, x2);
+	import std.stdio;
 	//int color =1;
 	//d.set_color(color,0,0);
 	long mipmap_idx = idx_start;

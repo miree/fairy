@@ -312,7 +312,7 @@ public:
 		// nothing
 	}
 	override double get_line_width() {
-		return 0.1;
+		return 0;
 	}
 	void set_bitmap(int x, int y, ubyte pixel) {
 		if (is_pixel(bitmap[y][x])) // dont override text

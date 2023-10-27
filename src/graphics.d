@@ -135,29 +135,23 @@ struct CanvasProperties {
 	@SERIALIZE string[]     itemnames        = [];
 	@SERIALIZE Transform[3] transform;
 
-	int rows() {
-		int len = 1;
-		if (itemnames !is null && itemnames.length != 0) len = cast(int)itemnames.length;
-		int result;
-		with(DisplayMode) final switch(display_mode) {
-			case overlay: result = 1;                    break;
-			case rows:    result = columns_or_rows;      break;
-			case columns: result = len/columns_or_rows;  break;
-		}
-		if (result > 0) return result;
+	int len() {
+		if (itemnames !is null && itemnames.length != 0) return cast(int)itemnames.length;
 		return 1;
 	}
-	int columns() {
-		int len = 1;
-		if (itemnames !is null && itemnames.length != 0) len = cast(int)itemnames.length;
-		int result;
+	int rows() {
 		with(DisplayMode) final switch(display_mode) {
-			case overlay: result = 1;                    break;
-			case rows:    result = len/columns_or_rows;  break;
-			case columns: result = columns_or_rows;      break;
+			case overlay: return 1;
+			case rows:    return columns_or_rows;
+			case columns: for (int result = 1;; ++result) if (result*columns_or_rows >= len()) return result;
 		}
-		if (result > 0) return result;
-		return 1;
+	}
+	int columns() {
+		with(DisplayMode) final switch(display_mode) {
+			case overlay: return 1;
+			case columns: return columns_or_rows;
+			case rows: for (int result = 1;; ++result) if (result*columns_or_rows >= len()) return result;
+		}
 	}
 }
 
@@ -584,8 +578,8 @@ struct CanvasPainter {
 		with (canvas.transform[2]) {
 			if (z_scaling_ongoing)     scale_ongoing(y, +0.01);
 			if (z_translating_ongoing) {
-				if (backend.inverted_y_direction) translate_ongoing(-y/canvas.height/canvas.rows);
-				else                              translate_ongoing(y/canvas.height/canvas.rows);
+				if (backend.inverted_y_direction) translate_ongoing(-y/(canvas.height/canvas.rows));
+				else                              translate_ongoing(y/(canvas.height/canvas.rows));
 			}
 			if (z_scaling_ongoing || z_translating_ongoing) {
 				backend.need_redraw();
@@ -636,8 +630,8 @@ struct CanvasPainter {
 		double x_world = mouse_transform[0].canvas2world(x);
 		if (x_world <= mouse_transform[0].max && 
 			x_world >= mouse_transform[0].max - mouse_transform[0].width*canvas.color_key_width) {
-			if (backend.inverted_y_direction) canvas.transform[2].translate_start(-y/canvas.height/canvas.rows, canvas.rows,     canvas.height);
-			else                              canvas.transform[2].translate_start(y/canvas.height/canvas.rows, canvas.rows,     canvas.height);
+			if (backend.inverted_y_direction) canvas.transform[2].translate_start(-y/(canvas.height/canvas.rows), canvas.rows, canvas.height);
+			else                              canvas.transform[2].translate_start(y/(canvas.height/canvas.rows), canvas.rows, canvas.height);
 			z_translating_ongoing = true;
 		} else {
 			canvas.transform[0].translate_start(x, canvas.columns,  canvas.width);
