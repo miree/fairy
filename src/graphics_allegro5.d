@@ -281,7 +281,7 @@ public:
 			case ALLEGRO_KEY_Y: autoscale  (name, 'y', "toggle");  break;
 			case ALLEGRO_KEY_Z: autoscale  (name, 'z', "toggle");  break;
 			case ALLEGRO_KEY_L: logscale(name, canvas.dim==2?'z':'y', "toggle");  break;
-			//case ALLEGRO_KEY_F: fit_content(name);                 break;
+			case ALLEGRO_KEY_F: winfit(name);                 break;
 			default: {}
 		}
 	}

@@ -135,6 +135,8 @@ struct CanvasProperties {
 	@SERIALIZE string[]     itemnames        = [];
 	@SERIALIZE Transform[3] transform;
 
+	bool[3] autoscale_backup;
+	bool restore_autoscale_backup = false;
 	int len() {
 		if (itemnames !is null && itemnames.length != 0) return cast(int)itemnames.length;
 		return 1;
@@ -273,35 +275,40 @@ struct CanvasPainter {
 		}
 	}
 
-	//void fit_content_x() {
-	//	import std.algorithm;
-	//	double left,right;
-	//	foreach(ref vis; visualizers.map!(nv=>nv.visualizer)) {
-	//				double l,r; 
-	//				if (!vis.get_leftright(l,r,transform)) continue;
-	//				left =(left  is double.init)?l:min(left,l);
-	//				right=(right is double.init)?r:max(right,r);
-	//	}
-	//	if (left !is double.init && right !is double.init) {
-	//		canvas.transformX.set_minmax(left,right);
-	//	}
-	//}
+	void fit_content_x() {
+		import std.algorithm;
+		double left,right;
+		foreach(ref vis; visualizers.byValue) {
+					double[2] lr; 
+					if (!vis.get_leftright(lr,canvas.transform)) continue;
+					left =(left  is double.init)?lr[0]:min(left,lr[0]);
+					right=(right is double.init)?lr[1]:max(right,lr[1]);
+		}
+		if (left !is double.init && right !is double.init) {
+			canvas.transform[0].set_minmax(left,right);
+			canvas.transform[0].scale=1; // eliminate all ongoing transformations in x-direction
+			canvas.transform[0].delta=0; // eliminate all ongoing transformations in x-direction
+		}
+	}
 
-	//void fit_content_y() {
-	//	import std.algorithm;
-	//	double bottom,top;
-	//	double left = transform.getLeft();
-	//	double right= transform.getRight();
-	//	foreach(ref vis; visualizers.map!(nv=>nv.visualizer)) {
-	//		double b,t;
-	//		if (!vis.getBottomTopInLeftRight(b,t, left,right, transform)) continue;
-	//		bottom = (bottom is double.init)?b:min(bottom,b);
-	//		top    = (top    is double.init)?t:max(top   ,t);
-	//	}
-	//	if (bottom !is double.init && top !is double.init) {
-	//		canvas.transformY.set_minmax(bottom,top);		
-	//	}
-	//}
+	void fit_content_y() {
+		import std.algorithm;
+		double bottom,top;
+		double left = canvas.transform[0].min;
+		double right= canvas.transform[0].max;
+		foreach(ref vis; visualizers.byValue) {
+			double[2] bt;
+			if (!vis.get_bottomtop_in_leftright(bt, [left,right], canvas.transform)) continue;
+			bottom = (bottom is double.init)?bt[0]:min(bottom,bt[0]);
+			top    = (top    is double.init)?bt[1]:max(top   ,bt[1]);
+		}
+		if (bottom !is double.init && top !is double.init) {
+			canvas.transform[1].set_minmax(bottom,top);		
+			canvas.transform[1].scale=1; // eliminate all ongoing transformations in y-direction
+			canvas.transform[1].delta=0; // eliminate all ongoing transformations in y-direction
+		}
+
+	}
 
 	//void fit_content_z() {
 	//	import std.algorithm;
@@ -356,14 +363,15 @@ struct CanvasPainter {
 		if (canvas.display_mode == DisplayMode.overlay) {
 
 		//	// find min left and max right of all visualizers
-		//	if (autoscale_x) fit_content_x();
-		//	if (autoscale_y) fit_content_y();
+			if (canvas.autoscale[0]) fit_content_x();
+			if (canvas.autoscale[1]) fit_content_y();
 		//	if (autoscale_z) {
 		//		import std.stdio;
 
 		//		fit_content_z();
 		//		//writeln("fit_content_z ", transform._zmin, " " , transform._zmax);
 		//	}
+
 
 			canvas.transform[0].update_coefficients(0, 1, canvas.width);
 			canvas.transform[1].update_coefficients(0, 1, canvas.height, backend.inverted_y_direction);
@@ -501,8 +509,12 @@ struct CanvasPainter {
 		}		
 
 		backend.finish();
-		backend.need_redraw();
+		//backend.need_redraw();
 
+		if (canvas.restore_autoscale_backup) {
+			canvas.autoscale[] = canvas.autoscale_backup[];
+			canvas.restore_autoscale_backup = false;
+		}
 	}
 
 	void mouse_motion(double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {

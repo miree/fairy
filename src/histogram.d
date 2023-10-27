@@ -367,12 +367,16 @@ public:
 		double minimum = _bin_data[leftbin..rightbin].minElement();
 
 		if (t[1].logscale) {
+			import std.stdio;
+			//writeln("bottom-top logscale y");
 			auto bins_larger_0 = _bin_data.filter!(x=>x>0.0);
 			double minimum_larger_0;
 			if (!bins_larger_0.empty) minimum_larger_0 = _bin_data.filter!(x=>x>0.0).minElement();
 			if (minimum_larger_0 is double.init) return false;
-			bt[0] = t[1].log(minimum, minimum_larger_0/2.0);
-			bt[1]    = t[1].log(maximum, minimum_larger_0/2.0);
+			//writeln("min max = ", minimum, " " , maximum);
+			bt[0] = exp(t[1].log(minimum, minimum_larger_0/2.0));
+			bt[1] = exp(t[1].log(maximum, minimum_larger_0/2.0));
+			//writeln("log(min) log(max) = ", bt[0], " " , bt[1]);
 			return true;
 		}
 		bt[0] = minimum;

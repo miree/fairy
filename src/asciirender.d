@@ -563,9 +563,9 @@ public:
 	override void text(double x, double y, string str) {
 		long dx;
 		with(Mode) final switch(output_mode) {
-			case single_pixel: y-=1; dx=1; break;
-			case double_pixel: y-=2; dx=1; break;
-			case quad_pixel:   y-=2; dx=2; break;
+			case single_pixel: y-=1.0; dx=1; break;
+			case double_pixel: y-=1.5; dx=1; break;
+			case quad_pixel:   y-=1.5; dx=2; break;
 		}
 		long xi = cast(long)x;
 		long yi = cast(long)y;

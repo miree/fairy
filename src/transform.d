@@ -111,9 +111,9 @@ public:
 	double width() const pure {
 		return (maximum - minimum)*scale;
 	}
-	void set_minmax(in double min, in double max) {
-		minimum = log(min);
-		maximum = log(max);
+	void set_minmax(in double mini, in double maxi) {
+		minimum = this.log(mini);
+		maximum = this.log(maxi);
 		if (maximum-minimum < min_width) {
 			double mid = 0.5*(minimum+maximum);
 			minimum = mid - 0.5*min_width;
