@@ -456,13 +456,6 @@ struct CanvasPainter {
 					if (!canvas.grid_ontop)    draw_grid();
 					if (!canvas.numbers_ontop) draw_grid_numbers();
 
-
-					backend.set_color(1,0,0);
-					backend.rectangle( canvas.transform[0].world2canvas(-1),  canvas.transform[1].world2canvas(-1), 
-					                   canvas.transform[0].world2canvas( 1),  canvas.transform[1].world2canvas( 1)  );
-					backend.fill();
-
-
 					if (idx < canvas.itemnames.length) {
 						string itemname = canvas.itemnames[idx];
 						import fairy;
@@ -484,13 +477,7 @@ struct CanvasPainter {
 						draw_colorkey();
 						color_grid_numbers(backend, canvas, canvas.color_key_width);
 					}	
-
-		//			if (draw_color_bar) {
-		//				draw_colorkey(drawer, transform, color_key_width);
-		//				color_grid_numbers(drawer, transform, color_key_width);
-		//			}	
-
-		//			if (draw_selection_box) draw_selection_box_helper();
+					if (draw_selection_box) draw_selection_box_helper();
 				}
 			}
 

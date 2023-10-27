@@ -374,8 +374,8 @@ public:
 			if (!bins_larger_0.empty) minimum_larger_0 = _bin_data.filter!(x=>x>0.0).minElement();
 			if (minimum_larger_0 is double.init) return false;
 			//writeln("min max = ", minimum, " " , maximum);
-			bt[0] = exp(t[1].log(minimum, minimum_larger_0/2.0));
-			bt[1] = exp(t[1].log(maximum, minimum_larger_0/2.0));
+			bt[0] = t[1].log(minimum, minimum_larger_0/2.0);
+			bt[1] = t[1].log(maximum, minimum_larger_0/2.0);
 			//writeln("log(min) log(max) = ", bt[0], " " , bt[1]);
 			return true;
 		}
@@ -468,7 +468,7 @@ d.set_color(1,0,0);
 	// find the starting index of the visible part of the histogram
 	double xhist = min;
 	import std.math;
-	double x_start = t[0].exp(min);//logscale?exp(t[0].min):(t[0].min);
+	double x_start = t[0].exp(t[0].min);//logscale?exp(t[0].min):(t[0].min);
 	uint idx_start = 0;
 	double index = ((x_start-min)/bin_width);
 	if (index < 0) index = 0;
