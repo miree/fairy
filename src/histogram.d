@@ -36,6 +36,11 @@ class FileHistogram : Visual, Item {
 		switch(hist_data.dim) {
 			case 1: return new Hist1Visualizer(item_version, hist_data.data, hist_data.left, hist_data.right);
 			break;
+			case 2: 
+				return new Hist2Visualizer(item_version, backend, hist_data.data, 
+										   hist_data.bins_x, hist_data.bins_y, 
+										   hist_data.left, hist_data.right, hist_data.bottom, hist_data.top);
+			break;
 			default: assert(false);
 		}
 	}
@@ -546,3 +551,540 @@ d.set_color(1,0,0);
 	d.stroke();
 
 }
+
+
+
+//////////////////////////////////////////////////
+// Visualizer for 2D Histograms
+//////////////////////////////////////////////////
+class Hist2Visualizer : Visualizer 
+{
+public:
+
+	//import cairo.Pattern, gdk.Cairo;
+	@trusted this(ulong itemversion, BackendInterface d,/*ulong colorIdx,*/ double[] data, 
+		ulong width, ulong height, 
+		double left, double right, double bottom, double top,
+		string xlabel = null, string ylabel = null, string zlabel = null)
+	{
+		import std.stdio;
+		ulong dim;
+		super(itemversion, dim=2);
+		_bin_data = data.dup;
+		_bins_x   = width;
+		_bins_y   = height;
+		_left     = left;
+		_right    = right;
+		_bottom   = bottom;
+		_top      = top;
+		_xlabel   = xlabel;
+		_ylabel   = ylabel;
+		_zlabel   = zlabel;
+
+		//getZminZmaxInLeftRightBottomTop(_zmin, _zmax, _left,_right, _bottom, _top, )
+		import std.algorithm;
+		auto valid_bins = _bin_data.filter!(x => x !is double.init);
+		if (valid_bins.empty) {
+			_zmin = 0;
+			_zmax = 1;
+		} else {
+			_zmin = valid_bins.minElement;
+			_zmax = valid_bins.maxElement;
+		}
+		//import std.stdio;
+		//writeln(_bin_data);
+		//writeln(_zmin, " <<< ", _zmax);
+
+		bitmap_handle     = d.create_bitmap(cast(int)_bins_x*2, cast(int)_bins_y*2);
+		bitmap_handle_log = d.create_bitmap(cast(int)_bins_x*2, cast(int)_bins_y*2);
+		uint[] bitmap_data     = d.access_bitmap_data(bitmap_handle);
+		uint[] bitmap_data_log = d.access_bitmap_data(bitmap_handle_log);
+		//assert(bitmap_data.length == _bin_data.length);
+		generate_rgb_data(_bin_data, _bins_x, _bins_y, _zmin, _zmax, _bins_x*2, bitmap_data, bitmap_data_log);
+		d.access_bitmap_done(bitmap_handle);
+		d.access_bitmap_done(bitmap_handle_log);
+	}
+
+	double gen_color(in double height, in Transform[3] t) const {
+		import std.algorithm;
+		if (t[2].min == t[2].max) return 0.5;
+		double h = height;//.clamp(t.getZmin(), t.getZmax());
+		if (t[2].logscale) {
+			import std.math;
+			//import std.stdio; writeln(log(h), "/", t.getZmax());
+			return std.math.log(h)/t[2].max;
+		}
+		return (h-t[2].min)/(t[2].max-t[2].min);
+	}
+
+	@safe static void get_rgb(double c, out uint rgb) {
+		// grayscale
+		//uint i = cast(uint)(255*c);
+		//rgb = 0xff000000 | (i<<16) | (i<<8) | (i<<0);
+
+		// bluish color
+		rgb = 0xff000000;
+		if (c>1.0) c = 1.0;
+		if (c<0.0) c = 0.0;
+		c *= 3;
+		if (c < 1.0) { // back to blue
+			rgb |= cast(uint)(0xff*c);
+			return;
+		}
+		rgb = 0xff0000ff;
+		if (c < 2.0)  { // blue to lightblue
+			c -= 1.0; 
+			rgb |=  (cast(uint)(0x0000ff00*c) & 0x0000ff00) ; 
+			return;
+		}
+		rgb = 0xff00ffff; // lightblue to white
+		c -= 2.0;
+		rgb |= cast(uint)(0xff*c)<<16;
+	}
+
+	void generate_rgb_data(in double[] data, ulong width, ulong height, 
+		                   double zmin, double zmax,
+		                   ulong stride, uint[] rgb_data, uint[] log_rgb_data) const
+	{
+		import std.stdio;
+		//writeln("gererating rgb data: ", zmin, " ", zmax);
+		import std.math;
+		foreach(ulong y; 0..height) {
+			foreach(ulong x; 0..width) {
+				ulong idx = y*width+x;
+				auto bin = data[cast(uint)idx];
+				auto rgb_data_idx = (y)*stride + x;
+				if (bin !is double.init) {// && bin>0) {
+					get_rgb((bin-zmin)/(zmax-zmin), rgb_data[cast(uint)rgb_data_idx]);				
+					if (bin > 0) {
+						get_rgb((log(bin)-zmin)/(zmax-zmin), log_rgb_data[cast(uint)rgb_data_idx]);
+					} else {
+						log_rgb_data[cast(uint)rgb_data_idx] = 0x00000000;
+					}
+				} else {
+					rgb_data[cast(uint)rgb_data_idx]     = 0x00000000;
+					log_rgb_data[cast(uint)rgb_data_idx] = 0x00000000;
+				}
+			}
+			int  old_xoffset = 0;
+			auto xoffset = cast(int)width;
+			int  xdepth  = 2;
+			while(cast(int)width/xdepth) {
+				ulong deltaxoffset = cast(int)width/xdepth;
+				foreach(ulong x; 0..deltaxoffset) {
+					auto rgb_data_idx = (y)*stride + (xoffset+x);
+					auto source1_idx  = (y)*stride + (old_xoffset+x*2);
+					auto source2_idx  = (y)*stride + (old_xoffset+x*2+1);
+
+					*cast(uint*)&log_rgb_data[cast(uint)rgb_data_idx] = ((0xfefefefeL & log_rgb_data[cast(uint)source1_idx])+
+						                                       (0xfefefefeL & log_rgb_data[cast(uint)source2_idx]))>>1;
+					*cast(uint*)&rgb_data[cast(uint)rgb_data_idx]     = ((0xfefefefeL & rgb_data[cast(uint)source1_idx])+
+						                                       (0xfefefefeL & rgb_data[cast(uint)source2_idx]))>>1;
+
+				}
+				old_xoffset = xoffset;
+				xoffset += deltaxoffset;
+				xdepth *= 2;
+			}
+		} 
+		int  old_yoffset = 0;
+		auto yoffset = cast(int)height;
+		int  ydepth  = 2; // 1 refers to the original pixel buffer, 2 is the first mipmap, 3 is the second mipmap, and so on ...
+		while(cast(int)height/ydepth) {
+			ulong deltayoffset = cast(int)height/ydepth;
+			foreach(ulong y; 0..deltayoffset) {
+				foreach(ulong x; 0..width) {
+					ulong idx = y*width+x;
+					auto rgb_data_idx = (yoffset    +y    )*stride + (x);
+					auto source1_idx  = (old_yoffset+y*2  )*stride + (x);
+					auto source2_idx  = (old_yoffset+y*2+1)*stride + (x);
+
+					*cast(uint*)&log_rgb_data[cast(uint)rgb_data_idx] = ((0xfefefefeL & log_rgb_data[cast(uint)source1_idx])+
+						                                       (0xfefefefeL & log_rgb_data[cast(uint)source2_idx]))>>1;
+					*cast(uint*)&rgb_data[cast(uint)rgb_data_idx]     = ((0xfefefefeL & rgb_data[cast(uint)source1_idx])+
+						                                       (0xfefefefeL & rgb_data[cast(uint)source2_idx]))>>1;
+				}
+				int  old_xoffset = 0;
+				auto xoffset = cast(int)width;
+				int  xdepth  = 2;
+				while(cast(int)width/xdepth) {
+					ulong deltaxoffset = cast(int)width/xdepth;
+					foreach(ulong x; 0..deltaxoffset) {
+						auto rgb_data_idx = (yoffset    +y    )*stride + (xoffset+x);
+						auto source1_idx  = (old_yoffset+y*2  )*stride + (old_xoffset+x*2);
+						auto source2_idx  = (old_yoffset+y*2+1)*stride + (old_xoffset+x*2+1);
+
+						*cast(uint*)&log_rgb_data[cast(uint)rgb_data_idx] = ((0xfefefefeL & log_rgb_data[cast(uint)source1_idx])+
+							                                       (0xfefefefeL & log_rgb_data[cast(uint)source2_idx]))>>1;
+						*cast(uint*)&rgb_data[cast(uint)rgb_data_idx]     = ((0xfefefefeL & rgb_data[cast(uint)source1_idx])+
+							                                       (0xfefefefeL & rgb_data[cast(uint)source2_idx]))>>1;
+					}
+					old_xoffset = xoffset;
+					xoffset += deltaxoffset;
+					xdepth *= 2;
+				}
+			}
+			old_yoffset = yoffset;
+			yoffset += deltayoffset;
+			ydepth *= 2;
+		}
+	}
+
+	//import draw : Draw, Transform;
+	import graphics, transform;
+
+	override @trusted void draw(BackendInterface d, in Transform[3] t)  {
+
+		ulong handle = bitmap_handle;
+		if (t[2].logscale) {
+			handle = bitmap_handle_log;
+		}
+		//auto pixel_width = t.get_pixel_width();
+		//auto pixel_height = t.get_pixel_height();
+		//auto xmipmap_pos = 1;
+		//auto ymipmap_pos = 1;
+		//int rectangle_xoffset = 0;
+		//int rectangle_yoffset = 0;
+		//auto rectangle_width  = cast(int)_bins_x;
+		//auto rectangle_height = cast(int)_bins_y;
+		//while (rectangle_width>32 && pixel_width  > getBinWidth()*xmipmap_pos) {
+		//	xmipmap_pos*=2;
+		//	rectangle_xoffset += rectangle_width;
+		//	rectangle_width /= 2;
+		//}
+		//while (rectangle_height>32 && pixel_height > getBinHeight()*ymipmap_pos) {
+		//	ymipmap_pos*=2;
+		//	rectangle_yoffset += rectangle_height;
+		//	rectangle_height /= 2;
+		//}
+
+		if (t[2].min != _zmin || t[2].max() != _zmax) {
+			_zmin=t[2].min;
+			_zmax=t[2].max;
+			uint[] bitmap_data     = d.access_bitmap_data(bitmap_handle);
+			uint[] bitmap_data_log = d.access_bitmap_data(bitmap_handle_log);
+			//assert(bitmap_data.length == _bin_data.length);
+			generate_rgb_data(_bin_data, _bins_x, _bins_y, _zmin, _zmax, _bins_x*2, bitmap_data, bitmap_data_log);
+			d.access_bitmap_done(bitmap_handle);
+			d.access_bitmap_done(bitmap_handle_log);
+		}
+
+		double h_l = t[0].log(_left);
+		double h_r = t[0].log(_right);
+		double h_b = t[1].log(_bottom);
+		double h_t = t[1].log(_top);
+
+		int Nx = 1;
+		int Ny = 1;
+		if (t[0].logscale) Nx = 30;
+		if (t[1].logscale) Ny = 30;
+		if (t[2].logscale && t[1].logscale) {Nx = 20; Ny = 20;}
+
+		// more advanced tiling (linear sizing of tiles in canvas space)
+		foreach (ix; 0..Nx) {
+			foreach (iy; 0..Ny) {
+				double sx1 = 0+_bins_x*(ix+0.0)/Nx;
+				double sy1 = 0+_bins_y*(iy+0.0)/Ny;
+				double sx2 = 0+_bins_x*(ix+1.0)/Nx;
+				double sy2 = 0+_bins_y*(iy+1.0)/Ny;
+				double sw = sx2-sx1;//1.0*_bins_x/Nx;
+				double sh = sy2-sy1;//1.0*_bins_y/Ny;
+
+				double t_x1 = h_l+(h_r-h_l)*(ix+0.0)/Nx;
+				double t_y1 = h_b+(h_t-h_b)*(iy+0.0)/Ny;
+				double t_x2 = h_l+(h_r-h_l)*(ix+1.0)/Nx;
+				double t_y2 = h_b+(h_t-h_b)*(iy+1.0)/Ny;
+				double t_w = t_x2-t_x1;//(h_r-h_l)/Nx;
+				double t_h = t_y2-t_y1;//(h_t-h_b)/Ny;
+
+				double e_x1 = t[0].exp(t_x1);
+				double e_y1 = t[0].exp(t_y1);
+				double e_x2 = t[0].exp(t_x2);
+				double e_y2 = t[0].exp(t_y2);
+
+				double iix1 = (e_x1-_left  )*Nx/(_right-_left);
+				double iiy1 = (e_y1-_bottom)*Ny/(_top-_bottom);
+				double iix2 = (e_x2-_left  )*Nx/(_right-_left);
+				double iiy2 = (e_y2-_bottom)*Ny/(_top-_bottom);
+
+				double _sx1 = 0+_bins_x*(iix1)/Nx;
+				double _sy1 = 0+_bins_y*(iiy1)/Ny;
+				double _sx2 = 0+_bins_x*(iix2)/Nx;
+				double _sy2 = 0+_bins_y*(iiy2)/Ny;
+				double _sw  = _sx2-_sx1;
+				double _sh  = _sy2-_sy1;
+
+				double dx = t[0].world2canvas(t_x1);
+				double dy = t[1].world2canvas(t_y1);
+				double dw = t[0].world2canvas_delta(t_w);
+				double dh = t[1].world2canvas_delta(t_h);
+
+				// choose the correct mipmap
+				double abs(double x) {return x<0?-x:x;}
+				ulong binsx = _bins_x;
+				ulong originx = 0;
+				while (abs(_sw) > abs(dw)) {
+					if (binsx <= 32) break;
+					double delta = _sx1 - originx;
+					originx += binsx;
+					_sx1 = originx + delta/2.0;
+					_sw /= 2.0;
+					binsx /= 2;
+				}
+				ulong binsy = _bins_y;
+				ulong originy = 0;
+				while (abs(_sh) > abs(dh)) {
+					if (binsy <= 32) break;
+					double delta = _sy1 - originy;
+					originy += binsy;
+					_sy1 = originy + delta/2.0;
+					_sh /= 2.0;
+					binsy /= 2;
+				}
+
+				d.draw_bitmap(handle, _sx1,_sy1,_sw,_sh, dx,dy,dw,dh);
+				//d.set_line_width(1);
+				//d.set_color(1,0,0);
+				//d.rectangle(dx,dy,dx+dw,dy+dh);
+				//d.stroke();
+			}
+		}
+		d.set_line_width(1);
+		d.set_color(1,0,0);
+		d.rectangle(t[0].world2canvas(t[0].log(_left)),
+			        t[1].world2canvas(t[1].log(_bottom)), 
+			        t[0].world2canvas(t[0].log(_right)),
+			        t[1].world2canvas(t[1].log(_top)));
+		d.stroke();
+
+
+		//// in order to approximate correct log scaling, the bitmap is separated into tiles
+		//int Nx = 1;
+		//int Ny = 1;
+		//if (t._logx) Nx = 30;
+		//if (t._logy) Ny = 30;
+		//if (t._logx && t._logy) {Nx = 20; Ny = 20;}
+		//foreach (ix; 0..Nx) {
+		//	foreach (iy; 0..Ny) {
+		//		auto sx = rectangle_xoffset+rectangle_width*ix/Nx;
+		//		auto sy = rectangle_yoffset+rectangle_height*iy/Ny;
+		//		auto sw = rectangle_width/Nx;
+		//		auto sh = rectangle_height/Ny;
+		//		auto dx = t.transform_world2canvas_x(t.log_x(_left+(_right-_left)*ix/Nx));
+		//		auto dy = t.transform_world2canvas_y(t.log_y(_bottom+(_top-_bottom)*iy/Ny));
+		//		auto dw = t.transform_world2canvas_x(t.log_x(_left+(_right-_left)*(ix+1)/Nx))-t.transform_world2canvas_x(t.log_x(_left+(_right-_left)*(ix)/Nx));
+		//		auto dh = t.transform_world2canvas_y(t.log_y(_bottom+(_top-_bottom)*(iy+1)/Ny))-t.transform_world2canvas_y(t.log_y(_bottom+(_top-_bottom)*(iy)/Ny));
+		//		d.draw_bitmap(handle, sx,sy,sw,sh, dx,dy,dw,dh);
+		//	}
+		//}
+
+
+		//d.draw_bitmap(handle,
+		//	rectangle_xoffset,rectangle_yoffset,rectangle_width,rectangle_height,
+		//	t.transform_world2canvas_x(t.log_x(_left)), t.transform_world2canvas_y(t.log_y(_bottom)),
+		//	t.transform_world2canvas_x(t.log_x(_right))-t.transform_world2canvas_x(t.log_x(_left)), 
+		//	t.transform_world2canvas_y(t.log_y(_top))-t.transform_world2canvas_y(t.log_y(_bottom))
+		//);
+
+		//double bw = getBinWidth();
+		//double bh = getBinHeight();
+		//foreach(idx, bin; _bin_data) {
+		//	if (bin is double.init) continue;
+		//	auto x_idx = idx%_bins_x;
+		//	auto y_idx = idx/_bins_x;
+		//	double x1 = _left+bw*x_idx;
+		//	double y1 = _bottom+bh*y_idx;
+		//	double x2 = x1+bw;
+		//	double y2 = y1+bh;
+		//	x1 = t.transform_world2canvas_x(t.log_x(x1));
+		//	x2 = t.transform_world2canvas_x(t.log_x(x2));
+		//	y1 = t.transform_world2canvas_y(t.log_y(y1));
+		//	y2 = t.transform_world2canvas_y(t.log_y(y2));
+		//	import std.algorithm;
+		//	auto c = (1.0-gen_color(bin,t));//.clamp(0.0,1.0);
+		//	d.set_color(c,c,c);
+		//	d.rectangle(x1-0.2,y1+0.2, x2+0.2,y2-0.2);
+		//	d.fill();
+		//}
+	}
+
+	double getBinWidth() const
+	{
+		return (_right - _left) / _bins_x;
+	}
+	double getBinHeight() const
+	{
+		return (_top - _bottom) / _bins_y;
+	}
+	double getWidth() const
+	{
+		return _right-_left;
+	}
+	double getHeight() const
+	{
+		return _top-_bottom;
+	}
+	override double getValue(double x, double y) {
+		auto x_idx = ((x-_left)*_bins_x/(_right-_left));
+		//writeln("x_idx=",x_idx);
+		auto y_idx = ((y-_bottom)*_bins_y/(_top-_bottom));
+		//writeln("y_idx=",y_idx, " ", _bottom, " ", _top);
+		auto idx = cast(int)y_idx*_bins_x+cast(int)x_idx;
+		//writeln("idx=",idx);
+		if (x_idx < 0 || x_idx >= _bins_x) {
+			return double.init;
+		}
+		if (y_idx < 0 || y_idx >= _bins_y) {
+			return double.init;
+		}
+		if (idx >= 0 && idx < _bin_data.length) {
+			return _bin_data[cast(uint)idx];
+		}
+		return double.init;
+	}
+	override bool get_leftright(out double[2] lr, in Transform[3] t) {
+		import std.stdio;
+		if (t[0].logscale && _left <= 0 && _right <= 0) return false;
+		if (_left == _right)                      return false;
+		lr[0] = t[0].log(_left, getBinWidth()/2.0);
+		lr[1] = t[0].log(_right);
+		return true;
+	}
+	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) {
+		import std.stdio;
+		if (_bin_data is null) {
+			return false;
+		}
+		if (_bin_data.length == 0) {
+			return false;
+		}
+		if (_bottom is double.init || _top   is double.init || 
+			_left   is double.init || _right is double.init) {
+			return false;
+		}
+		if (t[1].logscale && _bottom <= 0 && _top <= 0) {
+			return false;
+		}
+		if (_bottom == _top) {
+			return false;
+		}   
+		bt[0] = t[1].log(_bottom, getBinHeight()/2.0); // set the default_zero to half the bin size
+		bt[1] = t[1].log(_top);
+		return true;
+	}
+
+	override bool get_zminmax_in_leftright_bottomtop(out double[2] minmax, 
+	                                                  in double[2] lr, in double[2] bt, in Transform[3] t) 
+	{
+		import std.stdio;
+		if (_bin_data is null) {
+			return false;
+		}
+		if (_bin_data.length == 0) {
+			return false;
+		}
+		if (_bottom is double.init || _top is double.init || 
+			_left is double.init   || _right is double.init) {
+			return false;
+		}
+
+		import std.math;
+		double left  = t[0].exp(lr[0]);
+		double right = t[0].exp(lr[1]);
+		double bottom = t[1].exp(bt[0]);
+		double top    = t[1].exp(bt[1]);
+		// transform into bin numbers
+		left = (left-_left)/getBinWidth();
+		right = (right-_left)/getBinWidth();
+		bottom = (bottom-_bottom)/getBinHeight();
+		top = (top-_bottom)/getBinHeight();
+
+		import std.algorithm, std.stdio;
+		double minimum, maximum;
+		double minimum_larger0 = 0.0;
+		bool initialize = true;
+		int leftbin   = cast(int)(max(left,0));
+		int rightbin  = cast(int)(min(right,_bins_x));
+		int bottombin = cast(int)(max(bottom,0));
+		int topbin    = cast(int)(min(top,_bins_y));
+		if (leftbin > rightbin) return false;
+		if (bottombin > topbin) return false;
+
+		foreach(j ; bottombin..topbin+1) {
+			if (j < 0) {
+				continue;
+			}
+			if (j >= _bins_y) {
+				break;
+			}
+			foreach(i ; leftbin..rightbin+1){
+				//writeln(i, " ", j );
+				if (i < 0) {
+					continue;
+				}
+				if (i >= _bins_x) {
+					break;
+				}
+				import std.algorithm;
+				if(!(i >= 0 && i < _bins_x)) { 
+					writeln ("getZminZmaxInLeftRightBottomTop() (i >= 0 && i < _bins_x) was violated\r");
+				}
+				if(!(j >= 0 && j < _bins_y)) { 
+					writeln ("getZminZmaxInLeftRightBottomTop() (j >= 0 && j < _bins_y) was violated\r");
+				}
+				ulong idx = _bins_x*j+i;
+				double d = _bin_data[cast(uint)idx];
+				//writeln("d = ", d);
+				if (d !is double.init) {
+					if (initialize) {
+						minimum = d;
+						maximum = d;
+						initialize = false;
+					}
+					minimum = min(minimum, d);
+					maximum = max(maximum, d);
+
+					if (d>0.0 && (minimum_larger0 == 0.0 || d < minimum_larger0)) {
+						minimum_larger0 = d;
+					} 
+				}
+			}
+		}
+
+		if (!initialize) {
+			if (minimum is double.init || maximum is double.init) return false;
+			if (t[2].logscale && minimum <= 0 && maximum <= 0) return false;
+			if (minimum == maximum) return false;
+
+			minmax[0] = t[2].log(minimum, minimum_larger0/2.0);
+			minmax[1] = t[2].log(maximum);
+			return true;
+		}
+		return false;
+
+	}
+
+
+private:
+	double[] _bin_data;
+	double _left, _right;
+	double _bottom, _top;
+	double _zmin, _zmax;
+	ulong _bins_x, _bins_y;
+
+	ulong bitmap_handle;
+	ulong bitmap_handle_log;
+
+
+	string _xlabel, _ylabel, _zlabel;
+
+	int     stride;
+	ubyte[] _rgb_data;
+	ubyte[] _log_rgb_data;
+
+	//import cairo.Pattern, gdk.Cairo;
+	//Pattern _image_surface_pattern;
+	//Pattern _log_image_surface_pattern;
+
+}
+
