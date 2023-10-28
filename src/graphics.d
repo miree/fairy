@@ -310,25 +310,29 @@ struct CanvasPainter {
 
 	}
 
-	//void fit_content_z() {
-	//	import std.algorithm;
-	//	double zmin, zmax;
-	//	double left = transform.getLeft();
-	//	double right= transform.getRight();
-	//	double bottom = transform.getBottom();
-	//	double top    = transform.getTop();
-	//	foreach(ref vis; visualizers.map!(nv=>nv.visualizer)) {
-	//		double z1, z2;
-	//		if (!vis.getZminZmaxInLeftRightBottomTop(z1,z2, left,right, bottom,top, transform)) continue;
-	//		//import std.stdio; writeln("inside fit_content_z ", z1," " ,z2);
-	//		zmin = (z1 is double.init)?z1:(zmin is double.init)?z1:min(zmin,z1);
-	//		zmax = (z2 is double.init)?z2:(zmax is double.init)?z2:min(zmax,z2);
-	//	}
-	//	//import std.stdio; writeln("inside fit_content_z ", z1," " ,z2);
-	//	if (zmin !is double.init && zmax !is double.init) {
-	//		canvas.transformY.set_minmax(zmin,zmax);		
-	//	}
-	//}
+	void fit_content_z() {
+		import std.algorithm;
+		double zmin, zmax;
+		double left = canvas.transform[0].min;
+		double right= canvas.transform[0].max;
+		double bottom = canvas.transform[1].min;
+		double top    = canvas.transform[1].max;
+		foreach(ref vis; visualizers.byValue) {
+			double[2] z12;
+			if (!vis.get_zminmax_in_leftright_bottomtop(z12, [left,right], [bottom,top], canvas.transform)) continue;
+			double z1 = z12[0];
+			double z2 = z12[1];
+			//import std.stdio; writeln("inside fit_content_z ", z1," " ,z2);
+			zmin = (z1 is double.init)?z1:(zmin is double.init)?z1:min(zmin,z1);
+			zmax = (z2 is double.init)?z2:(zmax is double.init)?z2:min(zmax,z2);
+		}
+		//import std.stdio; writeln("inside fit_content_z ", z1," " ,z2);
+		if (zmin !is double.init && zmax !is double.init) {
+			canvas.transform[2].set_minmax(zmin,zmax);		
+			canvas.transform[2].scale=1; // eliminate all ongoing transformations in z-direction
+			canvas.transform[2].delta=0; // eliminate all ongoing transformations in z-direction
+		}
+	}
 
 	void draw_selection_box_helper() {
 		backend.set_line_width(3);
@@ -363,6 +367,7 @@ struct CanvasPainter {
 		// fit content (if F-key was pressed, i.e. "winfit" was executed)
 		if (canvas.autoscale[0]) fit_content_x();
 		if (canvas.autoscale[1]) fit_content_y();
+		if (canvas.autoscale[2]) fit_content_z();
 		if (canvas.restore_autoscale_backup) {
 			canvas.autoscale[] = canvas.autoscale_backup[];
 			canvas.restore_autoscale_backup = false;
@@ -454,6 +459,10 @@ struct CanvasPainter {
 								} else {
 									bottom = canvas.transform[1].min;
 									top    = canvas.transform[1].max;
+								}
+								double[2] zminmax;
+								if (canvas.autoscale[2] && visualizer.get_zminmax_in_leftright_bottomtop(zminmax, [left,right], [bottom,top], canvas.transform)) {
+									canvas.transform[2].set_minmax(zminmax[0], zminmax[1]);
 								}
 				//				if (autoscale_z) {
 				//					//import std.stdio;writeln("autoscale_z");
