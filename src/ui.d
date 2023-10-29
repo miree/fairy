@@ -123,6 +123,11 @@ string show(string item_name, string window_name) {
 	auto canvas = fairy.session.get_canvas(window_name);
 	auto visual = fairy.session.get_visual_item(item_name);
 	canvas.itemnames ~= item_name;
+	if (canvas.itemnames.length==1) {
+		import std.stdio;
+		canvas.dim = 0; // setting dim to 0 causes the draw_content function
+		                // to reset dim to the dimension of the first visualizer
+	}
 	return "";
 }
 
@@ -148,6 +153,28 @@ string gui() {
 	}
 	fairy.start_gui = true;
 	return "gui system started";
+}
+
+
+@UI_EXPORT("set global font size. Windows can overwrite this setting with setwinfontsize",
+	["size of fonts in the window (e.g. 10 or 20)"])
+void fontsize(int size = 0) {
+	if (size < 0) {
+		throw new Exception("size must be >= 0");
+	}
+	import fairy, graphics;
+	graphics.set_global_text_size(size);
+	fairy.redraw_windows();
+}
+
+@UI_EXPORT("set window font size (overwrites global font size setting). When size is 0 the global font size is used for this window",
+	["name of the affected window",
+	 "size of fonts in the window (e.g. 10 or 20)"])
+void winfontsize(string window_name, int size = 0) {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	canvas.text_size = size;
+	fairy.redraw_window(window_name);
 }
 
 

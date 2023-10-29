@@ -258,6 +258,15 @@ void redraw_window(string name) {
 		}
 	}
 }
+void redraw_windows() {
+	if (start_gui) {
+		if (main_gui !is null) {
+			foreach(window_name; session.windows.byKey) {
+				main_gui.redraw_window(window_name);
+			}
+		}
+	}	
+}
 
 void remove_window(string name) {
 	if (start_gui) {

@@ -356,9 +356,9 @@ struct CanvasPainter {
 
 		//// text size
 		backend.set_text_size(global_text_size);
-		//if (window_text_size > 0) {
-		//	backend.set_text_size(window_text_size);
-		//}
+		if (canvas.text_size > 0) {
+			backend.set_text_size(canvas.text_size);
+		}
 
 		//backend.set_color(0,0,0);
 		//backend.text(100,100,"hallo");
@@ -396,11 +396,14 @@ struct CanvasPainter {
 
 			if (!canvas.grid_ontop)    draw_grid();
 			if (!canvas.numbers_ontop) draw_grid_numbers();
-			foreach(itemname; canvas.itemnames) {
+			foreach(idx, itemname; canvas.itemnames) {
 				import fairy;
 				try {
 					if ((itemname in visualizers) is null) { // try to get the visualizer
 						visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+					}
+					if (canvas.dim == 0 && idx == 0) {
+						canvas.dim = cast(int)visualizers[itemname].getDim;
 					}
 					visualizers[itemname].draw(backend, canvas.transform);
 				} catch (Exception e) {
@@ -439,6 +442,9 @@ struct CanvasPainter {
 						if (itemname !is null) {
 							if ((itemname in visualizers) !is null) {
 								visualizer = visualizers[itemname];
+								if (canvas.dim == 0 && idx == 1) {
+									canvas.dim = cast(int)visualizer.getDim;
+								}
 				//				transform._content_idx = idx;
 								double left,right, bottom,top, zmin,zmax;
 								double[2] lr;
