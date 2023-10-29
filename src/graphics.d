@@ -474,6 +474,8 @@ struct CanvasPainter {
 							}
 							double[2] zminmax;
 							if (canvas.autoscale[2] && visualizer.get_zminmax_in_leftright_bottomtop(zminmax, [left,right], [bottom,top], canvas.transform)) {
+								canvas.transform[2].scale=1; // eliminate all ongoing transformations in z-direction
+								canvas.transform[2].delta=0; // eliminate all ongoing transformations in z-direction
 								canvas.transform[2].set_minmax(zminmax[0], zminmax[1]);
 							}
 			//				if (autoscale_z) {
@@ -551,6 +553,7 @@ struct CanvasPainter {
 		import std.stdio;
 		//write("motion ", x, " ", y, "  "); 
 		// determine mouse position and update the mouse_pos label
+		string mouse_itemname = null;
 		foreach( idx, transform ; grid_transforms) {
 			import std.math;
 			double x_world = transform[0].canvas2world(x);
@@ -572,28 +575,32 @@ struct CanvasPainter {
 				if (canvas.transform[2].logscale) {
 					z_world = exp(z_world);
 				}
+				if (idx >= 0 && idx < canvas.itemnames.length) {
+					mouse_itemname  = canvas.itemnames[idx];
+				}
 
 				backend.show_mouse_pos(x_world, y_world, z_world);
-				//if (!canvas.display_mode == DisplayplayMode.overlay) {
-				//	if (canvas.transform._content_idx >= 0) {
-				//		auto value = visualizers[cast(uint)canvas.transform._content_idx].visualizer.getValue(x_world, y_world);
-				//		drawer.show_value(value, visualizers[cast(uint)canvas.transform._content_idx].name);
-				//	} else {
-				//		drawer.show_value(double.init, "");
-				//	}
-				//} else {
-				//	double last_not_nan_value;
-				//	string itemname;
-				//	foreach(v; visualizers) {
-				//		//import std.stdio;writeln(v.name);
-				//		auto value = v.visualizer.getValue(x_world, y_world);
-				//		if (value !is double.init) {
-				//			last_not_nan_value = value;
-				//			itemname = v.name;
-				//		}
-				//	}
-				//	drawer.show_value(last_not_nan_value, itemname);
-				//}
+				if (canvas.display_mode != DisplayMode.overlay) {
+					if (mouse_itemname !is null) {
+						auto value = visualizers[mouse_itemname].getValue(x_world, y_world);
+						backend.show_value(value, mouse_itemname);
+					} else {
+						backend.show_value(double.init, "");
+					}
+				} 
+				else {
+					double last_not_nan_value;
+					string itemname = null;
+					foreach(name; canvas.itemnames) {
+						//import std.stdio;writeln(v.name);
+						auto value = visualizers[name].getValue(x_world, y_world);
+						if (value !is double.init) {
+							last_not_nan_value = value;
+							itemname = name;
+						}
+					}
+					backend.show_value(last_not_nan_value, itemname);
+				}
 			}
 		}
 

@@ -1,7 +1,6 @@
 module fairy;
 @safe:
 
-
 interface ItemFactory {
 	import std.json;
 	Item create(ref JSONValue);
