@@ -351,7 +351,7 @@ struct CanvasPainter {
 		//import std.stdio;
 		//writeln("draw_content");
 		backend.initialize();
-		//backend.set_clip(0,0,canvas.width, canvas.height);
+		backend.set_clip(0,0,canvas.width, canvas.height);
 		backend.clear(0.9, 0.9, 0.9);
 
 		//// text size
@@ -429,54 +429,59 @@ struct CanvasPainter {
 			foreach(row; 0..rows) {
 				foreach(column; 0..columns) {
 
-
 					uint idx = column * rows + row;
 					if (canvas.display_mode == DisplayMode.columns) {
 						idx = row * columns + column;
 					}
 
+					backend.set_clip(     column *canvas.width/columns,      row *canvas.height/rows, 
+						             (1.0+column)*canvas.width/columns, (1.0+row)*canvas.height/rows);
+
 		//			transform._content_idx = -1;
+					import std.stdio;
 					if (idx < canvas.itemnames.length) {
 						string itemname = canvas.itemnames[idx];
 						Visualizer visualizer;
 						if (itemname !is null) {
-							if ((itemname in visualizers) !is null) {
-								visualizer = visualizers[itemname];
-								if (canvas.dim == 0 && idx == 1) {
-									canvas.dim = cast(int)visualizer.getDim;
-								}
-				//				transform._content_idx = idx;
-								double left,right, bottom,top, zmin,zmax;
-								double[2] lr;
-								if (canvas.autoscale[0] && visualizer.get_leftright(lr,canvas.transform)) {
-									left = lr[0];
-									right = lr[1];
-									canvas.transform[0].set_minmax(left,right);
-								}
-								if (left  is double.init) left = canvas.transform[0].min;
-								if (right is double.init) right= canvas.transform[0].max;
-								double[2] bt;
-								if (canvas.autoscale[1] && visualizer.get_bottomtop_in_leftright(bt, [left,right], canvas.transform)) {
-									bottom = bt[0];
-									top = bt[1];
-									canvas.transform[1].scale=1; // eliminate all ongoing transformations in y-direction
-									canvas.transform[1].delta=0; // eliminate all ongoing transformations in y-direction
-									canvas.transform[1].set_minmax(bottom,top);
-								} else {
-									bottom = canvas.transform[1].min;
-									top    = canvas.transform[1].max;
-								}
-								double[2] zminmax;
-								if (canvas.autoscale[2] && visualizer.get_zminmax_in_leftright_bottomtop(zminmax, [left,right], [bottom,top], canvas.transform)) {
-									canvas.transform[2].set_minmax(zminmax[0], zminmax[1]);
-								}
-				//				if (autoscale_z) {
-				//					//import std.stdio;writeln("autoscale_z");
-				//					if (visualizers[idx].visualizer.getZminZmaxInLeftRightBottomTop(zmin,zmax, left,right, bottom,top, transform)) {
-				//						canvas.transformY.set_minmax(zmin,zmax);
-				//					}
-				//				}
+							if ((itemname in visualizers) is null) {
+								import fairy;
+								visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
 							}
+							visualizer = visualizers[itemname];
+							if (canvas.dim == 0 && idx == 0) {
+								canvas.dim = cast(int)visualizer.getDim;
+							}
+			//				transform._content_idx = idx;
+							double left,right, bottom,top, zmin,zmax;
+							double[2] lr;
+							if (canvas.autoscale[0] && visualizer.get_leftright(lr,canvas.transform)) {
+								left = lr[0];
+								right = lr[1];
+								canvas.transform[0].set_minmax(left,right);
+							}
+							if (left  is double.init) left = canvas.transform[0].min;
+							if (right is double.init) right= canvas.transform[0].max;
+							double[2] bt;
+							if (canvas.autoscale[1] && visualizer.get_bottomtop_in_leftright(bt, [left,right], canvas.transform)) {
+								bottom = bt[0];
+								top = bt[1];
+								canvas.transform[1].scale=1; // eliminate all ongoing transformations in y-direction
+								canvas.transform[1].delta=0; // eliminate all ongoing transformations in y-direction
+								canvas.transform[1].set_minmax(bottom,top);
+							} else {
+								bottom = canvas.transform[1].min;
+								top    = canvas.transform[1].max;
+							}
+							double[2] zminmax;
+							if (canvas.autoscale[2] && visualizer.get_zminmax_in_leftright_bottomtop(zminmax, [left,right], [bottom,top], canvas.transform)) {
+								canvas.transform[2].set_minmax(zminmax[0], zminmax[1]);
+							}
+			//				if (autoscale_z) {
+			//					//import std.stdio;writeln("autoscale_z");
+			//					if (visualizers[idx].visualizer.getZminZmaxInLeftRightBottomTop(zmin,zmax, left,right, bottom,top, transform)) {
+			//						canvas.transformY.set_minmax(zmin,zmax);
+			//					}
+			//				}
 						}
 					}
 

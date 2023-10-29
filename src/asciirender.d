@@ -523,23 +523,26 @@ public:
 					sourcey >= 0 && sourcey < ubmp.h &&
 					destx >= 0 && destx < w &&
 					desty >= 0 && desty < h) {
+					
+					if (destx >= clip_x1 && destx < clip_x2 && desty >= clip_y1 && desty < clip_y2) {
 
-					uint source_color = ubmp.data[sourcex+ubmp.w*sourcey];
-					//writeln("source_color=",source_color);
-					uint a = 0xff & (source_color >> 24);
-					uint r = 0xff & (source_color >> 16);
-					uint g = 0xff & (source_color >>  8);
-					uint b = 0xff & (source_color >>  0);
-					double brightness = (r+g+b)/3.0/255.0;
-					//writeln("brightness=",brightness, "a=", a, " r=",r, " g=",g, " b=",b);
-					ubyte pixel = cast(ubyte)(133-5.0*brightness);
-					if (pixel < 128) pixel = 128;
-					if (pixel > 132) pixel = 132;
-					bitmap[desty][destx] = pixel;
-					if (a <= 128) {
-						bitmap[desty][destx] = 0;
+						uint source_color = ubmp.data[sourcex+ubmp.w*sourcey];
+						//writeln("source_color=",source_color);
+						uint a = 0xff & (source_color >> 24);
+						uint r = 0xff & (source_color >> 16);
+						uint g = 0xff & (source_color >>  8);
+						uint b = 0xff & (source_color >>  0);
+						double brightness = (r+g+b)/3.0/255.0;
+						//writeln("brightness=",brightness, "a=", a, " r=",r, " g=",g, " b=",b);
+						ubyte pixel = cast(ubyte)(133-5.0*brightness);
+						if (pixel < 128) pixel = 128;
+						if (pixel > 132) pixel = 132;
+						bitmap[desty][destx] = pixel;
+						if (a <= 128) {
+
+							bitmap[desty][destx] = 0;
+						}
 					}
-
 				}
 				if (y == y2) break;
 				y += deltay;
