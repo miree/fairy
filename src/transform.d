@@ -9,11 +9,12 @@ struct Transform
 //private: // serialization does (of course)_not work if this is private
 	@SERIALIZE double minimum = -1;
 	@SERIALIZE double maximum =  1;
-	@SERIALIZE double delta = 0;
-	@SERIALIZE double scale = 1;
 	@SERIALIZE double min_width = 1e-3;
 	@SERIALIZE double max_width = 1e10;
 	@SERIALIZE bool   logscale = false;
+
+	double delta = 0;
+	double scale = 1;
 
 	double a,b; // transformation coefficients
 	// use with negative canvas_width, if the positive 

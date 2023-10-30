@@ -593,10 +593,13 @@ struct CanvasPainter {
 					string itemname = null;
 					foreach(name; canvas.itemnames) {
 						//import std.stdio;writeln(v.name);
-						auto value = visualizers[name].getValue(x_world, y_world);
-						if (value !is double.init) {
-							last_not_nan_value = value;
-							itemname = name;
+						auto visualizer = name in visualizers;
+						if (visualizer !is null) {
+							auto value = visualizer.getValue(x_world, y_world);
+							if (value !is double.init) {
+								last_not_nan_value = value;
+								itemname = name;
+							}
 						}
 					}
 					backend.show_value(last_not_nan_value, itemname);

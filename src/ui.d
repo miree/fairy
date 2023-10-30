@@ -149,6 +149,7 @@ string show(string item_name, string window_name) {
 		canvas.dim = 0; // setting dim to 0 causes the draw_content function
 		                // to reset dim to the dimension of the first visualizer
 	}
+	fairy.redraw_window(window_name);
 	return "";
 }
 
