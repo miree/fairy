@@ -96,6 +96,20 @@ string session_save(string session_name) {
 }
 
 
+@UI_EXPORT("print info abut alsa", 
+	["alsa device name"])
+@trusted
+string alsainfo(string alsa_device = "default") {
+	import alsa;
+	import std.conv;
+	string result = "maximum number of channels " ~ alsa_get_max_channels(alsa_device).to!string;
+	auto minmax_rates = alsa_get_minmax_rates(alsa_device);
+	result ~= "\nminimum sampling rate " ~ minmax_rates[0].to!string;
+	result ~= "\nmaximum sampling rate " ~ minmax_rates[1].to!string;
+
+	return result;
+}
+
 
 
 @UI_EXPORT("list all items",

@@ -2,7 +2,7 @@ fairy: src/*.d
 	dmd -Isrc -i src/app.d -of=fairy
 
 allegro5: src/*.d
-	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color 
+	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color -L-lasound
 
 ldc-allegro5: src/*.d
 	ldc -Isrc -i src/app.d -of=fairy --d-version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color 
