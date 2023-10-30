@@ -193,7 +193,7 @@ public:
 	import graphics;
 	this(string canvas_name, CanvasProperties *canvas_pointer) {
 		import std.stdio;
-		writeln("MainWindow this ", canvas_name, " ");
+		//writeln("MainWindow this ", canvas_name, " ");
 		assert(canvas_pointer !is null);
 		canvas = canvas_pointer;
 		painter = CanvasPainter(canvas_pointer, this);

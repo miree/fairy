@@ -122,7 +122,7 @@ struct CanvasProperties {
 	@SERIALIZE int          ypos             = -1;
 	@SERIALIZE int          text_size        = 0;
 	@SERIALIZE bool[2]      grid             = [true,true];
-	@SERIALIZE bool         grid_ontop       = true;
+	@SERIALIZE bool         grid_ontop       = false;
 	@SERIALIZE bool[2]      numbers          = [true,true];
 	@SERIALIZE bool         numbers_ontop    = true;
 	@SERIALIZE bool         color_bar        = true;

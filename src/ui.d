@@ -155,13 +155,27 @@ string wave(string name) {
 	 "name of window on which the item should be shown"])
 string show(string item_name, string window_name) {
 	import fairy;
+	import std.algorithm;
 	auto canvas = fairy.session.get_canvas(window_name);
 	auto visual = fairy.session.get_visual_item(item_name);
-	canvas.itemnames ~= item_name;
-	if (canvas.itemnames.length==1) {
-		import std.stdio;
-		canvas.dim = 0; // setting dim to 0 causes the draw_content function
-		                // to reset dim to the dimension of the first visualizer
+	if (!canvas.itemnames.canFind(item_name)) {
+		canvas.itemnames ~= item_name;
+		if (canvas.itemnames.length==1) {
+			import std.stdio;
+			//canvas.fit_content = true;
+			canvas.dim = 0; 
+			//canvas.transform[0].logscale = false;
+			//canvas.transform[1].logscale = false;
+			//canvas.transform[2].logscale = false;
+		}
+	} else {
+		string[] itemnames;
+		foreach(item; canvas.itemnames) {
+			if (item != item_name) {
+				itemnames ~= item;
+			}
+		}
+		canvas.itemnames = itemnames;
 	}
 	fairy.redraw_window(window_name);
 	return "";
@@ -230,7 +244,10 @@ string win(string name, int width = 600, int height = 400, int xpos = -1, int yp
 void winrange(string window_name, char axis, double min, double max) {
 	import fairy, graphics;
 	auto canvas = fairy.session.get_canvas(window_name);
-	canvas.transform[axis_helper_xyz(axis)].set_minmax(min, max);
+	auto a = axis_helper_xyz(axis);
+	min = canvas.transform[a].log(min);
+	max = canvas.transform[a].log(max);
+	canvas.transform[a].set_minmax(min, max);
 	fairy.redraw_window(window_name);
 }
 
@@ -394,11 +411,18 @@ string winshow(string name, string mode = "double", int w = -1, int h = -1) {
 	// adapt the canvas properties to better match the requirements of ascii rendering
 	// e.g. a grid is only disturbing at such low resolutions
 	import fairy, graphics;
-	CanvasProperties canvas = *fairy.session.get_canvas(name);
+	CanvasProperties* canvas = fairy.session.get_canvas(name);
+	auto w_safe = canvas.width;
+	auto h_safe = canvas.height;
+	bool[2] grid_safe = canvas.grid;
 	canvas.width  = w;
 	canvas.height = h;
 	canvas.grid = [false,false]; 
-	CanvasPainter(&canvas, renderer).draw_content;
+	CanvasPainter(canvas, renderer).draw_content;
+
+	canvas.width = w_safe;
+	canvas.height = h_safe;
+	canvas.grid = grid_safe;
 
 	// return the output of the ascii renderer
 	return name~"("~w.to!string~"x"~h.to!string~")\n"~renderer.render;
