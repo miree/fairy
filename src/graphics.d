@@ -135,8 +135,9 @@ struct CanvasProperties {
 	@SERIALIZE string[]     itemnames        = [];
 	@SERIALIZE Transform[3] transform;
 
-	bool[3] autoscale_backup;
-	bool restore_autoscale_backup = false;
+	bool fit_content = false;
+	//bool[3] autoscale_backup;
+	//bool restore_autoscale_backup = false;
 	int len() {
 		if (itemnames !is null && itemnames.length != 0) return cast(int)itemnames.length;
 		return 1;
@@ -360,32 +361,26 @@ struct CanvasPainter {
 			backend.set_text_size(canvas.text_size);
 		}
 
-		//backend.set_color(0,0,0);
-		//backend.text(100,100,"hallo");
-
-
-		// fit content (if F-key was pressed, i.e. "winfit" was executed)
-		if (canvas.autoscale[0]) fit_content_x();
-		if (canvas.autoscale[1]) fit_content_y();
-		if (canvas.autoscale[2]) fit_content_z();
-		if (canvas.restore_autoscale_backup) {
-			canvas.autoscale[] = canvas.autoscale_backup[];
-			canvas.restore_autoscale_backup = false;
+		// make sure that visualizers for each itemname are available
+		foreach(itemname; canvas.itemnames) {
+			if ((itemname in visualizers) is null) { // try to get the visualizer
+				import fairy;
+				visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+			}
 		}
 
+		if (canvas.fit_content) {
+			fit_content_x();
+			fit_content_y();
+			fit_content_z();
+			canvas.fit_content = false;
+		} else {
+			if (canvas.autoscale[0]) fit_content_x();
+			if (canvas.autoscale[1]) fit_content_y();
+			if (canvas.autoscale[2]) fit_content_z();
+		}
 
 		if (canvas.display_mode == DisplayMode.overlay) {
-
-		//	// find min left and max right of all visualizers
-			//if (canvas.autoscale[0]) fit_content_x();
-			//if (canvas.autoscale[1]) fit_content_y();
-		//	if (autoscale_z) {
-		//		import std.stdio;
-
-		//		fit_content_z();
-		//		//writeln("fit_content_z ", transform._zmin, " " , transform._zmax);
-		//	}
-
 
 			canvas.transform[0].update_coefficients(0, 1, canvas.width);
 			canvas.transform[1].update_coefficients(0, 1, canvas.height, backend.inverted_y_direction);
@@ -437,7 +432,6 @@ struct CanvasPainter {
 					backend.set_clip(     column *canvas.width/columns,      row *canvas.height/rows, 
 						             (1.0+column)*canvas.width/columns, (1.0+row)*canvas.height/rows);
 
-		//			transform._content_idx = -1;
 					import std.stdio;
 					if (idx < canvas.itemnames.length) {
 						string itemname = canvas.itemnames[idx];
@@ -451,7 +445,6 @@ struct CanvasPainter {
 							if (canvas.dim == 0 && idx == 0) {
 								canvas.dim = cast(int)visualizer.getDim;
 							}
-			//				transform._content_idx = idx;
 							double left,right, bottom,top, zmin,zmax;
 							double[2] lr;
 							if (canvas.autoscale[0] && visualizer.get_leftright(lr,canvas.transform)) {
@@ -478,15 +471,8 @@ struct CanvasPainter {
 								canvas.transform[2].delta=0; // eliminate all ongoing transformations in z-direction
 								canvas.transform[2].set_minmax(zminmax[0], zminmax[1]);
 							}
-			//				if (autoscale_z) {
-			//					//import std.stdio;writeln("autoscale_z");
-			//					if (visualizers[idx].visualizer.getZminZmaxInLeftRightBottomTop(zmin,zmax, left,right, bottom,top, transform)) {
-			//						canvas.transformY.set_minmax(zmin,zmax);
-			//					}
-			//				}
 						}
 					}
-
 
 					canvas.transform[0].update_coefficients(column, columns, canvas.width);
 					canvas.transform[1].update_coefficients(row,    rows,    canvas.height , backend.inverted_y_direction);
@@ -497,7 +483,6 @@ struct CanvasPainter {
 					double x2 = (1.0+column) * cast(double)canvas.width  / columns;
 					double y2 = (1.0+   row) * cast(double)canvas.height / rows;
 					backend.set_clip(x1,y1, x2,y2);
-
 
 					if (!canvas.grid_ontop)    draw_grid();
 					if (!canvas.numbers_ontop) draw_grid_numbers();

@@ -335,7 +335,7 @@ public:
 	}
 	override void line(double x1, double y1, double x2, double y2) {
 		import std.stdio;
-		write("line ");
+		//write("line ");
 		if (cast(int)x1==cast(int)x2 && cast(int)y1==cast(int)y2) {
 			if (cast(int)x1<0) return;
 			if (cast(int)x1>=w) return;
@@ -345,16 +345,16 @@ public:
 			return;
 		}
 		if (x1==x2) {
-			writeln("vertical");
+			//writeln("vertical");
 			vertical_line(x1,y1,y2);
 			return;
 		}
 		if (y1==y2) {
-			writeln("horizontal");
+			//writeln("horizontal");
 			horizontal_line(y1,x1,x2);
 			return;
 		}
-		writeln("general");
+		//writeln("general");
 		import std.math;
 		bool x_iteration = abs(x2-x1) > abs(y2-y1);
 		int dx = (x2>x1)?1:-1;
@@ -450,7 +450,7 @@ public:
 	@trusted
 	override ulong    create_bitmap(int w, int h) {
 		import std.stdio;
-		writeln("create_bitmap ", w, " ", h);
+		//writeln("create_bitmap ", w, " ", h);
 		++user_bitmap_counter;
 		user_bitmaps[user_bitmap_counter] = UserBitmap(w,h);
 		return user_bitmap_counter;
@@ -467,7 +467,7 @@ public:
 	}
 	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
 		                                    double dx, double dy, double dw, double dh) {
-		writeln("draw_bitmap ", sx, " ", sy, " ", sw, " ", sh, "   ", dx, " ", dy, " ", dw, " ", dh);
+		//writeln("draw_bitmap ", sx, " ", sy, " ", sw, " ", sh, "   ", dx, " ", dy, " ", dw, " ", dh);
 
 		import std.math;
 		int x1, x2, deltax;

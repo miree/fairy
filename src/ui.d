@@ -266,9 +266,7 @@ void winzoom(string window_name, double amount) {
 void winfit(string window_name) {
 	import fairy, graphics;
 	auto canvas = fairy.session.get_canvas(window_name);
-	canvas.autoscale_backup[] = canvas.autoscale;
-	canvas.autoscale = [true,true,true];
-	canvas.restore_autoscale_backup = true;
+	canvas.fit_content = true;
 	fairy.redraw_window(window_name);
 }
 
