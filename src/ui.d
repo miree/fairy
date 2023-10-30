@@ -129,6 +129,41 @@ string filehistogram(string filename) {
 	return "";
 }
 
+@UI_EXPORT("add 1D-histogram that refers to a file on disk",
+	["name of histogram",
+	 "number of bins",
+	 "left border of leftmost bin",
+	 "right border of rightmost bin"])
+string hist1(string name, ulong bins, double left = double.init, double right = double.init) {
+	import fairy, histogram;
+	fairy.session.add_item(name, new Hist1(bins,left,right));
+	return "";
+}
+
+@UI_EXPORT("add 1D-histogram that refers to a file on disk",
+	["name of histogram",
+	 "number of bins",
+	 "left border of leftmost bin",
+	 "right border of rightmost bin"])
+string fill1(string name, double position, double amount = 1.0) {
+	import fairy, histogram;
+	auto h1_ptr = name in fairy.session.items;
+	if (h1_ptr is null) {
+		throw new Exception("no item with name " ~ name);
+	}
+	Hist1 h1 = cast(Hist1)(h1_ptr.item);
+	if (h1 is null) {
+		throw new Exception("item " ~ name ~ " is not of type histogram.Hist1");
+	}
+	h1.fill(position,amount);
+	return "";
+}
+
+
+
+
+
+
 @UI_EXPORT("add waveform ",
 	["name for the new item",
 	 "number of sample points"])
@@ -235,6 +270,7 @@ string win(string name, int width = 600, int height = 400, int xpos = -1, int yp
 	fairy.session.add_window(name, width, height, xpos, ypos);
 	return "created new window "~name;
 }
+
 
 @UI_EXPORT("set visible range for given window and axis", 
 	[ "name of the window",

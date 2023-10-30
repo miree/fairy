@@ -235,5 +235,31 @@ unittest {
 		j2.writeln;
 		assert(j==j2);
 	}
+	{
+		double[] dyn_array = new double[10];
+		auto json = serialize(dyn_array);
+		writeln(dyn_array);
+		writeln(json.toString(JSONOptions.specialFloatLiterals));
+		double[] da2 = deserialize!(double[])(json);
+		writeln(da2);
+	}
+	{
+		struct S {
+			@SERIALIZE double[] da;
+			@SERIALIZE double left = 0;
+			@SERIALIZE double right = 10;
+		}
+		struct SS {
+			@SERIALIZE S s;
+		}
+		SS s;
+		s.s.da = new double[10];
+		auto json = serialize(s);
+		writeln(s);
+		writeln(json.toString(JSONOptions.specialFloatLiterals));
+		SS s2 = deserialize!SS(json);
+		writeln(s2);
+
+	}
 
 }

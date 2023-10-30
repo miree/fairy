@@ -5,6 +5,79 @@ import item;
 import std.json;
 import serializeJSON;
 
+
+
+class Hist1Factory : ItemFactory {
+	override Item create(ref JSONValue json) {
+		import std.stdio;
+		return new Hist1(json);
+	}
+}
+
+import graphics;
+
+class Hist1 : Visual, Item
+{
+public:
+	struct Data{
+		@SERIALIZE double[] bins;
+		@SERIALIZE double left;
+		@SERIALIZE double right;
+		@SERIALIZE double overflow;
+		@SERIALIZE double underflow;
+	}
+	this(ulong length, double left, double right) { 
+		data.bins = new double[length];
+		data.left = left;
+		data.right = right;
+		data.underflow = 0.0;
+		data.overflow = 0.0;
+		if (data.left is double.init) {
+			data.left = 0.0;
+		} 
+		if (data.right is double.init) {
+			data.right = data.bins.length;
+		}
+	}
+	this(ref JSONValue json) {
+		import std.stdio;
+		try{
+
+		data = deserialize!Data(json);
+		} catch(Exception e) {
+			writeln("XXX ", e.msg);
+		} 
+	}
+	override JSONValue toJSON() const { return serialize(data); }
+	override string get_type() const pure {
+		return "histogram.Hist1";
+	}
+
+	void fill(double position, double value = 1.0) {
+		++item_version;
+		ulong idx = cast(ulong)((position - data.left)/(data.right-data.left)*data.bins.length);
+		     if (idx < 0)                 data.underflow += value;
+		else if (idx >= data.bins.length) data.overflow  += value;
+		else {
+			if (data.bins[cast(uint)idx] is double.init) {
+				data.bins[cast(uint)idx] = value;
+			} else {
+				data.bins[cast(uint)idx] += value;
+			} 
+		}
+	}
+
+	override Visualizer create_visualizer(BackendInterface backend) 
+	{
+		return new Hist1Visualizer(item_version, data.bins, data.left, data.right);
+	}
+private:
+	Data data;
+	ulong item_version = 0;
+}
+
+
+
 class FileHistogramFactory : ItemFactory {
 	override Item create(ref JSONValue json) {
 		import std.stdio;

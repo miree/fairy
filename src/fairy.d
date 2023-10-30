@@ -8,6 +8,7 @@ static this() {
 	import waveform;
 	add_item_factory("waveform.Waveform",       new WaveformFactory);
 	add_item_factory("histogram.FileHistogram", new FileHistogramFactory);
+	add_item_factory("histogram.Hist1",         new Hist1Factory);
 }
 
 ItemFactory[string] item_factories;
@@ -121,7 +122,7 @@ struct Session {
 	@trusted
 	void read_from_file() {
 		try {
-			JSONValue json = readText(name~".session").parseJSON;
+			JSONValue json = readText(name~".session").parseJSON(-1,JSONOptions.specialFloatLiterals);
 			// loading windows by deserializing the entire JSONValue
 			if (!json["windows"].isNull) {
 				JSONValue window_jsons = json["windows"];
@@ -184,7 +185,8 @@ void run(string[] args) {
 		"gui|g", "start gui at startup", &start_gui
 	);	
 
-	import std.stdio;
+	import std.stdio, std.algorithm;
+	if (session.name.endsWith(".session")) session.name = session.name[0..$-".session".length];
 	writeln("session ", session.name);
 	session.read_from_file();
 
@@ -250,6 +252,7 @@ void redraw_window(string name) {
 		}
 	}
 }
+
 void redraw_windows() {
 	if (start_gui) {
 		if (main_gui !is null) {
