@@ -1,13 +1,9 @@
 module histogram;
 @safe:
 
-import fairy;
+import item;
 import std.json;
 import serializeJSON;
-
-static this() {
-	fairy.add_item_factory("histogram.FileHistogram", new FileHistogramFactory);
-}
 
 class FileHistogramFactory : ItemFactory {
 	override Item create(ref JSONValue json) {

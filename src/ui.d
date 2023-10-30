@@ -115,6 +115,27 @@ string filehistogram(string filename) {
 	return "";
 }
 
+@UI_EXPORT("add waveform ",
+	["name for the new item",
+	 "number of sample points"])
+string wave(string name) {
+	import fairy, waveform;
+	double[] waveform_data = [
+		0,1,
+		0,1,
+		0,1,
+		0,1,
+		0,1,
+		0,1,
+		0,1,
+		0,1,
+		0,1,
+		0,1
+	];
+	fairy.session.add_item(name, new Waveform(waveform_data, 2, 0, 10));
+	return "";
+}
+
 @UI_EXPORT("show item in window",
 	["name of item to display",
 	 "name of window on which the item should be shown"])

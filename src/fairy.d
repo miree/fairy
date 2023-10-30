@@ -1,9 +1,13 @@
 module fairy;
 @safe:
 
-interface ItemFactory {
-	import std.json;
-	Item create(ref JSONValue);
+import item;
+
+static this() {
+	import histogram;
+	import waveform;
+	add_item_factory("waveform.Waveform",       new WaveformFactory);
+	add_item_factory("histogram.FileHistogram", new FileHistogramFactory);
 }
 
 ItemFactory[string] item_factories;
@@ -16,17 +20,6 @@ void add_item_factory(string item_type, ItemFactory factory) {
 	item_factories[item_type] = factory;
 }
 
-interface Item {
-	import std.json;
-	JSONValue toJSON() const ;
-	string get_type() const ;
-}
-struct ItemStore {
-	Item item;
-	import serializeJSON;
-	@SERIALIZE string type;
-	@SERIALIZE JSONValue data;
-}
 
 struct Session {
 	import graphics;
