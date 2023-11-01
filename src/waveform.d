@@ -64,6 +64,9 @@ public:
 	override string get_type() const pure {
 		return "waveform.Waveform";
 	}
+	override ulong getVersion() {
+		return item_version;
+	}
 	override Visualizer create_visualizer(BackendInterface backend)
 	{
 		return new WaveformVisualizer(item_version, d.data, d.N, d.left, d.right);

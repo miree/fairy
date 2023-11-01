@@ -58,6 +58,7 @@ private int global_text_size = 20;
 
 interface Visual {
 	Visualizer create_visualizer(BackendInterface backend);
+	ulong getVersion();
 }
 
 class Visualizer
@@ -136,6 +137,7 @@ struct CanvasProperties {
 	@SERIALIZE Transform[3] transform;
 
 	bool fit_content = false;
+	bool refresh     = false;
 	//bool[3] autoscale_backup;
 	//bool restore_autoscale_backup = false;
 	int len() {
@@ -362,12 +364,25 @@ struct CanvasPainter {
 		}
 
 		// make sure that visualizers for each itemname are available
+		string[] items_with_visualizer;
 		foreach(itemname; canvas.itemnames) {
-			if ((itemname in visualizers) is null) { // try to get the visualizer
-				import fairy;
-				visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+			import fairy;
+			try {
+				if ((itemname in visualizers) is null) { // try to get the visualizer
+					visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+				} else if (canvas.refresh) {
+					if (visualizers[itemname].getVersion < fairy.session.get_visual_item(itemname).getVersion) {
+						visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+					}
+				}
+				items_with_visualizer ~= itemname;
+			} catch (Exception e) { // cannot get visualizer
+				import std.stdio;
+				writeln("cannot create visualizer for item " ~ itemname);
 			}
 		}
+		canvas.itemnames = items_with_visualizer;
+		canvas.refresh = false;
 
 		if (canvas.fit_content) {
 			fit_content_x();
@@ -394,9 +409,9 @@ struct CanvasPainter {
 			foreach(idx, itemname; canvas.itemnames) {
 				import fairy;
 				try {
-					if ((itemname in visualizers) is null) { // try to get the visualizer
-						visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
-					}
+					//if ((itemname in visualizers) is null) { // try to get the visualizer
+					//	visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+					//}
 					if (canvas.dim == 0 && idx == 0) {
 						canvas.dim = cast(int)visualizers[itemname].getDim;
 					}
@@ -437,10 +452,10 @@ struct CanvasPainter {
 						string itemname = canvas.itemnames[idx];
 						Visualizer visualizer;
 						if (itemname !is null) {
-							if ((itemname in visualizers) is null) {
-								import fairy;
-								visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
-							}
+							//if ((itemname in visualizers) is null) {
+							//	import fairy;
+							//	visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+							//}
 							visualizer = visualizers[itemname];
 							if (canvas.dim == 0 && idx == 0) {
 								canvas.dim = cast(int)visualizer.getDim;
@@ -491,9 +506,9 @@ struct CanvasPainter {
 						string itemname = canvas.itemnames[idx];
 						import fairy;
 						try {
-							if ((itemname in visualizers) is null) { // try to get the visualizer
-								visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
-							}
+							//if ((itemname in visualizers) is null) { // try to get the visualizer
+							//	visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+							//}
 							visualizers[itemname].draw(backend, canvas.transform);
 						} catch (Exception e) {
 							import std.stdio;

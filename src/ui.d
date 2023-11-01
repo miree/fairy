@@ -323,6 +323,28 @@ void winfit(string window_name) {
 	fairy.redraw_window(window_name);
 }
 
+@UI_EXPORT("update all visualizers in window", 
+	[ "name of the window"])
+void winrefresh(string window_name) {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	canvas.refresh = true;
+	fairy.redraw_window(window_name);
+}
+
+@UI_EXPORT("periodic update of all visualizers in window", 
+	["name of the window",
+	 "\"true\" enables, \"false\" disables, \"toggle\" toggles automatic refresh for given window"])
+void winpoll(string window_name, string action="toggle") {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	if (toggle_action(action, canvas.autorefresh)) {
+		import std.stdio; writeln("autorefresh on for window " ~ window_name);
+	} else {
+		import std.stdio; writeln("autorefresh off for window " ~ window_name);
+	}
+}
+
 @UI_EXPORT("enable/disable logscale for given axis",
 		["name of window to affect",
 		 "name of axis: x y z",

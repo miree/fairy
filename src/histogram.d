@@ -55,7 +55,8 @@ public:
 
 	void fill(double position, double value = 1.0) {
 		++item_version;
-		ulong idx = cast(ulong)((position - data.left)/(data.right-data.left)*data.bins.length);
+		ulong idx = cast(ulong)(0.5+data.bins.length*(position - data.left)/(data.right-data.left));
+		import std.stdio; writeln("fill pos ", idx);
 		     if (idx < 0)                 data.underflow += value;
 		else if (idx >= data.bins.length) data.overflow  += value;
 		else {
@@ -65,6 +66,10 @@ public:
 				data.bins[cast(uint)idx] += value;
 			} 
 		}
+	}
+
+	override ulong getVersion() {
+		return item_version;
 	}
 
 	override Visualizer create_visualizer(BackendInterface backend) 
@@ -98,6 +103,10 @@ class FileHistogram : Visual, Item {
 	override string get_type() const { 
 		return "histogram.FileHistogram"; 
 	}
+	override ulong getVersion() {
+		need_to_reload();
+		return item_version;
+	}
 
 	// Visual Interface
 	override Visualizer create_visualizer(BackendInterface backend) {
@@ -114,7 +123,27 @@ class FileHistogram : Visual, Item {
 		}
 	}
 private:
+	import std.datetime : abs, DateTime, hnsecs, SysTime;
+	import std.datetime : Clock, seconds;		
+	import std.file;
+
 	ulong item_version = 0;
+	SysTime _time_of_last_update;
+
+	bool need_to_reload() {
+		bool need_update = false;
+		import std.stdio;
+		// test different conditions that make reload necessary
+		SysTime time_last_file_modification = timeLastModified(data.filename);
+		SysTime time_of_last_update = _time_of_last_update;
+		if (time_of_last_update == SysTime.init ) need_update = true;
+		if (time_of_last_update < time_last_file_modification) need_update = true;
+		_time_of_last_update = time_last_file_modification;
+
+		if (need_update) ++item_version;
+		return need_update;
+	}	
+
 
 }
 
@@ -495,8 +524,15 @@ private:
 					if (n2_plus_1 >= mipmap_data[idx-1].length) {
 						n2_plus_1 = n2;
 					}
-					mip.min = min(mipmap_data[idx-1][n2].min, mipmap_data[idx-1][n2_plus_1].min);
-					mip.max = max(mipmap_data[idx-1][n2].max, mipmap_data[idx-1][n2_plus_1].max);
+					double minA = mipmap_data[idx-1][n2].min;
+					double minB = mipmap_data[idx-1][n2_plus_1].min;
+					if (minA is double.init || minB < minA) mip.min = minB;
+					else mip.min = minA;
+
+					double maxA = mipmap_data[idx-1][n2].max;
+					double maxB = mipmap_data[idx-1][n2_plus_1].max;
+					if (maxA is double.init || maxB > maxA) mip.max = maxB;
+					else mip.max = maxA;
 				}
 			}
 		}

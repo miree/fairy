@@ -105,10 +105,10 @@ class Allegro5Gui : Gui {
 			{
 				foreach(display, window; MainWindow.main_windows) {
 					import std.datetime.stopwatch;
-					//if (window.get_draw_area().autorefresh) {
-					//	import ui;
-					//	refresh(window.name);
-					//}
+					if (window.canvas.autorefresh) {
+						import ui;
+						winrefresh(window.name);
+					}
 					if (window.redraw_scheduled && window.time_since_last_redraw.peek() > msecs(20)) {
 						window.initialize();
 						window.draw();
@@ -264,8 +264,8 @@ public:
 				if (canvas.display_mode == DisplayMode.rows)    rows(name, keycode-ALLEGRO_KEY_0);
 				if (canvas.display_mode == DisplayMode.columns) columns(name, keycode-ALLEGRO_KEY_0);
 			break;
-			//case ALLEGRO_KEY_U: refresh(name); break;
-			//case ALLEGRO_KEY_P: autorefresh(name); break;
+			case ALLEGRO_KEY_U: winrefresh(name); break;
+			case ALLEGRO_KEY_P: winpoll(name); break;
 			case ALLEGRO_KEY_Q: winzoom(name,1*1.2); break;
 			case ALLEGRO_KEY_E: winzoom(name,1/1.1666666666); break;
 			case ALLEGRO_KEY_A: winmove(name,'x',-0.2); break;
