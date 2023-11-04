@@ -42,8 +42,7 @@ public:
 	this(ref JSONValue json) {
 		import std.stdio;
 		try{
-
-		data = deserialize!Data(json);
+			data = deserialize!Data(json);
 		} catch(Exception e) {
 			writeln("XXX ", e.msg);
 		} 
@@ -80,6 +79,105 @@ private:
 	Data data;
 	ulong item_version = 0;
 }
+
+
+
+
+class Hist2Factory : ItemFactory {
+	override Item create(ref JSONValue json) {
+		import std.stdio;
+		return new Hist2(json);
+	}
+}
+
+class Hist2 : Visual, Item
+{
+public:
+	struct Data{
+		@SERIALIZE double[] bins;
+		@SERIALIZE ulong  bins_x;
+		@SERIALIZE ulong  bins_y;
+		@SERIALIZE double left;
+		@SERIALIZE double right;
+		@SERIALIZE double bottom;
+		@SERIALIZE double top;
+		@SERIALIZE double overflow;
+		@SERIALIZE double underflow;
+		@SERIALIZE double[9] quadrants;  // number of counts in the nine quadrants
+		                                 // 0 1 2
+		                                 // 3 4 5
+		                                 // 6 7 8 
+		                                 // counts[4] are inside the histogram
+		                                 // counts[1] are above the histogram
+		                                 // counts[5] are right outside
+	}
+	this(ulong nbins_x, ulong nbins_y, double left, double right, double bottom, double top, double initial = double.init) {
+		data.bins        = new double[cast(uint)nbins_x*cast(uint)nbins_y];
+		data.bins[]      = initial;
+		data.bins_x      = nbins_x;
+		data.bins_y      = nbins_y;
+		data.left        = left;
+		data.right       = right;
+		data.bottom      = bottom;
+		data.top         = top;	
+		data.quadrants[] = initial;
+		if (left is double.init && right is double.init && bottom is double.init && top is double.init) {
+			data.left   = 0; data.right = nbins_x;
+			data.bottom = 0; data.top   = nbins_y;
+			return;
+		}
+		if (left is double.init || right is double.init || bottom is double.init || top is double.init) {
+			throw new Exception("left,right,bottom,top must be specified all together or not at all");
+		}
+	}
+	this(ref JSONValue json) {
+		import std.stdio;
+		try{
+			data = deserialize!Data(json);
+		} catch(Exception e) {
+			writeln("exception in JSON-constructor of histogram.Hist2 ", e.msg);
+		} 
+	}
+	override JSONValue toJSON() const { return serialize(data); }
+	override string get_type() const pure {
+		return "histogram.Hist2";
+	}
+
+	void fill(double position_x, double position_y, double value = 1.0) {
+		ulong idx_x = cast(ulong)(0.5+data.bins_x*(position_x - data.left)  /(data.right - data.left  ));
+		ulong idx_y = cast(ulong)(0.5+data.bins_y*(position_y - data.bottom)/(data.top   - data.bottom));
+		//import std.stdio; writeln("fill at idx_x ", idx_x, ":", _lower, " ", _data[idx], " ", _higher);
+		ulong quadrant = 0;
+		if (idx_x >= 0) quadrant += (idx_x < data.bins_x)?1:2;
+		if (idx_y >= 0) quadrant += (idx_y < data.bins_y)?3:6;
+
+		if (data.quadrants[quadrant] is double.init) data.quadrants[quadrant] = value;
+		else                                         data.quadrants[quadrant] += value;
+
+		if (quadrant == 4) {
+			ulong idx = (idx_y*data.bins_x+idx_x);
+			if (data.bins[idx] is double.init) data.bins[idx] = value;
+			else                               data.bins[idx] += value;
+		}
+		++item_version;
+	}
+
+	override Visualizer create_visualizer(BackendInterface backend) 
+	{
+		return new Hist2Visualizer(item_version, backend, data.bins, 
+								   data.bins_x, data.bins_y, 
+								   data.left, data.right, data.bottom, data.top);
+	}
+	override ulong getVersion() {
+		return item_version;
+	}
+private:
+	ulong item_version = 0;
+	Data data;
+}
+
+
+
 
 
 

@@ -140,11 +140,10 @@ string hist1(string name, ulong bins, double left = double.init, double right = 
 	return "";
 }
 
-@UI_EXPORT("add 1D-histogram that refers to a file on disk",
+@UI_EXPORT("fill value into the bin of a 1D-histogram",
 	["name of histogram",
-	 "number of bins",
-	 "left border of leftmost bin",
-	 "right border of rightmost bin"])
+	 "position",
+	 "add so much to the bin content(default is 1.0)"])
 string fill1(string name, double position, double amount = 1.0) {
 	import fairy, histogram;
 	auto h1_ptr = name in fairy.session.items;
@@ -159,6 +158,38 @@ string fill1(string name, double position, double amount = 1.0) {
 	return "";
 }
 
+@UI_EXPORT("add 2D-histogram",
+	["name of histogram",
+	 "number of bins in x-direction",
+	 "number of bins in y-direction",
+	 "left border of leftmost bin",
+	 "right border of rightmost bin",
+	 "bottom border of lowest bin",
+	 "top border of highest bin"])
+string hist2(string name, ulong bins_x, ulong bins_y, double left = double.init, double right = double.init, double bottom = double.init, double top = double.init) {
+	import fairy, histogram;
+	fairy.session.add_item(name, new Hist2(bins_x,bins_y, left,right, bottom,top));
+	return "";
+}
+
+@UI_EXPORT("fill value into the bin of a 2D-histogram",
+	["name of histogram",
+	 "x position",
+	 "y position",
+	 "add so much to the bin content (default is 1.0)"])
+string fill2(string name, double position_x, double position_y, double amount = 1.0) {
+	import fairy, histogram;
+	auto h2_ptr = name in fairy.session.items;
+	if (h2_ptr is null) {
+		throw new Exception("no item with name " ~ name);
+	}
+	Hist2 h2 = cast(Hist2)(h2_ptr.item);
+	if (h2 is null) {
+		throw new Exception("item " ~ name ~ " is not of type histogram.Hist2");
+	}
+	h2.fill(position_x, position_y,amount);
+	return "";
+}
 
 
 
