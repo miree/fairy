@@ -126,6 +126,11 @@ class DrawArea : Widget, BackendInterface
 	WidgetPainter *widget_painter;
 
 	TtfFont font;
+	int text_size = 20;
+
+	Image[ulong] images;
+	ulong image_counter = 0;
+	ubyte[] accessed_image;
 
 	this(string window_name, CanvasProperties *canvas_ptr, Widget parent) {
 		canvas = canvas_ptr;
@@ -133,8 +138,12 @@ class DrawArea : Widget, BackendInterface
 		painter = CanvasPainter(canvas, this);
 		super(parent);
 		import std.file;
-		//font.load(cast(ubyte[])std.file.read("/usr/share/fonts/TTF/DejaVuSans.ttf"));
-		font.load(cast(ubyte[])std.file.read("/usr/share/fonts/TTF/DejaVuSans.ttf"));
+		version(windows) {
+			font.load(cast(ubyte[])std.file.read("C:\\Windows\\Fonts\\verdana.ttf"));
+		}
+		else {
+			font.load(cast(ubyte[])std.file.read("/usr/share/fonts/TTF/DejaVuSans.ttf"));
+		}
 	}
 
 
@@ -303,35 +312,44 @@ class DrawArea : Widget, BackendInterface
 	// bitmap drawing
 	@trusted
 	override ulong  create_bitmap(int w, int h) {
+		//++image_counter;
+		//images[image_counter] = new Image(w,h);
+		//return image_counter;
 		return 0;
 	}
 	override void   destroy_bitmap(ulong handle) {
-
+		//images.remove(handle);
 	}
 	@trusted
 	override uint[] access_bitmap_data(ulong handle) {
+		//accessed_image = images[handle].getRgbaBytes();
+		//auto uintlen = accessed_image.length/4;
+		//uint* result = cast(uint*)accessed_image.ptr;
+		//return result[0..uintlen];
 		return null;
 	}
 	override void   access_bitmap_done(ulong handle) {
-
+		//accessed_image = null;
 	}
 	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
 		                         double dx, double dy, double dw, double dh) {
 
+		//widget_painter.drawImage(Point(cast(int)dx, cast(int)dy), images[handle]);
 	}
 
 	// text drawing 
 	override void set_text_size(int s) {
+		text_size = s;
 	}
 	override void text_extent(string str, out double w, out double h) {
 		int wi=1, hi=1;
-		font.getStringSize(str, 20, wi,hi);
+		font.getStringSize(str, text_size, wi,hi);
 		w = wi;
 		h = hi;
 	}
 	override void text(double x, double y, string str) {
 		int w, h;
-		auto bitmap = font.renderString(str, 20, w, h);
+		auto bitmap = font.renderString(str, text_size, w, h);
 		auto img = new Image(w, h);
 
 		for (int j=0; j < h; ++j) {
