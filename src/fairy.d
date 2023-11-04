@@ -234,6 +234,12 @@ void loop(string[] args) {
 				import graphics_gtk;
 				return;
 			}
+			else version(minigui) {
+				import graphics_minigui;
+				main_gui = new MiniGui;
+				main_gui.loop();
+				return;
+			}
 			else {
 				stdout.writeln("Error: no graphics back-end available");
 				start_gui = false;
