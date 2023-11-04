@@ -108,8 +108,10 @@ public:
 
 }
 
+
 class DrawArea : Widget, BackendInterface 
 {
+	import arsd.ttf;
 	CanvasProperties* canvas;
 	string name;
 	CanvasPainter painter;
@@ -123,11 +125,16 @@ class DrawArea : Widget, BackendInterface
 
 	WidgetPainter *widget_painter;
 
+	TtfFont font;
+
 	this(string window_name, CanvasProperties *canvas_ptr, Widget parent) {
 		canvas = canvas_ptr;
 		name = window_name;
 		painter = CanvasPainter(canvas, this);
 		super(parent);
+		import std.file;
+		//font.load(cast(ubyte[])std.file.read("/usr/share/fonts/TTF/DejaVuSans.ttf"));
+		font.load(cast(ubyte[])std.file.read("/usr/share/fonts/TTF/DejaVuSans.ttf"));
 	}
 
 
@@ -153,28 +160,28 @@ class DrawArea : Widget, BackendInterface
 	override void defaultEventHandler_keydown(KeyDownEvent event) {
 		import ui;
 		switch(cast(char)event.key) {
-			case '1': .. case '9':
+			case Key.N1: .. case Key.N9:
 				if (canvas.display_mode == DisplayMode.rows)    rows(name, event.key-'0');
 				if (canvas.display_mode == DisplayMode.columns) columns(name, event.key-'0');
 			break;
-			case 'u': winrefresh(name); break;
-			case 'p': winpoll(name); break;
-			case 'q': winzoom(name,1*1.2); break;
-			case 'e': winzoom(name,1/1.1666666666); break;
-			case 'a': winmove(name,'x',-0.2); break;
-			case 'd': winmove(name,'x',+0.2); break;
-			case 's': winmove(name,'y',-0.2); break;
-			case 'w': winmove(name,'y',+0.2); break;
-			case 'o': overlay(name); break;
-			case 'b': colorbar(name); break;
-			case 'g': grid(name,"top","toggle"); break;
-			case 'c': columns(name, canvas.columns_or_rows); break;
-			case 'r': rows   (name, canvas.columns_or_rows); break;
-			case 'x': autoscale  (name, 'x', "toggle");  break;
-			case 'y': autoscale  (name, 'y', "toggle");  break;
-			case 'z': autoscale  (name, 'z', "toggle");  break;
-			case 'l': logscale(name, canvas.dim==2?'z':'y', "toggle");  break;
-			case 'f': winfit(name);  break;
+			case Key.U: winrefresh(name); break;
+			case Key.P: winpoll(name); break;
+			case Key.Q: winzoom(name,1*1.2); break;
+			case Key.E: winzoom(name,1/1.1666666666); break;
+			case Key.A: winmove(name,'x',-0.2); break;
+			case Key.D: winmove(name,'x',+0.2); break;
+			case Key.S: winmove(name,'y',-0.2); break;
+			case Key.W: winmove(name,'y',+0.2); break;
+			case Key.O: overlay(name); break;
+			case Key.B: colorbar(name); break;
+			case Key.G: grid(name,"top","toggle"); break;
+			case Key.C: columns(name, canvas.columns_or_rows); break;
+			case Key.R: rows   (name, canvas.columns_or_rows); break;
+			case Key.X: autoscale  (name, 'x', "toggle");  break;
+			case Key.Y: autoscale  (name, 'y', "toggle");  break;
+			case Key.Z: autoscale  (name, 'z', "toggle");  break;
+			case Key.L: logscale(name, canvas.dim==2?'z':'y', "toggle");  break;
+			case Key.F: winfit(name);  break;
 			default: {}
 		}
 
@@ -182,16 +189,13 @@ class DrawArea : Widget, BackendInterface
 
 
 	override Rectangle paintContent(WidgetPainter w_painter, const Rectangle bounds) {
-		if (first_draw) {
+		if (first_draw) { // correct window position for decoration
 			auto point = globalCoordinates();
-			import std.stdio;
-			writeln("point : ", point);
 			int delta_x = point.x - canvas.xpos;
 			int delta_y = point.y - canvas.ypos;
 			MainWindow.main_windows[name].simple.move(canvas.xpos-delta_x, canvas.ypos-delta_y);
 			first_draw = false;
 		}
-
 
 		widget_painter = &w_painter;
 
@@ -209,7 +213,7 @@ class DrawArea : Widget, BackendInterface
 		return true;
 	} // true if the y-coordinates go from top to bottom
 	override bool text_with_border() {
-		return true;
+		return false;
 	} // true if black text should be rendered with a white border
 
 	override void initialize() {
@@ -318,12 +322,25 @@ class DrawArea : Widget, BackendInterface
 
 	// text drawing 
 	override void set_text_size(int s) {
-
 	}
 	override void text_extent(string str, out double w, out double h) {
-
+		int wi=1, hi=1;
+		font.getStringSize(str, 20, wi,hi);
+		w = wi;
+		h = hi;
 	}
 	override void text(double x, double y, string str) {
+		int w, h;
+		auto bitmap = font.renderString(str, 20, w, h);
+		auto img = new Image(w, h);
+
+		for (int j=0; j < h; ++j) {
+			for (int i=0; i < w; ++i) {
+				auto c = cast(int)((255-bitmap[j*w+i])*0.9);
+				img.putPixel(i, j, Color(c,c,c,c));
+			}
+		}
+		widget_painter.drawImage(Point(cast(int)x, cast(int)(y-h+1)), img);
 
 	} 
 
