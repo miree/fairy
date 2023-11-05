@@ -13,26 +13,24 @@ struct Continue {};
 	import core.sys.posix.poll : poll, pollfd, POLLIN;
 	import core.sys.posix.unistd : STDIN_FILENO;
 	auto pfd = pollfd(STDIN_FILENO, POLLIN); 
-	int timeout_ms = 10;
+	int timeout_ms = 100;
 	return poll(&pfd,1,timeout_ms);
 }
 
-void close_stdin() {
-	import core.sys.posix.unistd;
-	close(STDIN_FILENO);	
-}
+//void close_stdin() {
+//	import core.sys.posix.unistd;
+//	close(STDIN_FILENO);	
+//}
 
 @trusted
 void run_console(Tid main_thread) {
 	import std.string, std.algorithm;
+	bool running = true;
 	try {
-		for (;;) {
-			import std.stdio;
+		while(running) {
 			const pollresult = wait_for_input();
-			if (pollresult < 0) {
-				break;
-			}
-			if (pollresult>=0) {
+			if (pollresult>0) { // stdin has data
+				import std.stdio;
 				auto input = stdin.readln;
 				auto command = input.stripRight('\n').stripRight('\r').strip(' ');
 				// comment
@@ -42,10 +40,19 @@ void run_console(Tid main_thread) {
 					break;
 				} 
 				// the receiver of this message should send the Continue message in response
-				if (input.length) main_thread.send(Command(command, thisTid));
-				// wait until the reciever sends Continue signal
-				receive((Continue c) {});
-			} 
+				if (input.length) {
+					main_thread.send(Command(command, thisTid));
+					// wait until the reciever sends Continue signal
+					receive((Continue c) {});
+				}
+			}
+			else { // timeout 
+				import std.datetime;
+				receiveTimeout(dur!"msecs"(0), 
+				(Quit q) {
+					running = false;
+				});
+			}
 		}
 	} catch (const Exception e) {
 		main_thread.send(QuitWithError(e.msg, e.file, e.line));

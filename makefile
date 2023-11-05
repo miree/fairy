@@ -4,6 +4,9 @@ fairy: src/*.d
 allegro5: src/*.d
 	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color -L-lasound
 
+gtk3: src/*.d
+	ldc -Isrc -i src/app.d -of=fairy -I/usr/include/d/gtkd-3 -L-L/usr/lib -L-lgtkd-3 -L-lasound --d-version=gtk3
+
 minigui: src/*.d
 	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui -L-lasound
 

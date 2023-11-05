@@ -249,9 +249,6 @@ public:
 		al_unregister_event_source(queue, al_get_display_event_source(display));
 		al_destroy_display(display);
 		main_windows.remove(display);
-		session.windows.remove(name);
-		//gui_windows.remove(name);
-
 	}
 
 	////////////////////////////////////////

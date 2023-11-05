@@ -74,8 +74,8 @@ string session_open(string session_name) {
 	fairy.session.name = session_name;
 	fairy.session.read_from_file();
 
-	import std.stdio;
-	fairy.session.windows.byKey.writeln();
+	//import std.stdio;
+	//fairy.session.windows.byKey.writeln();
 	if (start_gui) {// gui is already running
 		foreach (name, ref window; fairy.session.windows) {
 			if (fairy.main_gui !is null) {
@@ -253,8 +253,6 @@ string show(string item_name, string window_name) {
 @UI_EXPORT("quit program")
 @trusted
 string quit() {
-	import cmdline;
-	import std.concurrency;
 	import fairy;
 	fairy.running = false;
 	return "";

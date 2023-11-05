@@ -111,11 +111,15 @@ struct Session {
 	}
 
 	void close() {
+		//import std.stdio;
+		//writeln("windows -> ", windows.byKey);
 		import std.array;
 		auto window_names = windows.byKey.array;
 		foreach(name; window_names) {
 			remove_window(name);
+			windows.remove(name);
 		}
+		//writeln("windows after close() -> ", windows.byKey);
 		items = null;
 	}
 
@@ -176,7 +180,6 @@ struct Session {
 }
 
 Session session;
-
 @trusted
 void run(string[] args) {
 
@@ -196,7 +199,7 @@ void run(string[] args) {
 	auto console_tid = spawn(&cmdline.run_console, thisTid);
 	loop(args);
 	// cause the cmdline.run_console thread to stop
-	cmdline.close_stdin(); 
+	//cmdline.close_stdin(); 
 	session.write_to_file();
 }
 
@@ -223,28 +226,27 @@ void loop(string[] args) {
 			version(allegro5) {
 				import graphics_allegro5;
 				main_gui = new Allegro5Gui;
-				main_gui.loop();
-				return;
 			}
 			else version(gtk3) {
 				import graphics_gtk;
-				return;
+				main_gui = new GtkGui;
 			}
 			else version(gtk4) {
 				import graphics_gtk;
-				return;
+				main_gui = new GtkGui;
 			}
 			else version(minigui) {
 				import graphics_minigui;
 				main_gui = new MiniGui;
-				main_gui.loop();
-				return;
 			}
 			else {
 				stdout.writeln("Error: no graphics back-end available");
 				start_gui = false;
 			}
+
 		}
+
+		if (main_gui !is null) return main_gui.loop();
 
 	}
 
