@@ -27,6 +27,13 @@ class MiniGui : Gui {
 
 		auto timer = new Timer(10, delegate void (){
 
+			foreach(window; MainWindow.main_windows) {
+				import ui;
+				if (window.canvas.autorefresh) {
+					winrefresh(window.name);
+				}
+			}
+
 			import std.stdio;
 			if (fairy.iterate(0)) {
 				import std.stdio;
