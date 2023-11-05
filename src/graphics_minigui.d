@@ -131,8 +131,7 @@ class DrawArea : Widget, BackendInterface
 	struct MiniImage {
 		int w;
 		int h;
-		Image img;
-		uint[] rgba_data;
+		uint[] argb_data;
 	}
 
 	MiniImage[ulong] images;
@@ -263,6 +262,13 @@ class DrawArea : Widget, BackendInterface
 		return line_width;
 	}
 	override void vertical_line(double xd, double y1d, double y2d) {
+		if (y1d < y2d) {
+			y1d+=line_width/2;
+			y2d-=line_width/2;
+		} else {
+			y2d+=line_width/2;
+			y1d-=line_width/2;
+		}
 		int x = cast(int)(xd+0.5);
 		int y1 = cast(int)(y1d+0.5);
 		int y2 = cast(int)(y2d+0.5);
@@ -320,68 +326,101 @@ class DrawArea : Widget, BackendInterface
 	@trusted
 	override ulong  create_bitmap(int w, int h) {
 		++image_counter;
-		images[image_counter] = MiniImage(w,h,new Image(w,h,false,false), new uint[w*h]);
+		images[image_counter] = MiniImage(w,h,new uint[w*h]);
 		return image_counter;
-		//return 0;
 	}
 	override void   destroy_bitmap(ulong handle) {
-		//images.remove(handle);
+		images.remove(handle);
 	}
 	@trusted
 	override uint[] access_bitmap_data(ulong handle) {
-		return images[handle].rgba_data;
-		//ubyte* raw_data = images[handle].getDataPointer;
-		//int w = images[handle].width;
-		//int h = images[handle].height;
-		////auto uintlen = accessed_image.length/4;
-		//uint* result = cast(uint*)accessed_image.ptr;
-		//return result[0..w*h];
-		//return null;
+		return images[handle].argb_data;
 	}
 	override void   access_bitmap_done(ulong handle) {
-		const i = &images[handle];
-		ubyte *rgba_bytes = cast(ubyte*)i.rgba_data.ptr;
-		images[handle].img.setFromRgbaBytes(rgba_bytes[0..i.w*i.h*4]);
-		//accessed_image = null;
 	}
 	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
 		                         double dx, double dy, double dw, double dh) {
-		//alias i = images[handle];
-		//widget_painter.drawImage(Point(cast(int)dx, cast(int)dy), images[handle].img);
-		int ddw = cast(int)dw;
-		int ddx = cast(int)dx;
-		if (ddw < 0) {
-			ddx = ddx+ddw;
-			ddw =    -ddw;
+		if (dw < 0) {
+			dx = dx+dw;
+			dw =    -dw;
 			sx  = sx+sw;
 			sw  =   -sw;
 		}
-		int ddh = cast(int)dh;
-		int ddy = cast(int)dy;
-		if (ddh < 0) {
-			ddy = ddy+ddh;
-			ddh =    -ddh;
+		if (dh < 0) {
+			dy = dy+dh;
+			dh =    -dh;
 			sy  = sy+sh;
 			sh  =   -sh;
 		}
 		const i = &images[handle];
-		for (int y = ddy; y <= ddy+ddh; ++y) {
-			if (y<0) continue;
-			if (y>=canvas.height) continue;
-			int yy = cast(int)(sy+(1.0*(y-ddy)/ddh)*sh);
-			for (int x = ddx; x <= ddx+ddw; ++x) {
-				if (x<0) continue;
-				if (x>canvas.width) continue;
-				int xx = cast(int)(sx+(1.0*(x-ddx)/ddw)*sw);
-				uint rgba = i.rgba_data[xx+yy*i.w];
-				uint b = (rgba>>24)&0xff;
+		import std.parallelism;
+		import std.range, std.algorithm;
+
+		// clipping
+		if (dy < 0) {
+			sy -= sh*dy/dh;
+			sh += sh*dy/dh;
+			dh += dy;
+			dy -= dy;
+		}
+		if (dy >= canvas.height) {
+			return;
+		}
+		if (dy+dh >= canvas.height) {
+			sh  -= sh*((dy+dh)-canvas.height)/dh;
+			dh -= ((dy+dh)-canvas.height);
+		}
+
+		if (dx < 0) {
+			sx -= sw*dx/dw;
+			sw += sw*dx/dw;
+			dw += dx;
+			dx -= dx;
+		}
+		if (dx >= canvas.width) {
+			return;
+		}
+		if (dx+dw >= canvas.width) {
+			sw  -= sw*((dx+dw)-canvas.width)/dw;
+			dw -= ((dx+dw)-canvas.width);
+		}
+
+		int ddw = cast(int)dw;
+		int ddx = cast(int)dx;
+		int ddh = cast(int)dh;
+		int ddy = cast(int)dy;
+
+		auto yvalues = iota(ddy,ddy+ddh);
+		auto xvalues = iota(ddx,ddx+ddw);
+
+		//foreach(y;taskPool.parallel(yvalues,100)) {
+		foreach(y; yvalues) {
+		//for (int y = ddy; y <= ddy+ddh; ++y) {
+			int yy = cast(int)(sy+(sh*(y-ddy)/ddh));
+
+			//foreach(x; taskPool.parallel(xvalues)) {
+			foreach(x; xvalues) {
+			//for (int x = ddx; x <= ddx+ddw; ++x) {
+				int xx = cast(int)(sx+(sw*(x-ddx)/ddw));
+				uint rgba = i.argb_data[xx+yy*i.w];
+				uint a = (rgba>>24)&0xff;
 				uint r = (rgba>>16)&0xff;	
 				uint g = (rgba>> 8)&0xff;	
-				uint a = (rgba>> 0)&0xff;
+				uint b = (rgba>> 0)&0xff;
 				if (a == 0) continue;	
 				auto c = Color(r,g,b);
-				widget_painter.pen = Pen(c, 1, Pen.Style.Solid);
-				widget_painter.drawPixel(Point(x,y));
+				version(windows) {
+					with(widget_painter.impl) {
+						widget_painter.impl.SetPixel(widget_painter.impl.hdc, x, y, RGB(r,g,b) );
+					}
+				}
+				else {
+					widget_painter.pen = Pen(c, 1, Pen.Style.Solid);
+					widget_painter.drawPixel(Point(x,y));
+					//with(widget_painter.impl) {
+					//	XDrawPoint(display, d, gc, x, y);
+					//}
+				}
 			}
 
 		}
