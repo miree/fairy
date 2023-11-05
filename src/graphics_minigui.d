@@ -128,7 +128,14 @@ class DrawArea : Widget, BackendInterface
 	TtfFont font;
 	int text_size = 20;
 
-	Image[ulong] images;
+	struct MiniImage {
+		int w;
+		int h;
+		Image img;
+		uint[] rgba_data;
+	}
+
+	MiniImage[ulong] images;
 	ulong image_counter = 0;
 	ubyte[] accessed_image;
 
@@ -236,7 +243,7 @@ class DrawArea : Widget, BackendInterface
 
 	}
 	override void set_clip(double x1, double y1, double x2, double y2) {
-
+		widget_painter.setClipRectangle(Point(cast(int)x1,cast(int)y1),cast(int)(x2-x1),cast(int)(y2-y1));
 	}
 
 	override void clear(double r, double g, double b) {
@@ -312,29 +319,72 @@ class DrawArea : Widget, BackendInterface
 	// bitmap drawing
 	@trusted
 	override ulong  create_bitmap(int w, int h) {
-		//++image_counter;
-		//images[image_counter] = new Image(w,h);
-		//return image_counter;
-		return 0;
+		++image_counter;
+		images[image_counter] = MiniImage(w,h,new Image(w,h,false,false), new uint[w*h]);
+		return image_counter;
+		//return 0;
 	}
 	override void   destroy_bitmap(ulong handle) {
 		//images.remove(handle);
 	}
 	@trusted
 	override uint[] access_bitmap_data(ulong handle) {
-		//accessed_image = images[handle].getRgbaBytes();
-		//auto uintlen = accessed_image.length/4;
+		return images[handle].rgba_data;
+		//ubyte* raw_data = images[handle].getDataPointer;
+		//int w = images[handle].width;
+		//int h = images[handle].height;
+		////auto uintlen = accessed_image.length/4;
 		//uint* result = cast(uint*)accessed_image.ptr;
-		//return result[0..uintlen];
-		return null;
+		//return result[0..w*h];
+		//return null;
 	}
 	override void   access_bitmap_done(ulong handle) {
+		const i = &images[handle];
+		ubyte *rgba_bytes = cast(ubyte*)i.rgba_data.ptr;
+		images[handle].img.setFromRgbaBytes(rgba_bytes[0..i.w*i.h*4]);
 		//accessed_image = null;
 	}
 	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
 		                         double dx, double dy, double dw, double dh) {
+		//alias i = images[handle];
+		//widget_painter.drawImage(Point(cast(int)dx, cast(int)dy), images[handle].img);
+		int ddw = cast(int)dw;
+		int ddx = cast(int)dx;
+		if (ddw < 0) {
+			ddx = ddx+ddw;
+			ddw =    -ddw;
+			sx  = sx+sw;
+			sw  =   -sw;
+		}
+		int ddh = cast(int)dh;
+		int ddy = cast(int)dy;
+		if (ddh < 0) {
+			ddy = ddy+ddh;
+			ddh =    -ddh;
+			sy  = sy+sh;
+			sh  =   -sh;
+		}
+		const i = &images[handle];
+		for (int y = ddy; y <= ddy+ddh; ++y) {
+			if (y<0) continue;
+			if (y>=canvas.height) continue;
+			int yy = cast(int)(sy+(1.0*(y-ddy)/ddh)*sh);
+			for (int x = ddx; x <= ddx+ddw; ++x) {
+				if (x<0) continue;
+				if (x>canvas.width) continue;
+				int xx = cast(int)(sx+(1.0*(x-ddx)/ddw)*sw);
+				uint rgba = i.rgba_data[xx+yy*i.w];
+				uint b = (rgba>>24)&0xff;
+				uint r = (rgba>>16)&0xff;	
+				uint g = (rgba>> 8)&0xff;	
+				uint a = (rgba>> 0)&0xff;
+				if (a == 0) continue;	
+				auto c = Color(r,g,b);
+				widget_painter.pen = Pen(c, 1, Pen.Style.Solid);
+				widget_painter.drawPixel(Point(x,y));
+			}
 
-		//widget_painter.drawImage(Point(cast(int)dx, cast(int)dy), images[handle]);
+		}
 	}
 
 	// text drawing 
