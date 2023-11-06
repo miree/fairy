@@ -36,6 +36,8 @@ class Allegro5Gui : Gui {
 			}
 		}
 	}
+	override void remove_item(string name) {
+	}
 	override void loop() {
 		al_install_system((ALLEGRO_VERSION << 24) | (ALLEGRO_SUB_VERSION << 16) | 
 	                      (ALLEGRO_WIP_VERSION << 8) | ALLEGRO_RELEASE_NUMBER | 

@@ -122,6 +122,15 @@ string ls(bool all = true) {
 	return fairy.session.list_items(all);
 }
 
+@UI_EXPORT("remove item",
+	["name of item to be removed"])
+@trusted
+string rm(string name) {
+	import fairy;
+	fairy.session.remove_item(name);
+	return "";
+}
+
 
 @UI_EXPORT("add histogram that refers to a file on disk",
 	["filename to load the data from"])

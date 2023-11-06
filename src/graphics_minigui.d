@@ -25,6 +25,8 @@ class MiniGui : Gui {
 		window.canvas.xpos = point.x; 
 		window.canvas.ypos = point.y; 
 	}
+	override void remove_item(string name) {
+	}
 	override void loop() {
 		import fairy;
 		EventLoop main_event_loop = EventLoop.get;

@@ -38,6 +38,11 @@ class GtkGui : Gui {
 			window.canvas.ypos = y;
 		}
 	}
+	override void remove_item(string name) {
+		foreach(window; main_windows) {
+			window.item_view.removeItem(name);
+		}
+	}
 	override void loop() {
 		// setup the application instance only if it is not already running
 		if (application !is null) {
@@ -230,10 +235,10 @@ private:
 		Label  header_title;
 	Paned workspace;
 		ScrolledWindow item_view_scrolled_window;
-			Button item_view;
-			Button plot_widget;
-			//ItemView item_view;
-		//PlotWidget plot_widget;
+			//Button item_view;
+			//Button plot_widget;
+			ItemView item_view;
+		PlotWidget plot_widget;
 
 
 	SimpleAction new_window;
@@ -517,12 +522,13 @@ public:
 		window_toplevel_box = new Box(GtkOrientation.VERTICAL,0);
 
 
-		//plot_widget = new PlotWidget(area, window_name);
-		plot_widget = new Button("plot_widget");
+		plot_widget = new PlotWidget();//(area, window_name);
+		//plot_widget = new Button("plot_widget");
 		plot_widget.setHexpand(true);
 
-		//item_view = new ItemView(plot_widget, this);
-		item_view = new Button("item_view");
+		item_view = new ItemView(plot_widget, this);
+		item_view.updateTreeStoreFromSession();
+		//item_view = new Button("item_view");
 		//import item;
 
 		//auto session_items = running_session.getItems();
@@ -622,368 +628,368 @@ public:
 
 }
 
-//import gtk.TreeStore, gtk.TreeView, gtk.TreeIter;
+import gtk.TreeStore, gtk.TreeView, gtk.TreeIter;
 
-//class ItemView : TreeView {
+class ItemView : TreeView {
 
-//	version(gtk4) { // GtkD-3 has this as convenience function (not a genuine gtk function) that is missing in GtkD-4
-//		TreeIter[] getSelectedIters() {
-//			import gtk.TreePath;
-//			TreeIter[] iters;
-//			auto selection = getSelection();
-//			TreeModelIF model = getModel();
-//			auto paths = selection.getSelectedRows(model).toArray!TreePath;
-//			TreeIter iter;
-//			foreach ( TreePath p; paths ) {
-//				if ( model.getIter(iter,p) ) {
-//					iters ~= iter;
-//				}
-//			}
-//			return iters;
-//		}
-//	}
+	version(gtk4) { // GtkD-3 has this as convenience function (not a genuine gtk function) that is missing in GtkD-4
+		TreeIter[] getSelectedIters() {
+			import gtk.TreePath;
+			TreeIter[] iters;
+			auto selection = getSelection();
+			TreeModelIF model = getModel();
+			auto paths = selection.getSelectedRows(model).toArray!TreePath;
+			TreeIter iter;
+			foreach ( TreePath p; paths ) {
+				if ( model.getIter(iter,p) ) {
+					iters ~= iter;
+				}
+			}
+			return iters;
+		}
+	}
 
-//	PlotWidget plotwidget;
-//	MainWindow main_window;
+	PlotWidget plotwidget;
+	MainWindow main_window;
 
-//	enum {
-//		COLUMN_NAME,
-//		COLUMN_FULLNAME,
-//		COLUMN_IS_ITEM,    // if this is true, there is an item under that fullname, otherwise it is just a folder
-//		COLUMN_VISUALIZED, // the checkbox to visualize the item (or recursively all items in the folder)
-//	}
+	enum {
+		COLUMN_NAME,
+		COLUMN_FULLNAME,
+		COLUMN_IS_ITEM,    // if this is true, there is an item under that fullname, otherwise it is just a folder
+		COLUMN_VISUALIZED, // the checkbox to visualize the item (or recursively all items in the folder)
+	}
 
-//	TreeStore treestore;
-
-
-//	version(gtk3) {
-//		import gtk.Menu, gtk.MenuItem;
-//		Menu popup_menu;
-//	}
-//	version(gtk4) {
-//		import gtk.PopoverMenu, gtk.Popover;
-//		import gio.Menu, gio.MenuItem;
-//		import gtk.GestureClick;
-//		GestureClick right_click;
-//		Menu menu;
-//		PopoverMenu popup_menu;
-//	}
-
-//	void expand_all_selected() {
-//		foreach(selected_iter; getSelectedIters()) {
-//			this.expandRow(treestore.getPath(selected_iter), true);
-//		}
-//	}
-//	void remove_all_selected() {
-//		string[] names; 
-//		foreach(selected_iter; getSelectedIters()) {
-//			names ~= treestore.getString(selected_iter, COLUMN_FULLNAME);
-//		}
-//		foreach(name; names) {
-//			import ui;
-//			rm(name);
-//		}
-//	}
+	TreeStore treestore;
 
 
-//	this(PlotWidget pw, MainWindow mainwindow) {
-//		plotwidget = pw;
-//		main_window = mainwindow;
-//	                               // NAME        FULLNAME        IS_ITEM    VISUALIZED
-//		treestore = new TreeStore([ GType.STRING , GType.STRING , GType.INT , GType.INT ]);
-//		super(treestore);
+	version(gtk3) {
+		import gtk.Menu, gtk.MenuItem;
+		Menu popup_menu;
+	}
+	version(gtk4) {
+		import gtk.PopoverMenu, gtk.Popover;
+		import gio.Menu, gio.MenuItem;
+		import gtk.GestureClick;
+		GestureClick right_click;
+		Menu menu;
+		PopoverMenu popup_menu;
+	}
 
-//		import gtk.TreeViewColumn, gtk.CellRendererText, gtk.CellRendererToggle;
-//		auto text_renderer = new CellRendererText;
-//		auto color_renderer = new CellRendererText;
-//		auto toggle_renderer = new CellRendererToggle;
-//		toggle_renderer.addOnToggled( delegate void(string p, CellRendererToggle crt){
-//			import gtk.TreePath, gtk.TreeIter;
-//			import std.typecons;
-//			auto path = scoped!TreePath(p); // p is something like "2:4:1"
-//			version(gtk3) {
-//				auto iter = scoped!TreeIter(treestore, path);
-//			} else {
-//				TreeIter iter;
-//				treestore.getIter(iter, path);
-//			}
-//			// recursively toggle children (only if iter is not an acutal item)
-//			auto is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
-//			bool active = switch_iter(treestore, iter, plotwidget); 
-//			if (!is_item) { // only recurse for non-items
-//				iterate_children_depth_first(&active, treestore, iter, 0,
-//					(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) { 
-//						switch_iter(treestore, iter, plotwidget, force_active);
-//					});
-//			}
-
-//			// check if a parent has to be toggled
-//			import std.array;
-//			auto path_parts = p.split(':');
-//			while (path_parts.length > 1) {
-//				path_parts = path_parts[0..$-1];
-//				p = path_parts.join(':');
-//				path = scoped!TreePath(p);
-//				version(gtk3) {
-//					iter = scoped!TreeIter(treestore, path);
-//				} else {
-//					treestore.getIter(iter, path);
-//				}
-//				is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
-//				if (!is_item) {
-//					struct Children {
-//						bool all_set = true;
-//						bool none_set = true;
-//					}
-//					Children children;
-//					iterate_children_depth_first(&active, treestore, iter, &children, 
-//						(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, Children *children) { 
-//							auto child_active = treestore.getInt(iter, COLUMN_VISUALIZED); 
-//							if (child_active) children.none_set = false;
-//							if (!child_active) children.all_set = false;
-//					});
-//					if (children.none_set) {
-//						version (gtk3) {
-//							treestore.setValue(iter, COLUMN_VISUALIZED, 0);
-//						} 
-//						version (gtk4) {
-//							import gobject.Value, std.typecons;
-//							treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(0));
-//						}
-//					}
-//					if (children.all_set) {
-//						version (gtk3) {
-//							treestore.setValue(iter, COLUMN_VISUALIZED, 1);
-//						} 
-//						version (gtk4) {
-//							import gobject.Value, std.typecons;
-//							treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
-//						}
-//					}
-//				}
-//			}
-//		});
+	void expand_all_selected() {
+		foreach(selected_iter; getSelectedIters()) {
+			this.expandRow(treestore.getPath(selected_iter), true);
+		}
+	}
+	void remove_all_selected() {
+		string[] names; 
+		foreach(selected_iter; getSelectedIters()) {
+			names ~= treestore.getString(selected_iter, COLUMN_FULLNAME);
+		}
+		foreach(name; names) {
+			import ui;
+			rm(name);
+		}
+	}
 
 
-//		appendColumn(new TreeViewColumn("Name", text_renderer,   "text",   COLUMN_NAME));
-//		appendColumn(new TreeViewColumn("Show", toggle_renderer, "active", COLUMN_VISUALIZED));
-//		getSelection().setMode(GtkSelectionMode.MULTIPLE);
+	this(PlotWidget pw, MainWindow mainwindow) {
+		plotwidget = pw;
+		main_window = mainwindow;
+	                               // NAME        FULLNAME        IS_ITEM    VISUALIZED
+		treestore = new TreeStore([ GType.STRING , GType.STRING , GType.INT , GType.INT ]);
+		super(treestore);
+		setVexpand(true);
+		import gtk.TreeViewColumn, gtk.CellRendererText, gtk.CellRendererToggle;
+		auto text_renderer = new CellRendererText;
+		auto color_renderer = new CellRendererText;
+		auto toggle_renderer = new CellRendererToggle;
+		toggle_renderer.addOnToggled( delegate void(string p, CellRendererToggle crt){
+			import gtk.TreePath, gtk.TreeIter;
+			import std.typecons;
+			auto path = scoped!TreePath(p); // p is something like "2:4:1"
+			version(gtk3) {
+				auto iter = scoped!TreeIter(treestore, path);
+			} else {
+				TreeIter iter;
+				treestore.getIter(iter, path);
+			}
+			// recursively toggle children (only if iter is not an acutal item)
+			auto is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
+			bool active = switch_iter(treestore, iter, plotwidget); 
+			if (!is_item) { // only recurse for non-items
+				iterate_children_depth_first(&active, treestore, iter, 0,
+					(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) { 
+						switch_iter(treestore, iter, plotwidget, force_active);
+					});
+			}
+
+			// check if a parent has to be toggled
+			import std.array;
+			auto path_parts = p.split(':');
+			while (path_parts.length > 1) {
+				path_parts = path_parts[0..$-1];
+				p = path_parts.join(':');
+				path = scoped!TreePath(p);
+				version(gtk3) {
+					iter = scoped!TreeIter(treestore, path);
+				} else {
+					treestore.getIter(iter, path);
+				}
+				is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
+				if (!is_item) {
+					struct Children {
+						bool all_set = true;
+						bool none_set = true;
+					}
+					Children children;
+					iterate_children_depth_first(&active, treestore, iter, &children, 
+						(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, Children *children) { 
+							auto child_active = treestore.getInt(iter, COLUMN_VISUALIZED); 
+							if (child_active) children.none_set = false;
+							if (!child_active) children.all_set = false;
+					});
+					if (children.none_set) {
+						version (gtk3) {
+							treestore.setValue(iter, COLUMN_VISUALIZED, 0);
+						} 
+						version (gtk4) {
+							import gobject.Value, std.typecons;
+							treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(0));
+						}
+					}
+					if (children.all_set) {
+						version (gtk3) {
+							treestore.setValue(iter, COLUMN_VISUALIZED, 1);
+						} 
+						version (gtk4) {
+							import gobject.Value, std.typecons;
+							treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
+						}
+					}
+				}
+			}
+		});
 
 
-//		version(gtk3) {
-//			popup_menu = new Menu;
-//			popup_menu.append( // expand all underlying items and folders
-//				new MenuItem(
-//					delegate(MenuItem m) { // the action to perform if that menu entry is selected
-//						expand_all_selected();
-//					},
-//					"expand all", // menu entry label
-//					"recursively expand all nested items"// description
-//				)
-//			);
-//			popup_menu.append( // expand all underlying items and folders
-//				new MenuItem(
-//					delegate(MenuItem m) { // the action to perform if that menu entry is selected
-//						remove_all_selected();
-//					},
-//					"remove", // menu entry label
-//					"remove selected items"// description
-//				)
-//			);
-//			addOnButtonPress(
-//				delegate bool(GdkEventButton* e, Widget w) {
-//					w.onButtonPressEvent(e); 
-//					if (e.button == 3)	{
-//						popup_menu.popup(e.button, e.time);
-//						popup_menu.showAll(); 
-//					}
-//					return true;
-//				} 
-//			);
-//		}
-
-//		version(gtk4) {
-//			menu = new Menu;
-//			menu.append("expand all", "win.expand_all");
-//			menu.append("remove",     "win.remove_selected");
-
-//			popup_menu = new PopoverMenu(menu); 
-//			right_click = new GestureClick;
-//			addController(right_click);
-//			right_click.setButton(BUTTON_SECONDARY); 
-//			right_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
-//				import std.stdio; writeln("right click");
-//				auto w = cast(ItemView)g.getWidget();
-//				w.popup_menu.setParent(w);
-//				auto rect = GdkRectangle(cast(int)x, cast(int)y, 4,4);
-//				w.popup_menu.setPointingTo(&rect);
-//				w.popup_menu.setHasArrow(false);
-//				w.popup_menu.setPosition(PositionType.BOTTOM);
-//				w.popup_menu.setVisible(true);
-//			});
-//		}
-//	}
-
-//	void show_visualizer(string item_name) {
-//		import gobject.Value, std.typecons;
-//		TreeIter iter = find_iter_for_itemname(item_name, treestore);
-//		treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
-//		fix_parent_checkboxes(iter);
-//	}
-//	void hide_visualizer(string item_name) {
-//		import gobject.Value, std.typecons;
-//		TreeIter iter = find_iter_for_itemname(item_name, treestore);
-//		treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(0));
-//		fix_parent_checkboxes(iter);
-//	}
-//	void fix_parent_checkboxes(TreeIter iterator) {
-//		import gobject.Value, std.typecons, std.stdio;
-//		TreeIter parent = null;
-//		if (treestore.iterParent(parent, iterator)) {
-//			//writeln("parent iter found");
-//			if (!treestore.getInt(parent, COLUMN_IS_ITEM)) {
-//				//writeln("parent is no item");
-//				int n_children = treestore.iterNChildren(parent);
-//				TreeIter iter = null;
-//				int count = 0;
-//				bool all_children_visualized = true;
-//				bool no_child_visualized = true;
-//				foreach (n ; 0..n_children) {
-//					if (treestore.iterNthChild(iter, parent, n)) {
-//						if (treestore.getInt(iter, COLUMN_VISUALIZED) == 0) {
-//							all_children_visualized = false;
-//						} else {
-//							no_child_visualized = false;
-//						}
-//					}
-//				}
-//				if (all_children_visualized) {
-//					treestore.setValue(parent, COLUMN_VISUALIZED, scoped!Value(1));
-//				}
-//				if (no_child_visualized) {
-//					treestore.setValue(parent, COLUMN_VISUALIZED, scoped!Value(0));
-//				}
-//			}
-//		}
-//	}
+		appendColumn(new TreeViewColumn("Name", text_renderer,   "text",   COLUMN_NAME));
+		appendColumn(new TreeViewColumn("Show", toggle_renderer, "active", COLUMN_VISUALIZED));
+		getSelection().setMode(GtkSelectionMode.MULTIPLE);
 
 
+		version(gtk3) {
+			popup_menu = new Menu;
+			popup_menu.append( // expand all underlying items and folders
+				new MenuItem(
+					delegate(MenuItem m) { // the action to perform if that menu entry is selected
+						expand_all_selected();
+					},
+					"expand all", // menu entry label
+					"recursively expand all nested items"// description
+				)
+			);
+			popup_menu.append( // expand all underlying items and folders
+				new MenuItem(
+					delegate(MenuItem m) { // the action to perform if that menu entry is selected
+						remove_all_selected();
+					},
+					"remove", // menu entry label
+					"remove selected items"// description
+				)
+			);
+			addOnButtonPress(
+				delegate bool(GdkEventButton* e, Widget w) {
+					w.onButtonPressEvent(e); 
+					if (e.button == 3)	{
+						popup_menu.popup(e.button, e.time);
+						popup_menu.showAll(); 
+					}
+					return true;
+				} 
+			);
+		}
 
-//	// helper function to send visualizers to the plotwidget and update the checkbox in the treeview
-//	bool switch_iter(TreeStore treestore, TreeIter iter, PlotWidget plotwidget, bool* force_active = null) {
-//		//import app, std.stdio;
+		version(gtk4) {
+			menu = new Menu;
+			menu.append("expand all", "win.expand_all");
+			menu.append("remove",     "win.remove_selected");
 
-//		auto active   = treestore.getInt(iter, COLUMN_VISUALIZED); // use a gtk3/gtk4 compatibility/convenience function
-//		auto fullname = treestore.getString(iter, COLUMN_FULLNAME); // use a gtk3/gtk4 compatibility/convenience function
-//		// if force_active value is given use it to override the value from the row
-//		if (force_active is null) { active = !active; } 
-//		else                      { active = *force_active; }
+			popup_menu = new PopoverMenu(menu); 
+			right_click = new GestureClick;
+			addController(right_click);
+			right_click.setButton(BUTTON_SECONDARY); 
+			right_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
+				import std.stdio; writeln("right click");
+				auto w = cast(ItemView)g.getWidget();
+				w.popup_menu.setParent(w);
+				auto rect = GdkRectangle(cast(int)x, cast(int)y, 4,4);
+				w.popup_menu.setPointingTo(&rect);
+				w.popup_menu.setHasArrow(false);
+				w.popup_menu.setPosition(PositionType.BOTTOM);
+				w.popup_menu.setVisible(true);
+			});
+		}
+	}
 
-//		version (gtk3) {
-//			treestore.setValue(iter, COLUMN_VISUALIZED, active);
-//		} else {
-//			import gobject.Value, std.typecons;
-//			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(active));
-//		}
-//		if (treestore.getInt(iter, COLUMN_IS_ITEM)) {
-//			import std.stdio;
-//			writeln(active, " " , fullname);
-//			fairy.ui.show(main_window.name, fullname, active?"true":"false");
-//		}
-//		//// add or remove the visualizer from plotaera
-//		//auto visualizer = runningSession.getVisualizerForItemName(fullname);
-//		//if (active) { plotwidget.addVisualizer(fullname, visualizer); }
-//		//else        { plotwidget.removeVisualizer(fullname); }
-//		// return the new state of the checkbox
-//		return cast(bool)active;
-//	}
+	void show_visualizer(string item_name) {
+		import gobject.Value, std.typecons;
+		TreeIter iter = find_iter_for_itemname(item_name, treestore);
+		treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
+		fix_parent_checkboxes(iter);
+	}
+	void hide_visualizer(string item_name) {
+		import gobject.Value, std.typecons;
+		TreeIter iter = find_iter_for_itemname(item_name, treestore);
+		treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(0));
+		fix_parent_checkboxes(iter);
+	}
+	void fix_parent_checkboxes(TreeIter iterator) {
+		import gobject.Value, std.typecons, std.stdio;
+		TreeIter parent = null;
+		if (treestore.iterParent(parent, iterator)) {
+			//writeln("parent iter found");
+			if (!treestore.getInt(parent, COLUMN_IS_ITEM)) {
+				//writeln("parent is no item");
+				int n_children = treestore.iterNChildren(parent);
+				TreeIter iter = null;
+				int count = 0;
+				bool all_children_visualized = true;
+				bool no_child_visualized = true;
+				foreach (n ; 0..n_children) {
+					if (treestore.iterNthChild(iter, parent, n)) {
+						if (treestore.getInt(iter, COLUMN_VISUALIZED) == 0) {
+							all_children_visualized = false;
+						} else {
+							no_child_visualized = false;
+						}
+					}
+				}
+				if (all_children_visualized) {
+					treestore.setValue(parent, COLUMN_VISUALIZED, scoped!Value(1));
+				}
+				if (no_child_visualized) {
+					treestore.setValue(parent, COLUMN_VISUALIZED, scoped!Value(0));
+				}
+			}
+		}
+	}
 
 
 
-//	import item;
+	// helper function to send visualizers to the plotwidget and update the checkbox in the treeview
+	bool switch_iter(TreeStore treestore, TreeIter iter, PlotWidget plotwidget, bool* force_active = null) {
+		//import app, std.stdio;
 
-//	void updateTreeStoreFromSession(bool clear = false)
-//	{	
-//		if (clear) { treestore.clear(); }
-//		import app;
-//		auto items = running_session.getItems();
-//		foreach (itemname, item; items) {
-//			addItem(itemname, item);
-//		}
-//	}
+		auto active   = treestore.getInt(iter, COLUMN_VISUALIZED); // use a gtk3/gtk4 compatibility/convenience function
+		auto fullname = treestore.getString(iter, COLUMN_FULLNAME); // use a gtk3/gtk4 compatibility/convenience function
+		// if force_active value is given use it to override the value from the row
+		if (force_active is null) { active = !active; } 
+		else                      { active = *force_active; }
+
+		version (gtk3) {
+			treestore.setValue(iter, COLUMN_VISUALIZED, active);
+		} else {
+			import gobject.Value, std.typecons;
+			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(active));
+		}
+		if (treestore.getInt(iter, COLUMN_IS_ITEM)) {
+			import std.stdio;
+			writeln(active, " " , fullname);
+			import ui;
+			ui.show(fullname, main_window.name);//, fullname, active?"true":"false");
+		}
+		//// add or remove the visualizer from plotaera
+		//auto visualizer = runningSession.getVisualizerForItemName(fullname);
+		//if (active) { plotwidget.addVisualizer(fullname, visualizer); }
+		//else        { plotwidget.removeVisualizer(fullname); }
+		// return the new state of the checkbox
+		return cast(bool)active;
+	}
 
 
-//	void addItem(string itemname, const(Item) item) {
-//		import std.array;
-//		// fix the 'empty root problem' in Linux where the root folder is just the empty string
-//		string[] parts = itemname.split("/");
-//		if (parts[0] == "") parts[0] ~= "/";
-//		// fixing done
-//		add_item_(itemname, parts, item);
-//	}
 
-//	void add_item_(string fullname, string[] parts, const(Item) item, TreeIter parent = null) 
-//	{
-//		import gobject.Value, std.typecons;
-//		void set_iter(TreeIter iter, string fullname, string[] parts) {
-//			// only rows that really refer to items get a fullname assigned // todo: is this desirable?
-//			if (parts.length > 1) {	fullname = null; }
-//			int is_item = (parts.length==1);
-//			// this way of setting the values only works for the string types
-//			//treestore.set(iter, [COLUMN_FULLNAME, COLUMN_COLOR_TEXT, COLUMN_NAME,   COLUMN_TYPE      ], 
-//			//	                 [fullname,        (is_item)?"⬤":"", parts[0],      item.typeString()]);
-//			treestore.setValue(iter, COLUMN_NAME,       scoped!Value(parts[0]));
-//			treestore.setValue(iter, COLUMN_FULLNAME,   scoped!Value(fullname));
-//			treestore.setValue(iter, COLUMN_IS_ITEM,    scoped!Value(is_item));
-//			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(0));
-//		}
+	import item;
 
-//		//iterate all children of the root nodes and try to find one with the correct prefix of the given fullname
-//		import std.stdio;
-//		assert(parts.length > 0);
-//		int n_children = treestore.iterNChildren(parent);
-//		TreeIter iter = null;
-//		TreeIter iter_first, iter_after; // for sorted insertion
-//		foreach (n ; 0..n_children) {
-//			if (treestore.iterNthChild(iter, parent, n)) {
-//				auto name = treestore.getString(iter, COLUMN_NAME); // gtk3/gtk4 compatibility/convenience function
-//				if (n == 0)          iter_first = iter;
-//				if (name < parts[0]) iter_after  = iter;
-//				if (name == parts[0]) {
-//					//writeln("names match: ", name);
-//					if (parts.length == 1) { return set_iter(iter, fullname, parts); }    // set the iterator (end of recursion)
-//					else                   { return add_item_(fullname, parts[1..$], item, iter); } // recurse down
-//				}
-//			}
-//		}
-//		// not found, add new row and sort it to the right place
-//		treestore.append(iter, parent);
-//		if (iter_after  !is null) treestore.moveAfter(iter, iter_after);
-//		else                      treestore.moveBefore(iter, iter_first);
-//		// set new iterator contents
-//		set_iter(iter, fullname, parts);
-//		if (parts.length > 1) {
-//			add_item_(fullname, parts[1..$], item, iter);
-//		}
-//	}
+	void updateTreeStoreFromSession(bool clear = false)
+	{	
+		if (clear) { treestore.clear(); }
+		import fairy;
+		foreach (itemname, item; session.items) {
+			addItem(itemname, item.item);
+		}
+	}
 
-//	import gtk.TreeModelIF, gtk.TreeIter, gtk.TreeStore;
-//	int iterate_children_depth_first(F,D)(bool* select, TreeStore treestore, TreeIter parent, D data, F func) {
-//		int n_children = treestore.iterNChildren(parent);
-//		TreeIter iter = null;
-//		int count = 0;
-//		foreach (n ; 0..n_children) {
-//			if (treestore.iterNthChild(iter, parent, n)) {
-//				if( treestore.iterNChildren(parent) ) {
-//					count += iterate_children_depth_first!(F,D)(select, treestore, iter, data, func);
-//				}
-//				auto fullname = treestore.getString(iter, COLUMN_FULLNAME);
-//				func(select, fullname, treestore, iter, data);
-//				++count;
-//			}
-//		}
-//		return count;
-//	}
+
+	void addItem(string itemname, Item item) {
+		import std.array;
+		// fix the 'empty root problem' in Linux where the root folder is just the empty string
+		string[] parts = itemname.split("/");
+		if (parts[0] == "") parts[0] ~= "/";
+		// fixing done
+		add_item_(itemname, parts, item);
+	}
+
+	void add_item_(string fullname, string[] parts, const(Item) item, TreeIter parent = null) 
+	{
+		import gobject.Value, std.typecons;
+		void set_iter(TreeIter iter, string fullname, string[] parts) {
+			// only rows that really refer to items get a fullname assigned // todo: is this desirable?
+			if (parts.length > 1) {	fullname = null; }
+			int is_item = (parts.length==1);
+			// this way of setting the values only works for the string types
+			//treestore.set(iter, [COLUMN_FULLNAME, COLUMN_COLOR_TEXT, COLUMN_NAME,   COLUMN_TYPE      ], 
+			//	                 [fullname,        (is_item)?"⬤":"", parts[0],      item.typeString()]);
+			treestore.setValue(iter, COLUMN_NAME,       scoped!Value(parts[0]));
+			treestore.setValue(iter, COLUMN_FULLNAME,   scoped!Value(fullname));
+			treestore.setValue(iter, COLUMN_IS_ITEM,    scoped!Value(is_item));
+			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(0));
+		}
+
+		//iterate all children of the root nodes and try to find one with the correct prefix of the given fullname
+		import std.stdio;
+		assert(parts.length > 0);
+		int n_children = treestore.iterNChildren(parent);
+		TreeIter iter = null;
+		TreeIter iter_first, iter_after; // for sorted insertion
+		foreach (n ; 0..n_children) {
+			if (treestore.iterNthChild(iter, parent, n)) {
+				auto name = treestore.getString(iter, COLUMN_NAME); // gtk3/gtk4 compatibility/convenience function
+				if (n == 0)          iter_first = iter;
+				if (name < parts[0]) iter_after  = iter;
+				if (name == parts[0]) {
+					//writeln("names match: ", name);
+					if (parts.length == 1) { return set_iter(iter, fullname, parts); }    // set the iterator (end of recursion)
+					else                   { return add_item_(fullname, parts[1..$], item, iter); } // recurse down
+				}
+			}
+		}
+		// not found, add new row and sort it to the right place
+		treestore.append(iter, parent);
+		if (iter_after  !is null) treestore.moveAfter(iter, iter_after);
+		else                      treestore.moveBefore(iter, iter_first);
+		// set new iterator contents
+		set_iter(iter, fullname, parts);
+		if (parts.length > 1) {
+			add_item_(fullname, parts[1..$], item, iter);
+		}
+	}
+
+	import gtk.TreeModelIF, gtk.TreeIter, gtk.TreeStore;
+	int iterate_children_depth_first(F,D)(bool* select, TreeStore treestore, TreeIter parent, D data, F func) {
+		int n_children = treestore.iterNChildren(parent);
+		TreeIter iter = null;
+		int count = 0;
+		foreach (n ; 0..n_children) {
+			if (treestore.iterNthChild(iter, parent, n)) {
+				if( treestore.iterNChildren(parent) ) {
+					count += iterate_children_depth_first!(F,D)(select, treestore, iter, data, func);
+				}
+				auto fullname = treestore.getString(iter, COLUMN_FULLNAME);
+				func(select, fullname, treestore, iter, data);
+				++count;
+			}
+		}
+		return count;
+	}
 
 //	void update_checkboxes_from_drawing_area(DrawArea* area) {
 //		import gobject.Value, std.typecons;
@@ -995,80 +1001,80 @@ public:
 //		}
 //	}
 
-//	void removeItem(string itemname) {
-//		TreeIter iter = find_iter_for_itemname(itemname, treestore);
-//		if (iter !is null) {
-//			// remove item from plotwidget
-//			bool activate = false;
-//			switch_iter(treestore, iter, plotwidget, &activate);
-//			if (treestore.iterNChildren(iter) > 0) {
-//				// this iter has children => we cannot remove the row, instead we set fullname to null and color string to ""
-//				import gobject.Value, std.typecons;
-//				treestore.setValue(iter, COLUMN_FULLNAME, scoped!Value(""));
-//				treestore.setValue(iter, COLUMN_IS_ITEM,  scoped!Value(0));
-//			} else {
-//				treestore.remove(iter);				
-//			}
-//		}
-//		removeEmptyPaths();
-//	}
-//	void removeEmptyPaths() {
-//		// remove empty paths
-//		bool dummy = false;
-//		string[] remove_paths;
-//		for(;;){
-//			remove_paths.length = 0;
-//			iterate_children_depth_first(&dummy, treestore, null, dummy,
-//				(bool* force_active, string full_name, TreeStore tree_store, TreeIter iter, bool) {
+	void removeItem(string itemname) {
+		TreeIter iter = find_iter_for_itemname(itemname, treestore);
+		if (iter !is null) {
+			// remove item from plotwidget
+			bool activate = false;
+			switch_iter(treestore, iter, plotwidget, &activate);
+			if (treestore.iterNChildren(iter) > 0) {
+				// this iter has children => we cannot remove the row, instead we set fullname to null and color string to ""
+				import gobject.Value, std.typecons;
+				treestore.setValue(iter, COLUMN_FULLNAME, scoped!Value(""));
+				treestore.setValue(iter, COLUMN_IS_ITEM,  scoped!Value(0));
+			} else {
+				treestore.remove(iter);				
+			}
+		}
+		removeEmptyPaths();
+	}
+	void removeEmptyPaths() {
+		// remove empty paths
+		bool dummy = false;
+		string[] remove_paths;
+		for(;;){
+			remove_paths.length = 0;
+			iterate_children_depth_first(&dummy, treestore, null, dummy,
+				(bool* force_active, string full_name, TreeStore tree_store, TreeIter iter, bool) {
 
-//					if (tree_store.iterNChildren(iter) == 0 && tree_store.getInt(iter, COLUMN_IS_ITEM) == 0) {
-//						remove_paths ~= tree_store.getStringFromIter(iter);
-//					}
-//				});
-//			if (remove_paths.length == 0) {
-//				break;
-//			}
-//			import app, ui;
-//			foreach(windowname, window; MainWindow.main_windows) {
-//				window.item_view.removePathNames(remove_paths);
-//			}
-//		}
-//	}
-//	void removePathNames(string[] pathNames) {
-//		// pathNames must be in descending order. we reverse the order to make sure that no path is invalidated after removal
-//		foreach_reverse(remove_path; pathNames) {
-//			import std.stdio;
-//			TreeIter iter;
-//			treestore.getIterFromString(iter, remove_path);
-//			//plotwidget.removeVisualizer(treestore.getString(iter, COLUMN_FULLNAME));
-//			//writeln("remove : ", remove_path, " -> ", _treestore.getValue(iter, COLUMN_FULLNAME).getString());
-//			treestore.remove(iter);
-//			//writeln(" executed:");
-//		}
-//	}	
+					if (tree_store.iterNChildren(iter) == 0 && tree_store.getInt(iter, COLUMN_IS_ITEM) == 0) {
+						remove_paths ~= tree_store.getStringFromIter(iter);
+					}
+				});
+			if (remove_paths.length == 0) {
+				break;
+			}
+			import app, ui;
+			foreach(windowname, window; GtkGui.main_windows) {
+				window.item_view.removePathNames(remove_paths);
+			}
+		}
+	}
+	void removePathNames(string[] pathNames) {
+		// pathNames must be in descending order. we reverse the order to make sure that no path is invalidated after removal
+		foreach_reverse(remove_path; pathNames) {
+			import std.stdio;
+			TreeIter iter;
+			treestore.getIterFromString(iter, remove_path);
+			//plotwidget.removeVisualizer(treestore.getString(iter, COLUMN_FULLNAME));
+			//writeln("remove : ", remove_path, " -> ", _treestore.getValue(iter, COLUMN_FULLNAME).getString());
+			treestore.remove(iter);
+			//writeln(" executed:");
+		}
+	}	
 	
-//	// TODO: can this be replaced with iterate_children_depth_first?
-//	TreeIter find_iter_for_itemname(string itemname, TreeStore treestore, TreeIter parent = null) {
-//		int n_children = treestore.iterNChildren(parent);
-//		TreeIter iter = null;
-//		foreach (n ; 0..n_children) {
-//			if (treestore.iterNthChild(iter, parent, n)) {
-//				if( treestore.iterNChildren(parent) ) {
-//					auto found_iter = find_iter_for_itemname(itemname, treestore, iter);
-//					if (found_iter !is null) {
-//						return found_iter;
-//					}
-//				}
-//				string fullname = treestore.getString(iter, COLUMN_FULLNAME);
-//				if (fullname == itemname) {
-//					return iter;
-//				}
-//			}
-//		}
-//		return null;
-//	}
+	// TODO: can this be replaced with iterate_children_depth_first?
+	TreeIter find_iter_for_itemname(string itemname, TreeStore treestore, TreeIter parent = null) {
+		int n_children = treestore.iterNChildren(parent);
+		TreeIter iter = null;
+		foreach (n ; 0..n_children) {
+			if (treestore.iterNthChild(iter, parent, n)) {
+				if( treestore.iterNChildren(parent) ) {
+					auto found_iter = find_iter_for_itemname(itemname, treestore, iter);
+					if (found_iter !is null) {
+						return found_iter;
+					}
+				}
+				string fullname = treestore.getString(iter, COLUMN_FULLNAME);
+				if (fullname == itemname) {
+					return iter;
+				}
+			}
+		}
+		return null;
+	}
 
-//}
+}
 
 // gtk3 compatibility function.
 version(gtk3) {
@@ -1079,8 +1085,11 @@ version(gtk3) {
 } 
 
 
-//import gtk.Box;
-//class PlotWidget : Box {
+import gtk.Box;
+class PlotWidget : Box {
+	this() {
+		super(GtkOrientation.VERTICAL, 0);
+	}
 //	import gtk.CheckButton, gtk.SpinButton, gtk.Button, gtk.Image;
 //	import gtk.Label, gtk.Separator, gtk.ToggleButton, gtk.ScrolledWindow;
 
@@ -1898,6 +1907,6 @@ version(gtk3) {
 //	void delegate(double, string) updateValue;
 
 
-//}
+}
 
 

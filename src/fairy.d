@@ -45,6 +45,20 @@ struct Session {
 			throw new Exception("item with name \""~name~"\" already exists");
 		}
 	}
+	void remove_item(string name) {
+		check_name_helper("item ", name);
+		if (start_gui) {
+			if (main_gui !is null) {
+				main_gui.remove_item(name);
+			}
+		}
+		if ((name in items) is null) {
+			throw new Exception("no item with name \""~name~"\"");
+		} else {
+			items.remove(name);
+		}
+
+	}
 
 	string list_items(bool include_null) {
 		import std.algorithm, std.array, std.conv;
