@@ -12,10 +12,18 @@ class MiniGui : Gui {
 		new MainWindow(name,&canvas);
 	}
 	override void close_window(string name) {
-
+		auto window = MainWindow.main_windows[name];
+		MainWindow.main_windows.remove(name);
+		window.window.close();
 	}
 	override void redraw_window(string name) {
 		MainWindow.main_windows[name].draw_area.need_redraw();
+	}
+	override void save_window(string name) {
+		auto window = MainWindow.main_windows[name];
+		auto point = window.window.globalCoordinates();
+		window.canvas.xpos = point.x; 
+		window.canvas.ypos = point.y; 
 	}
 	override void loop() {
 		import fairy;
@@ -42,11 +50,8 @@ class MiniGui : Gui {
 			}
 
 			if (!fairy.running) { // quit
-				 //copy window position to canvas so that this information is stored in the session file
-				foreach(window; MainWindow.main_windows) {
-					auto point = window.draw_area.globalCoordinates();
-					window.canvas.xpos = point.x; 
-					window.canvas.ypos = point.y; 
+				foreach(name; MainWindow.main_windows.byKey) {
+					save_window(name);
 				}
 				main_event_loop.exit;
 			}
@@ -88,7 +93,14 @@ public:
 
 
 		if (canvas.xpos >= 0 && canvas.ypos >= 0) {
-			simple.move(canvas.xpos, canvas.ypos);
+			simple.move(canvas.xpos-1, canvas.ypos-24);
+
+			//auto point = window.globalCoordinates();
+			//int dx = point.x-canvas.xpos;
+			//int dy = point.y-canvas.ypos;
+
+			//simple.move(canvas.xpos+dx, canvas.ypos+dy);
+
 		}
 
 		//button = new Button(name, window);
@@ -111,8 +123,6 @@ public:
 
 		main_windows[name] = this;
 	}
-
-
 }
 
 
@@ -146,6 +156,7 @@ class DrawArea : Widget, BackendInterface
 	ubyte[] accessed_image;
 
 	this(string window_name, CanvasProperties *canvas_ptr, Widget parent) {
+		first_draw = true;
 		canvas = canvas_ptr;
 		name = window_name;
 		painter = CanvasPainter(canvas, this);
@@ -211,13 +222,13 @@ class DrawArea : Widget, BackendInterface
 
 
 	override Rectangle paintContent(WidgetPainter w_painter, const Rectangle bounds) {
-		if (first_draw) { // correct window position for decoration
-			auto point = globalCoordinates();
-			int delta_x = point.x - canvas.xpos;
-			int delta_y = point.y - canvas.ypos;
-			MainWindow.main_windows[name].simple.move(canvas.xpos-delta_x, canvas.ypos-delta_y);
-			first_draw = false;
-		}
+		//if (first_draw) { // correct window position for decoration
+		//	auto point = globalCoordinates();
+		//	int delta_x = point.x - canvas.xpos;
+		//	int delta_y = point.y - canvas.ypos;
+		//	MainWindow.main_windows[name].simple.move(canvas.xpos-delta_x, canvas.ypos-delta_y);
+		//	first_draw = false;
+		//}
 
 		widget_painter = &w_painter;
 

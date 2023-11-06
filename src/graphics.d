@@ -5,6 +5,7 @@ interface Gui {
 	void add_window(string name, ref CanvasProperties canvas);
 	void close_window(string name);
 	void redraw_window(string name);
+	void save_window(string name);
 	void loop();
 }
 

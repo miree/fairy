@@ -25,6 +25,19 @@ class GtkGui : Gui {
 	}
 	override void redraw_window(string name) {
 	}
+	override void save_window(string name) { // copy window properties to canvas
+		auto window = main_windows[name];
+		GdkRectangle rect;
+		window.getAllocation(rect);
+		window.canvas.width  = rect.width;
+		window.canvas.height = rect.height;
+		version(gtk3) {
+			int x,y;
+			window.getPosition(x, y);
+			window.canvas.xpos = x;
+			window.canvas.ypos = y;
+		}
+	}
 	override void loop() {
 		// setup the application instance only if it is not already running
 		if (application !is null) {
@@ -69,19 +82,7 @@ class GtkGui : Gui {
 		);
 		application.addOnShutdown(
 			delegate void(gio.Application.Application app) {
-				foreach(name, window; main_windows) {
-					GdkRectangle rect;
-					window.getAllocation(rect);
-					window.canvas.width  = rect.width;
-					window.canvas.height = rect.height;
-					version(gtk3) {
-						int x,y;
-						window.getPosition(x, y);
-						window.canvas.xpos = x;
-						window.canvas.ypos = y;
-					}
-				}
-
+				foreach(name; main_windows.byKey) save_window(name);
 
 				import std.stdio;
 				//import threads;

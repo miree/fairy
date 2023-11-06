@@ -69,6 +69,8 @@ bool toggle_action(string action, ref bool property) {
 	["new session name, file does not exist a new session is created"])
 string session_open(string session_name) {
 	import fairy, histogram;
+	if (start_gui) foreach (name; fairy.session.windows.byKey) if (fairy.main_gui !is null) fairy.main_gui.save_window(name);
+
 	fairy.session.write_to_file();
 	fairy.session.close();
 	fairy.session.name = session_name;

@@ -26,7 +26,16 @@ class Allegro5Gui : Gui {
 	override void redraw_window(string window_name) {
 		foreach(w; MainWindow.main_windows) if (w.name == window_name) w.need_redraw();
 	}
-
+	override void save_window(string name) { // copy window properties to canvas
+		foreach(w; MainWindow.main_windows) {
+			if (w.name == name) {
+				int xpos, ypos;
+				al_get_window_position(w.display, &xpos, &ypos);
+				w.canvas.xpos = xpos;
+				w.canvas.ypos = ypos;
+			}
+		}
+	}
 	override void loop() {
 		al_install_system((ALLEGRO_VERSION << 24) | (ALLEGRO_SUB_VERSION << 16) | 
 	                      (ALLEGRO_WIP_VERSION << 8) | ALLEGRO_RELEASE_NUMBER | 
@@ -164,8 +173,8 @@ class Allegro5Gui : Gui {
 			foreach(window; MainWindow.main_windows) {
 				int xpos, ypos;
 				al_get_window_position(window.display, &xpos, &ypos);
-				window.canvas.xpos = xpos-1; // for some reason reading back the position
-				window.canvas.ypos = ypos-1; // has an offset of 1 that needs to be corrected
+				window.canvas.xpos = xpos;
+				window.canvas.ypos = ypos;
 			}
 		}
 
@@ -215,7 +224,7 @@ public:
 		string title_string = "fairy - " ~ name;
 		al_set_window_title(display, title_string.toStringz);
 		if (canvas.xpos != -1 && canvas.ypos != -1) {
-			al_set_window_position(display, canvas.xpos, canvas.ypos);
+			al_set_window_position(display, canvas.xpos-1, canvas.ypos-1);
 		}
 
 		main_windows[display] = this;
