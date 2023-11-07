@@ -1,5 +1,7 @@
 @trusted:
 
+pragma(lib, "asound");
+
 //import alsa.pcm;
 import alsa_import;
 

@@ -32,6 +32,9 @@ struct Session {
 
 
 	void check_name_helper(string prefix, string name) {
+		if (name is null) {
+			throw new Exception(prefix ~= " no item with name " ~ name);
+		}
 		if (name[0] >= '0' && name[0] <= '9' || name[0] == '.') {
 			throw new Exception(prefix ~ " name must not start with numerical digit or decimal point");
 		}	
@@ -39,6 +42,11 @@ struct Session {
 
 	void add_item(string name, Item item) {
 		check_name_helper("item ", name);
+		if (start_gui) {
+			if (main_gui !is null) {
+				main_gui.add_item(name);
+			}
+		}
 		if ((name in items) is null) {
 			items[name] = ItemStore(item);
 		} else {

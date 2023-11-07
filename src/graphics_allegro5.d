@@ -1,6 +1,13 @@
 module graphics_allegro5;
 @trusted:
 
+pragma(lib, "allegro_ttf");
+pragma(lib, "allegro_font");
+pragma(lib, "allegro");
+pragma(lib, "allegro_primitives");
+pragma(lib, "allegro_color");
+
+
 import allegro5_import;
 import graphics;
 
@@ -37,6 +44,8 @@ class Allegro5Gui : Gui {
 		}
 	}
 	override void remove_item(string name) {
+	}
+	override void add_item(string name) {
 	}
 	override void loop() {
 		al_install_system((ALLEGRO_VERSION << 24) | (ALLEGRO_SUB_VERSION << 16) | 

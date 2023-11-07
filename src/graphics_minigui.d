@@ -27,6 +27,8 @@ class MiniGui : Gui {
 	}
 	override void remove_item(string name) {
 	}
+	override void add_item(string name) {
+	}
 	override void loop() {
 		import fairy;
 		EventLoop main_event_loop = EventLoop.get;

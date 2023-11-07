@@ -1,14 +1,14 @@
 fairy: src/*.d
-	dmd -Isrc -i src/app.d -of=fairy -L-lasound
+	dmd -Isrc -i src/app.d -of=fairy
 
 allegro5: src/*.d
-	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color -L-lasound
+	dmd -Isrc -i src/app.d -of=fairy -version=allegro5
 
 gtk3: src/*.d
-	ldc -Isrc -i src/app.d -of=fairy -I/usr/include/d/gtkd-3 -L-L/usr/lib -L-lgtkd-3 -L-lasound --d-version=gtk3
+	ldc -Isrc -i src/app.d -of=fairy --d-version=gtk3 -I/usr/include/d/gtkd-3
 
 minigui: src/*.d
-	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui -L-lasound
+	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui
 
 ldc-allegro5: src/*.d
 	ldc -O -release -Isrc -i src/app.d -of=fairy --d-version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color -L-lasound

@@ -6,6 +6,7 @@ interface Gui {
 	void close_window(string name);
 	void redraw_window(string name);
 	void save_window(string name);
+	void add_item(string name);
 	void remove_item(string name);
 	void loop();
 }

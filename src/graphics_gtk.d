@@ -1,6 +1,8 @@
 module graphics_gtk;
 @trusted:
 
+pragma(lib, "gtkd-3");
+
 import graphics;
 
 class GtkGui : Gui {
@@ -43,6 +45,12 @@ class GtkGui : Gui {
 			window.item_view.removeItem(name);
 		}
 	}
+	override void add_item(string name) {
+		foreach(window; main_windows) {
+			window.item_view.addItem(name, null);
+		}
+	}
+
 	override void loop() {
 		// setup the application instance only if it is not already running
 		if (application !is null) {
@@ -522,7 +530,7 @@ public:
 		window_toplevel_box = new Box(GtkOrientation.VERTICAL,0);
 
 
-		plot_widget = new PlotWidget();//(area, window_name);
+		plot_widget = new PlotWidget(canvas_properties);//(area, window_name);
 		//plot_widget = new Button("plot_widget");
 		plot_widget.setHexpand(true);
 
@@ -686,8 +694,13 @@ class ItemView : TreeView {
 			names ~= treestore.getString(selected_iter, COLUMN_FULLNAME);
 		}
 		foreach(name; names) {
-			import ui;
-			rm(name);
+			try {
+				import ui;
+				if (name !is null) ui.rm(name);
+			} catch (Exception e) {
+				import std.stdio;
+				writeln("cannot remove " ~ name ~": " ~ e.msg);
+			}
 		}
 	}
 
@@ -1087,150 +1100,151 @@ version(gtk3) {
 
 import gtk.Box;
 class PlotWidget : Box {
-	this() {
-		super(GtkOrientation.VERTICAL, 0);
+	//this() {
+	//	super(GtkOrientation.VERTICAL, 0);
+	//}
+	import gtk.CheckButton, gtk.SpinButton, gtk.Button, gtk.Image;
+	import gtk.Label, gtk.Separator, gtk.ToggleButton, gtk.ScrolledWindow;
+
+	string parent_window_name;
+	//Box box;
+	//alias box this;
+	// Plot widget contains a PlotArea and controls for the PlotArea right below
+	PlotArea plot_area;
+	Box      controls;
+	ScrolledWindow controls_scrolled_window; // controls are quite wide, so they are contained in a scrolled window
+
+	// all the control elements
+	version(gtk3) {
+		import gtk.RadioButton;
+		alias CheckOrRadioButton = RadioButton;
+		alias CheckOrToggleButton = ToggleButton;
+	} else {
+		alias CheckOrRadioButton = CheckButton;
+		alias CheckOrToggleButton = CheckButton;
 	}
-//	import gtk.CheckButton, gtk.SpinButton, gtk.Button, gtk.Image;
-//	import gtk.Label, gtk.Separator, gtk.ToggleButton, gtk.ScrolledWindow;
+	CheckButton check_auto_refresh;
+	Button      button_refresh;
+	Label       autoscale_label;
+	CheckButton check_autoscale_x, check_autoscale_y, check_autoscale_z;
+	Label       log_label;
+	CheckButton check_log_x, check_log_y, check_log_z;
+	Label       grid_label;
+	CheckButton check_grid_x, check_grid_y, check_grid_top;
+	Label       nums_label;
+	CheckButton check_nums_x, check_nums_y, check_nums_top;
+	CheckButton check_colorbar;
+	CheckButton check_overlay;
+	CheckOrRadioButton radio_rowmajor, radio_colmajor; // grouped to form a gtk3 RadioButton
+	SpinButton  spin_n_columns;
+	Label       columns_label;
+	Box         mouse_pos_box;
+	Label       mouse_pos;
+	Box         mouse_pos_value_box;
+	Label       mouse_pos_value;
 
-//	string parent_window_name;
-//	//Box box;
-//	//alias box this;
-//	// Plot widget contains a PlotArea and controls for the PlotArea right below
-//	PlotArea plot_area;
-//	Box      controls;
-//	ScrolledWindow controls_scrolled_window; // controls are quite wide, so they are contained in a scrolled window
-
-//	// all the control elements
-//	version(gtk3) {
-//		import gtk.RadioButton;
-//		alias CheckOrRadioButton = RadioButton;
-//		alias CheckOrToggleButton = ToggleButton;
-//	} else {
-//		alias CheckOrRadioButton = CheckButton;
-//		alias CheckOrToggleButton = CheckButton;
-//	}
-//	CheckButton check_auto_refresh;
-//	Button      button_refresh;
-//	Label       autoscale_label;
-//	CheckButton check_autoscale_x, check_autoscale_y, check_autoscale_z;
-//	Label       log_label;
-//	CheckButton check_log_x, check_log_y, check_log_z;
-//	Label       grid_label;
-//	CheckButton check_grid_x, check_grid_y, check_grid_top;
-//	Label       nums_label;
-//	CheckButton check_nums_x, check_nums_y, check_nums_top;
-//	CheckButton check_colorbar;
-//	CheckButton check_overlay;
-//	CheckOrRadioButton radio_rowmajor, radio_colmajor; // grouped to form a gtk3 RadioButton
-//	SpinButton  spin_n_columns;
-//	Label       columns_label;
-//	Box         mouse_pos_box;
-//	Label       mouse_pos;
-//	Box         mouse_pos_value_box;
-//	Label       mouse_pos_value;
-
-//	version(gtk3) {
-//		void append(ChildWidget)(ChildWidget ch) {
-//			add(ch);
-//		}
-//	}
+	version(gtk3) {
+		void append(ChildWidget)(ChildWidget ch) {
+			add(ch);
+		}
+	}
 
 //	this(DrawArea area, string p_name, bool mode2d = false) {
-//		//box = new Box(GtkOrientation.VERTICAL, 0);
-//		super(GtkOrientation.VERTICAL, 0); // PlotWidget derived from Box
-//		parent_window_name = p_name.dup;
-//		import std.stdio;
+	this(CanvasProperties *canvas) {
+		super(GtkOrientation.VERTICAL, 0); // PlotWidget derived from Box
+		//parent_window_name = p_name.dup;
+		//import std.stdio;
 //		//writeln("PlotWidget contructor name ", parent_window_name);
 
-//		///////////////////////////////////////////////
-//		// place two top-level widgets
-//		///////////////////////////////////////////////
-//		plot_area = new PlotArea(mode2d, &setMousePosLabel, &setMousePosLabelValue);
-//		//plot_area.draw_area = area;
-//		plot_area.setVexpand(true);
-//		controls = new Box(GtkOrientation.HORIZONTAL, 0);
-//		controls_scrolled_window = new ScrolledWindow();
-//		controls_scrolled_window.setPropagateNaturalWidth(true);
-//		controls_scrolled_window.setPropagateNaturalHeight(true);
-//		controls_scrolled_window.setChild(controls);
+		///////////////////////////////////////////////
+		// place two top-level widgets
+		///////////////////////////////////////////////
+		plot_area = new PlotArea(canvas, &setMousePosLabel, &setMousePosLabelValue);
+		//plot_area = new Button("plot area");
+		//plot_area.draw_area = area;
+		plot_area.setVexpand(true);
+		controls = new Box(GtkOrientation.HORIZONTAL, 0);
+		controls_scrolled_window = new ScrolledWindow();
+		controls_scrolled_window.setPropagateNaturalWidth(true);
+		controls_scrolled_window.setPropagateNaturalHeight(true);
+		controls_scrolled_window.setChild(controls);
 
-//		append(plot_area);
-//		append(new Separator(GtkOrientation.HORIZONTAL));
-//		append(controls_scrolled_window);
+		append(plot_area);
+		append(new Separator(GtkOrientation.HORIZONTAL));
+		append(controls_scrolled_window);
 
-//		///////////////////////////////////////////////
-//		// instanciate all the controls
-//		///////////////////////////////////////////////
-//		check_auto_refresh = new CheckButton("auto\nrefr.");
-//		check_auto_refresh.setActive(area.autorefresh);
-//		check_auto_refresh.addOnToggled(
-//				delegate void(CheckOrToggleButton button) {
-//					fairy.ui.autorefresh(parent_window_name, button.getActive()?"true":"false");
-//				}
-//			);
+		///////////////////////////////////////////////
+		// instanciate all the controls
+		///////////////////////////////////////////////
+		check_auto_refresh = new CheckButton("auto\nrefr.");
+		check_auto_refresh.setActive(canvas.autorefresh);
+		//check_auto_refresh.addOnToggled(
+		//		delegate void(CheckOrToggleButton button) {
+		//			fairy.ui.autorefresh(parent_window_name, button.getActive()?"true":"false");
+		//		}
+		//	);
 
-//		button_refresh = new Button("refr.");
-//		button_refresh.addOnClicked(delegate void(Button b) {
-//				ui.refresh(parent_window_name);
-//			});
+		button_refresh = new Button("refr.");
+		//button_refresh.addOnClicked(delegate void(Button b) {
+		//		ui.refresh(parent_window_name);
+		//	});
 
-//		///////////////////////////////////////////////////////
-//		autoscale_label = new Label("fit");
-//		check_autoscale_x = new CheckButton("X");
-//		check_autoscale_y = new CheckButton("Y");
-//		check_autoscale_z = new CheckButton("Z");
-//		check_autoscale_x.setActive(area.autoscale_x);
-//		check_autoscale_y.setActive(area.autoscale_y);
-//		check_autoscale_z.setActive(area.autoscale_z);
-//		check_autoscale_x.addOnToggled(
-//							delegate void(CheckOrToggleButton button) {
-//								fairy.ui.autoscale(parent_window_name, 'x', button.getActive()?"true":"false");
-//							} );
-//		check_autoscale_y.addOnToggled(
-//							delegate void(CheckOrToggleButton button) {
-//								fairy.ui.autoscale(parent_window_name, 'y', button.getActive()?"true":"false");
-//							} );
-//		check_autoscale_z.addOnToggled(
-//							delegate void(CheckOrToggleButton button) {
-//								fairy.ui.autoscale(parent_window_name, 'z', button.getActive()?"true":"false");
-//							} );
+		///////////////////////////////////////////////////////
+		autoscale_label = new Label("fit");
+		check_autoscale_x = new CheckButton("X");
+		check_autoscale_y = new CheckButton("Y");
+		check_autoscale_z = new CheckButton("Z");
+		check_autoscale_x.setActive(canvas.autoscale[0]);
+		check_autoscale_y.setActive(canvas.autoscale[1]);
+		check_autoscale_z.setActive(canvas.autoscale[2]);
+		//check_autoscale_x.addOnToggled(
+		//					delegate void(CheckOrToggleButton button) {
+		//						fairy.ui.autoscale(parent_window_name, 'x', button.getActive()?"true":"false");
+		//					} );
+		//check_autoscale_y.addOnToggled(
+		//					delegate void(CheckOrToggleButton button) {
+		//						fairy.ui.autoscale(parent_window_name, 'y', button.getActive()?"true":"false");
+		//					} );
+		//check_autoscale_z.addOnToggled(
+		//					delegate void(CheckOrToggleButton button) {
+		//						fairy.ui.autoscale(parent_window_name, 'z', button.getActive()?"true":"false");
+		//					} );
 
 
-//		///////////////////////////////////////////////////////
-//		log_label = new Label("log");
-//		check_log_x = new CheckButton("X");
-//		check_log_y = new CheckButton("Y");
-//		check_log_z = new CheckButton("Z");
-//		check_log_x.setActive(area.transform._logx);
-//		check_log_y.setActive(area.transform._logy);
-//		check_log_z.setActive(area.transform._logz);
-//		check_log_x.addOnToggled(
-//			delegate void(CheckOrToggleButton button) {
-//								fairy.ui.logscale(parent_window_name, 'x', button.getActive()?"true":"false");
-//							}
-//			);
-//		check_log_y.addOnToggled(
-//			delegate void(CheckOrToggleButton button) {
-//								fairy.ui.logscale(parent_window_name, 'y', button.getActive()?"true":"false");
-//							}
-//			);
-//		check_log_z.addOnToggled(
-//			delegate void(CheckOrToggleButton button) {
-//								fairy.ui.logscale(parent_window_name, 'z', button.getActive()?"true":"false");
-//							}
-//			);
+		///////////////////////////////////////////////////////
+		log_label = new Label("log");
+		check_log_x = new CheckButton("X");
+		check_log_y = new CheckButton("Y");
+		check_log_z = new CheckButton("Z");
+		check_log_x.setActive(canvas.transform[0].logscale);
+		check_log_y.setActive(canvas.transform[1].logscale);
+		check_log_z.setActive(canvas.transform[2].logscale);
+		//check_log_x.addOnToggled(
+		//	delegate void(CheckOrToggleButton button) {
+		//						fairy.ui.logscale(parent_window_name, 'x', button.getActive()?"true":"false");
+		//					}
+		//	);
+		//check_log_y.addOnToggled(
+		//	delegate void(CheckOrToggleButton button) {
+		//						fairy.ui.logscale(parent_window_name, 'y', button.getActive()?"true":"false");
+		//					}
+		//	);
+		//check_log_z.addOnToggled(
+		//	delegate void(CheckOrToggleButton button) {
+		//						fairy.ui.logscale(parent_window_name, 'z', button.getActive()?"true":"false");
+		//					}
+		//	);
 
-//		///////////////////////////////////////////////////////
-//		grid_label     = new Label("grid");
-//		check_grid_x   = new CheckButton("X");
-//		check_grid_y   = new CheckButton("Y");
-//		//check_grid_z   = new CheckButton("Z");
-//		check_grid_top = new CheckButton("top");
-//		check_grid_x.setActive(area.draw_grid_vertical);
-//		check_grid_y.setActive(area.draw_grid_horizontal);
-//		//check_grid_z.setActive(area.draw_grid_color);
-//		check_grid_top.setActive(area.draw_grid_ontop);
+		///////////////////////////////////////////////////////
+		grid_label     = new Label("grid");
+		check_grid_x   = new CheckButton("X");
+		check_grid_y   = new CheckButton("Y");
+		//check_grid_z   = new CheckButton("Z");
+		check_grid_top = new CheckButton("top");
+		check_grid_x.setActive(canvas.grid[0]);
+		check_grid_y.setActive(canvas.grid[1]);
+		//check_grid_z.setActive(canvas.draw_grid_color);
+		check_grid_top.setActive(canvas.grid_ontop);
 //		check_grid_x.addOnToggled(
 //			delegate void(CheckOrToggleButton button) {
 //								plot_area.draw_area.draw_grid_vertical = button.getActive();
@@ -1257,15 +1271,15 @@ class PlotWidget : Box {
 //							}
 //			);
 
-//		nums_label     = new Label("nums");
-//		check_nums_x   = new CheckButton("X");
-//		check_nums_y   = new CheckButton("Y");
-//		//check_nums_z   = new CheckButton("Z");
-//		check_nums_top = new CheckButton("top");
-//		check_nums_x.setActive(area.draw_nums_vertical);
-//		check_nums_y.setActive(area.draw_nums_horizontal);
-//		//check_nums_z.setActive(area.draw_nums_color);
-//		check_nums_top.setActive(area.draw_nums_ontop);
+		nums_label     = new Label("nums");
+		check_nums_x   = new CheckButton("X");
+		check_nums_y   = new CheckButton("Y");
+		//check_nums_z   = new CheckButton("Z");
+		check_nums_top = new CheckButton("top");
+		check_nums_x.setActive(canvas.numbers[0]);
+		check_nums_y.setActive(canvas.numbers[1]);
+		//check_nums_z.setActive(canvas.draw_nums_color);
+		check_nums_top.setActive(canvas.numbers_ontop);
 //		check_nums_x.addOnToggled(
 //			delegate void(CheckOrToggleButton button) {
 //								plot_area.draw_area.draw_nums_vertical = button.getActive();
@@ -1293,16 +1307,16 @@ class PlotWidget : Box {
 //			);
 
 
-//		///////////////////////////////////////////////////////
-//		check_overlay = new CheckButton("over-\nlay");
-//		check_overlay.setActive(area.overlay);
+		///////////////////////////////////////////////////////
+		check_overlay = new CheckButton("over-\nlay");
+		check_overlay.setActive(canvas.display_mode == DisplayMode.overlay);
 //		check_overlay.addOnToggled(
 //							delegate void(CheckOrToggleButton button) {
 //								fairy.ui.overlay(parent_window_name, button.getActive()?"true":"false");
 //							} );
 
-//		check_colorbar = new CheckButton("col-\nbar");
-//		check_colorbar.setActive(area.draw_color_bar);
+		check_colorbar = new CheckButton("col-\nbar");
+		check_colorbar.setActive(canvas.color_bar);
 //		check_colorbar.addOnToggled(
 //							delegate void(CheckOrToggleButton button) {
 //								plot_area.draw_area.draw_color_bar = button.getActive();
@@ -1312,15 +1326,15 @@ class PlotWidget : Box {
 
 
 
-//		radio_rowmajor = new CheckOrRadioButton("1 2\n3 4");
-//		radio_colmajor = new CheckOrRadioButton("1 3\n2 4");
-//		version(gtk3){ 
-//			radio_colmajor.joinGroup(radio_rowmajor);
-//		} else {
-//			radio_colmajor.setGroup(radio_rowmajor);
-//		}
-//		if (area.row_major) radio_rowmajor.setActive(true);
-//		else                radio_colmajor.setActive(true);
+		radio_rowmajor = new CheckOrRadioButton("1 2\n3 4");
+		radio_colmajor = new CheckOrRadioButton("1 3\n2 4");
+		version(gtk3){ 
+			radio_colmajor.joinGroup(radio_rowmajor);
+		} else {
+			radio_colmajor.setGroup(radio_rowmajor);
+		}
+		if (canvas.display_mode == DisplayMode.rows)    radio_rowmajor.setActive(true);
+		if (canvas.display_mode == DisplayMode.columns) radio_colmajor.setActive(true);
 //		radio_rowmajor.addOnToggled(
 //			delegate void(CheckOrToggleButton button) {
 //				if (button.getActive()) {
@@ -1333,12 +1347,12 @@ class PlotWidget : Box {
 //			} );
 
 
-//		columns_label = new Label("cols");
-//		if (!area.row_major) {
-//			columns_label.setLabel("rows");
-//		}
-//		spin_n_columns = new SpinButton(1,50,1);
-//		spin_n_columns.setValue(area.columns_or_rows);
+		columns_label = new Label("cols");
+		if (canvas.display_mode == DisplayMode.rows) {
+			columns_label.setLabel("rows");
+		}
+		spin_n_columns = new SpinButton(1,50,1);
+		spin_n_columns.setValue(canvas.columns_or_rows);
 //		spin_n_columns.addOnValueChanged(
 //			delegate void(SpinButton button) {
 //				import std.stdio;
@@ -1364,93 +1378,93 @@ class PlotWidget : Box {
 //		//mouse_pos_box.append(mouse_pos);
 //		//mouse_pos_value_box.append(mouse_pos_value);
 
-//		mouse_pos = new Label("  x=0\n  y=0");
-//		mouse_pos.setJustify(GtkJustification.LEFT);
-//		mouse_pos_box = new Box(GtkOrientation.HORIZONTAL, 0);
-//		mouse_pos_box.setSizeRequest(150,0);
-//		mouse_pos_box.append(mouse_pos);
-//		mouse_pos_value = new Label("\nvalue=nan");
-//		mouse_pos_value.setJustify(GtkJustification.LEFT);
-//		mouse_pos_value_box = new Box(GtkOrientation.HORIZONTAL, 0);
-//		mouse_pos_value_box.setSizeRequest(150,0);
-//		mouse_pos_value_box.append(mouse_pos_value);
+		mouse_pos = new Label("  x=0\n  y=0");
+		mouse_pos.setJustify(GtkJustification.LEFT);
+		mouse_pos_box = new Box(GtkOrientation.HORIZONTAL, 0);
+		mouse_pos_box.setSizeRequest(150,0);
+		mouse_pos_box.append(mouse_pos);
+		mouse_pos_value = new Label("\nvalue=nan");
+		mouse_pos_value.setJustify(GtkJustification.LEFT);
+		mouse_pos_value_box = new Box(GtkOrientation.HORIZONTAL, 0);
+		mouse_pos_value_box.setSizeRequest(150,0);
+		mouse_pos_value_box.append(mouse_pos_value);
 
 
 
-//		///////////////////////////////////////////////
-//		// add all controls into the Box Widget
-//		///////////////////////////////////////////////
-//		controls.append(check_auto_refresh);
-//		controls.append(button_refresh);
+		///////////////////////////////////////////////
+		// add all controls into the Box Widget
+		///////////////////////////////////////////////
+		controls.append(check_auto_refresh);
+		controls.append(button_refresh);
 
-//		//controls.append(new Separator(GtkOrientation.VERTICAL));
-//		auto fit_log_labels = new Box(GtkOrientation.VERTICAL, 0);
-//		fit_log_labels.append(autoscale_label);
-//		fit_log_labels.append(log_label);
+		//controls.append(new Separator(GtkOrientation.VERTICAL));
+		auto fit_log_labels = new Box(GtkOrientation.VERTICAL, 0);
+		fit_log_labels.append(autoscale_label);
+		fit_log_labels.append(log_label);
 
-//		auto fit_log_checks_x = new Box(GtkOrientation.VERTICAL, 0);
-//		fit_log_checks_x.append(check_autoscale_x);
-//		fit_log_checks_x.append(check_log_x);
+		auto fit_log_checks_x = new Box(GtkOrientation.VERTICAL, 0);
+		fit_log_checks_x.append(check_autoscale_x);
+		fit_log_checks_x.append(check_log_x);
 
-//		auto fit_log_checks_y = new Box(GtkOrientation.VERTICAL, 0);
-//		fit_log_checks_y.append(check_autoscale_y);
-//		fit_log_checks_y.append(check_log_y);
+		auto fit_log_checks_y = new Box(GtkOrientation.VERTICAL, 0);
+		fit_log_checks_y.append(check_autoscale_y);
+		fit_log_checks_y.append(check_log_y);
 
-//		auto fit_log_checks_z = new Box(GtkOrientation.VERTICAL, 0);
-//		fit_log_checks_z.append(check_autoscale_z);
-//		fit_log_checks_z.append(check_log_z);
+		auto fit_log_checks_z = new Box(GtkOrientation.VERTICAL, 0);
+		fit_log_checks_z.append(check_autoscale_z);
+		fit_log_checks_z.append(check_log_z);
 
-//		controls.append(fit_log_labels);
-//		controls.append(fit_log_checks_x);
-//		controls.append(fit_log_checks_y);
-//		controls.append(fit_log_checks_z);
+		controls.append(fit_log_labels);
+		controls.append(fit_log_checks_x);
+		controls.append(fit_log_checks_y);
+		controls.append(fit_log_checks_z);
 
-//		//controls.append(new Separator(GtkOrientation.VERTICAL));
-//		//controls.append(log_label);
-//		//controls.append(check_log_y);
-//		//controls.append(check_log_z);
+		//controls.append(new Separator(GtkOrientation.VERTICAL));
+		//controls.append(log_label);
+		//controls.append(check_log_y);
+		//controls.append(check_log_z);
 
-//		controls.append(new Separator(GtkOrientation.VERTICAL));
+		controls.append(new Separator(GtkOrientation.VERTICAL));
 
-//		auto grid_nums_label = new Box(GtkOrientation.VERTICAL, 0);
-//		grid_nums_label.append(grid_label);
-//		grid_nums_label.append(nums_label);
+		auto grid_nums_label = new Box(GtkOrientation.VERTICAL, 0);
+		grid_nums_label.append(grid_label);
+		grid_nums_label.append(nums_label);
 
-//		auto grid_nums_checks_x = new Box(GtkOrientation.VERTICAL, 0);
-//		grid_nums_checks_x.append(check_grid_x);
-//		grid_nums_checks_x.append(check_nums_x);
+		auto grid_nums_checks_x = new Box(GtkOrientation.VERTICAL, 0);
+		grid_nums_checks_x.append(check_grid_x);
+		grid_nums_checks_x.append(check_nums_x);
 
-//		auto grid_nums_checks_y = new Box(GtkOrientation.VERTICAL, 0);
-//		grid_nums_checks_y.append(check_grid_y);
-//		grid_nums_checks_y.append(check_nums_y);
+		auto grid_nums_checks_y = new Box(GtkOrientation.VERTICAL, 0);
+		grid_nums_checks_y.append(check_grid_y);
+		grid_nums_checks_y.append(check_nums_y);
 
-//		//auto grid_nums_checks_z = new Box(GtkOrientation.VERTICAL, 0);
-//		//grid_nums_checks_z.append(check_grid_z);
-//		//grid_nums_checks_z.append(check_nums_z);
+		//auto grid_nums_checks_z = new Box(GtkOrientation.VERTICAL, 0);
+		//grid_nums_checks_z.append(check_grid_z);
+		//grid_nums_checks_z.append(check_nums_z);
 
-//		auto grid_nums_checks_top = new Box(GtkOrientation.VERTICAL, 0);
-//		grid_nums_checks_top.append(check_grid_top);
-//		grid_nums_checks_top.append(check_nums_top);
+		auto grid_nums_checks_top = new Box(GtkOrientation.VERTICAL, 0);
+		grid_nums_checks_top.append(check_grid_top);
+		grid_nums_checks_top.append(check_nums_top);
 
-//		controls.append(grid_nums_label);
-//		controls.append(grid_nums_checks_x);
-//		controls.append(grid_nums_checks_y);
-//		//controls.append(grid_nums_checks_z);
-//		controls.append(grid_nums_checks_top);
+		controls.append(grid_nums_label);
+		controls.append(grid_nums_checks_x);
+		controls.append(grid_nums_checks_y);
+		//controls.append(grid_nums_checks_z);
+		controls.append(grid_nums_checks_top);
 
-//		controls.append(check_colorbar);
-//		controls.append(new Separator(GtkOrientation.VERTICAL));
-//		controls.append(check_overlay);
-//		controls.append(radio_rowmajor);
-//		controls.append(radio_colmajor);
-//		controls.append(spin_n_columns);
-//		controls.append(columns_label);
+		controls.append(check_colorbar);
+		controls.append(new Separator(GtkOrientation.VERTICAL));
+		controls.append(check_overlay);
+		controls.append(radio_rowmajor);
+		controls.append(radio_colmajor);
+		controls.append(spin_n_columns);
+		controls.append(columns_label);
 
-//		controls.append(new Separator(GtkOrientation.VERTICAL));
-//		controls.append(mouse_pos_box);
-//		controls.append(mouse_pos_value_box);
+		controls.append(new Separator(GtkOrientation.VERTICAL));
+		controls.append(mouse_pos_box);
+		controls.append(mouse_pos_value_box);
 
-//	}
+	}
 
 //	// this function should assume that plot_area.draw_area settings were changed
 //	// and should set all gui elements to correctly represent these changes
@@ -1488,189 +1502,195 @@ class PlotWidget : Box {
 //		// TODO: make the changes to the ItemView widget to represent the 
 //	}
 
-//	void setMousePosLabel(double x, double y) {
-//		import std.format;
-//		auto label = format("  x=%g\n  y=%g", x,y);
-//		mouse_pos.setLabel(label);
-//		mouse_pos.setJustify(GtkJustification.LEFT);
-//	}
-//	void setMousePosLabelValue(double value, string name) {
-//		import std.format;
-//		if (name !is null && name != "") {
-//			auto label = format(" %s\n value=%g", name, value);
-//			mouse_pos_value.setLabel(label);
-//		} else {
-//			mouse_pos_value.setLabel("");
-//		}
-//	}	
-//}
+	void setMousePosLabel(double x, double y) {
+		import std.format;
+		auto label = format("  x=%g\n  y=%g", x,y);
+		mouse_pos.setLabel(label);
+		mouse_pos.setJustify(GtkJustification.LEFT);
+	}
+	void setMousePosLabelValue(double value, string name) {
+		import std.format;
+		if (name !is null && name != "") {
+			auto label = format(" %s\n value=%g", name, value);
+			mouse_pos_value.setLabel(label);
+		} else {
+			mouse_pos_value.setLabel("");
+		}
+	}	
+}
 
 //import draw;
-//import gtk.DrawingArea;
-//class PlotArea :  DrawingArea , Draw {
+import gtk.DrawingArea;
+class PlotArea :  DrawingArea, BackendInterface {
 
-//	import gtk.c.types;
-//	import gtk.c.functions;
-//	import cairo.c.types;
-//	import cairo.c.functions;
-//	cairo_t* cr;
-//	int width, height;
-//	void set_cr(cairo_t* c, int w, int h) {
-//		cr = c;
-//		width = w;
-//		height = h;
-//	}
-//	override void init() {
-//		// nothing
-//	}
-//	override void finish() {
+	import gtk.c.types;
+	import gtk.c.functions;
+	import cairo.c.types;
+	import cairo.c.functions;
+	cairo_t* cr;
+	int width, height;
+	void set_cr(cairo_t* c, int w, int h) {
+		cr = c;
+		width = w;
+		height = h;
+	}
 
-//	}
+	override bool inverted_y_direction() {
+		return true;
+	}
+	override bool text_with_border() {
+		return true;
+	}
+
+	override void initialize() {
+	}
+
+	override void finish() {
+	}
+
+	override void reset_clip() {
+		cairo_reset_clip(cr);
+		cairo_rectangle(cr, 0,0, width, height);		
+		cairo_clip(cr);
+	}
+	override void set_clip(double x1, double y1, double x2, double y2) {
+		cairo_reset_clip(cr);
+		cairo_rectangle(cr, x1,y1, x2-x1, y2-y1);		
+		cairo_clip(cr);
+	}
+	override void clear(double r, double g, double b) {
+		cairo_save(cr);
+		cairo_set_source_rgba(cr, r,g,b,1);
+		cairo_paint(cr);
+		cairo_restore(cr);		
+	}
+	override void set_color(double r, double g, double b) {
+		cairo_set_source_rgba(cr, r,g,b,1);
+	}
+	double line_width;
+	override void set_line_width(double w) {
+		line_width = w;
+		cairo_set_line_width(cr, w);
+	}
+	override double get_line_width() {
+		return line_width;
+	}
+	override void vertical_line(double x, double y1, double y2) {
+		cairo_move_to(cr, x, y1);
+		cairo_line_to(cr, x, y2);
+	}
+	override void horizontal_line(double y, double x1, double x2) {
+		cairo_move_to(cr, x1, y);
+		cairo_line_to(cr, x2, y);
+	}
+	override void line(double x1, double y1, double x2, double y2) {
+		cairo_move_to(cr, x1, y1);
+		cairo_line_to(cr, x2, y2);
+	}
+	void rectangle(double x1, double y1, double x2, double y2)
+	{
+		cairo_rectangle(cr, x1,y1, x2-x1, y2-y1);
+	}
+	override void fill() {
+		cairo_fill(cr);
+	}
+	override void stroke() {
+		cairo_stroke(cr);
+	}
+
+	import cairo.ImageSurface, cairo.Pattern;
+	//version(gtk3){ // seems to be not needed
+	//	import gdk.Cairo;	
+	//}
+	struct Bitmap {
+		uint[] data;
+		Pattern pattern;
+		int w,h;
+		int stride;
+	}
+	Bitmap[ulong] bitmaps;
+	ulong bitmap_counter = 0;
+	@trusted
+	override ulong    create_bitmap(int w, int h) {
+		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+		ulong handle = ++bitmap_counter;
+
+		Bitmap bmp;
+		auto stride = ImageSurface.formatStrideForWidth(CairoFormat.ARGB32, w);
+		bmp.data = new uint[](w*h);
+		bmp.w = w;
+		bmp.h = h;
+		bmp.stride = stride;		
+
+		auto image_surface = ImageSurface.createForData(cast(ubyte*)bmp.data.ptr, CairoFormat.ARGB32, w, h, stride);
+		auto image_surface_pattern = Pattern.createForSurface(image_surface);
+		image_surface_pattern.setFilter(CairoFilter.NEAREST);
+
+		bmp.pattern = image_surface_pattern;
+		bitmaps[handle] = bmp;
+		return handle;
+	}
+	override void   destroy_bitmap(ulong handle) {
+		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+		bitmaps.remove(handle);
+	}
+	@trusted
+	override uint[] access_bitmap_data(ulong handle) {
+		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+		return bitmaps[handle].data;
+	}
+	override void    access_bitmap_done(ulong handle) {
+		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+		auto image_surface = ImageSurface.createForData(cast(ubyte*)bitmaps[handle].data.ptr, CairoFormat.ARGB32, bitmaps[handle].w, bitmaps[handle].h, bitmaps[handle].stride);
+		auto image_surface_pattern = Pattern.createForSurface(image_surface);
+		image_surface_pattern.setFilter(CairoFilter.NEAREST);
+		bitmaps[handle].pattern = image_surface_pattern;
+	}
+	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
+		                                  double dx, double dy, double dw, double dh) {
+		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+		cairo_save(cr);
+			cairo_translate(cr, dx,dy);
+			cairo_scale(cr, dw/sw, dh/sh);
+			cairo_translate(cr,-sx,-sy);
+			cairo_rectangle(cr, sx,sy, sw,sh);
+			cairo_set_source(cr, bitmaps[handle].pattern.getPatternStruct());
+			cairo_fill(cr);
+		cairo_restore(cr);
+	}
 
 
-//	override void reset_clip() {
-//		cairo_reset_clip(cr);
-//		cairo_rectangle(cr, 0,0, width, height);		
-//		cairo_clip(cr);
-//	}
-//	override void set_clip(double x1, double y1, double x2, double y2) {
-//		cairo_reset_clip(cr);
-//		cairo_rectangle(cr, x1,y1, x2-x1, y2-y1);		
-//		cairo_clip(cr);
-//	}
-//	override void clear(double r, double g, double b) {
-//		cairo_save(cr);
-//		cairo_set_source_rgba(cr, r,g,b,1);
-//		cairo_paint(cr);
-//		cairo_restore(cr);		
-//	}
-//	override void set_color(double r, double g, double b) {
-//		cairo_set_source_rgba(cr, r,g,b,1);
-//	}
-//	double line_width;
-//	override void set_line_width(double w) {
-//		line_width = w;
-//		cairo_set_line_width(cr, w);
-//	}
-//	override double get_line_width() {
-//		return line_width;
-//	}
-//	override void vertical_line(double x, double y1, double y2) {
-//		cairo_move_to(cr, x, y1);
-//		cairo_line_to(cr, x, y2);
-//	}
-//	override void horizontal_line(double y, double x1, double x2) {
-//		cairo_move_to(cr, x1, y);
-//		cairo_line_to(cr, x2, y);
-//	}
-//	override void line(double x1, double y1, double x2, double y2) {
-//		cairo_move_to(cr, x1, y1);
-//		cairo_line_to(cr, x2, y2);
-//	}
-//	void rectangle(double x1, double y1, double x2, double y2)
-//	{
-//		cairo_rectangle(cr, x1,y1, x2-x1, y2-y1);
-//	}
-//	override void fill() {
-//		cairo_fill(cr);
-//	}
-//	override void stroke() {
-//		cairo_stroke(cr);
-//	}
+	override void need_redraw() {
+		queueDraw();
+	}
 
-//	import cairo.ImageSurface, cairo.Pattern;
-//	//version(gtk3){ // seems to be not needed
-//	//	import gdk.Cairo;	
-//	//}
-//	struct Bitmap {
-//		uint[] data;
-//		Pattern pattern;
-//		int w,h;
-//		int stride;
-//	}
-//	Bitmap[ulong] bitmaps;
-//	ulong bitmap_counter = 0;
-//	@trusted
-//	override ulong    create_bitmap(int w, int h) {
-//		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
-//		ulong handle = ++bitmap_counter;
+	override void show_mouse_pos(double x, double y, double z) {
+		updateMousePosLabel(x,y);
+	}
+	override void show_value(double value, string itemname) {
+		updateValue(value, itemname);
+	}
+	override void set_text_size(int s) {
+		cairo_set_font_size(cr, s);
+	}
 
-//		Bitmap bmp;
-//		auto stride = ImageSurface.formatStrideForWidth(CairoFormat.ARGB32, w);
-//		bmp.data = new uint[](w*h);
-//		bmp.w = w;
-//		bmp.h = h;
-//		bmp.stride = stride;		
-
-//		auto image_surface = ImageSurface.createForData(cast(ubyte*)bmp.data.ptr, CairoFormat.ARGB32, w, h, stride);
-//		auto image_surface_pattern = Pattern.createForSurface(image_surface);
-//		image_surface_pattern.setFilter(CairoFilter.NEAREST);
-
-//		bmp.pattern = image_surface_pattern;
-//		bitmaps[handle] = bmp;
-//		return handle;
-//	}
-//	override void   destroy_bitmap(ulong handle) {
-//		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
-//		bitmaps.remove(handle);
-//	}
-//	@trusted
-//	override uint[] access_bitmap_data(ulong handle) {
-//		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
-//		return bitmaps[handle].data;
-//	}
-//	override void    access_bitmap_done(ulong handle) {
-//		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
-//		auto image_surface = ImageSurface.createForData(cast(ubyte*)bitmaps[handle].data.ptr, CairoFormat.ARGB32, bitmaps[handle].w, bitmaps[handle].h, bitmaps[handle].stride);
-//		auto image_surface_pattern = Pattern.createForSurface(image_surface);
-//		image_surface_pattern.setFilter(CairoFilter.NEAREST);
-//		bitmaps[handle].pattern = image_surface_pattern;
-//	}
-//	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
-//		                                  double dx, double dy, double dw, double dh) {
-//		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
-//		cairo_save(cr);
-//			cairo_translate(cr, dx,dy);
-//			cairo_scale(cr, dw/sw, dh/sh);
-//			cairo_translate(cr,-sx,-sy);
-//			cairo_rectangle(cr, sx,sy, sw,sh);
-//			cairo_set_source(cr, bitmaps[handle].pattern.getPatternStruct());
-//			cairo_fill(cr);
-//		cairo_restore(cr);
-//	}
-
-
-//	override void need_redraw() {
-//		queueDraw();
-//	}
-
-//	override void show_mouse_pos(double x, double y, double z) {
-//		updateMousePosLabel(x,y);
-//	}
-//	override void show_value(double value, string itemname) {
-//		updateValue(value, itemname);
-//	}
-//	override void set_text_size(int s) {
-//		cairo_set_font_size(cr, s);
-//	}
-
-//	override void text_extent(string str, out double w, out double h) {
-//		//cairo_text_extents (cairo_t *cr, const char *utf8, cairo_text_extents_t *extents);.
-//		cairo_text_extents_t cte;
-//		import std.string, std.typecons;
-//		auto strz = cast(char*)str.dup.toStringz;
-//		cairo_text_extents(cr, strz, &cte);
-//		w=cte.width;
-//		h=cte.height;
-//	}
-//	override void text(double x, double y, string str) {
-//		import std.string, std.typecons;
-//		auto strz = cast(char*)str.dup.toStringz;
-//		cairo_text_extents_t cte;
-//		cairo_text_extents(cr, strz, &cte);
-//		cairo_move_to(cr, x, y); 
-//		cairo_show_text(cr, strz);
-//	}
+	override void text_extent(string str, out double w, out double h) {
+		//cairo_text_extents (cairo_t *cr, const char *utf8, cairo_text_extents_t *extents);.
+		cairo_text_extents_t cte;
+		import std.string, std.typecons;
+		auto strz = cast(char*)str.dup.toStringz;
+		cairo_text_extents(cr, strz, &cte);
+		w=cte.width;
+		h=cte.height;
+	}
+	override void text(double x, double y, string str) {
+		import std.string, std.typecons;
+		auto strz = cast(char*)str.dup.toStringz;
+		cairo_text_extents_t cte;
+		cairo_text_extents(cr, strz, &cte);
+		cairo_move_to(cr, x, y); 
+		cairo_show_text(cr, strz);
+	}
 
 //public:
 //	DrawArea draw_area;
@@ -1686,70 +1706,71 @@ class PlotWidget : Box {
 //		GestureClick middle_click;
 //	}
 
-//	this(bool mode2d, 
-//		 void delegate(double,double) @trusted updateMousePosLabel_func ,
-//		 void delegate(double,string) @trusted updateValue_func) 
-//	{
+	this(CanvasProperties *canvas, 
+		 void delegate(double,double) @trusted updateMousePosLabel_func ,
+		 void delegate(double,string) @trusted updateValue_func) 
+	{
 //		draw_area.drawer = this;
+		painter = CanvasPainter(canvas, this);
 
-//		updateMousePosLabel = updateMousePosLabel_func;
-//		updateValue         = updateValue_func;
+		updateMousePosLabel = updateMousePosLabel_func;
+		updateValue         = updateValue_func;
 
 //		// minimum size of PlotArea
-//		setSizeRequest(100, 50);
+		setSizeRequest(100, 50);
  
-//		version(gtk3) {
-//			addOnDraw(&drawCallback);
-//			addOnMotionNotify(delegate bool(GdkEventMotion *event_motion, Widget w){
-//				double x = event_motion.x, y = event_motion.y;
-//				bool ctrl  = (event_motion.state & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (event_motion.state & GdkModifierType.SHIFT_MASK  ) != 0;
-//				mouse_motion(x,y, cast(PlotArea)w, ctrl, shift);
-//				return false;
-//			});
-//		    addOnButtonPress(delegate bool(GdkEventButton *event_button, Widget w) {
-//				import gdk.Event;
-//				int nPress = Event.isDoubleClick(event_button)?2:1;
-//				PlotArea plot_area = cast(PlotArea)w;
-//				double x = event_button.x, y = event_button.y;
-//				bool ctrl  = (event_button.state & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (event_button.state & GdkModifierType.SHIFT_MASK  ) != 0;
-//				if (event_button.button == 1) left_button_pressed (nPress,x,y,plot_area,ctrl,shift);
-//				if (event_button.button == 2) mid_button_pressed  (nPress,x,y,plot_area,ctrl,shift);		
-//				if (event_button.button == 3) right_button_pressed(nPress,x,y,plot_area,ctrl,shift);
-//				return false;
-//			});
-//		    addOnButtonRelease(delegate bool(GdkEventButton *event_button, Widget w) {
-//				import gdk.Event;
-//				int nPress = Event.isDoubleClick(event_button)?2:1;
-//				PlotArea plot_area = cast(PlotArea)w;
-//				double x = event_button.x, y = event_button.y;
-//				bool ctrl  = (event_button.state & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (event_button.state & GdkModifierType.SHIFT_MASK  ) != 0;
-//				if (event_button.button == 1) left_button_released (nPress,x,y,plot_area,ctrl,shift);
-//				if (event_button.button == 2) mid_button_released  (nPress,x,y,plot_area,ctrl,shift);		
-//				if (event_button.button == 3) right_button_released(nPress,x,y,plot_area,ctrl,shift);
-//				return false;
-//			});
-//			addOnScroll(delegate bool(GdkEventScroll *event_scroll, Widget w) {
-//				import gdk.Event;
-//				//double x = event_scroll.x, y = event_scroll.y;
-//				PlotArea plot_area = cast(PlotArea)w;
-//				bool ctrl  = (event_scroll.state & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (event_scroll.state & GdkModifierType.SHIFT_MASK  ) != 0;
-//				final switch(event_scroll.direction)
-//				{
-//					case GdkScrollDirection.DOWN:  scroll( 0 , 1, ctrl, shift);  break;
-//					case GdkScrollDirection.UP:	   scroll( 0 ,-1, ctrl, shift);  break;
-//					case GdkScrollDirection.LEFT:  scroll(-1 , 0, ctrl, shift);  break;
-//					case GdkScrollDirection.RIGHT: scroll( 1 , 0, ctrl, shift);  break;
-//					case GdkScrollDirection.SMOOTH:						 break;
-//				}
-//				return true;								
-//			});
+		version(gtk3) {
+			addOnDraw(&drawCallback);
+			addOnMotionNotify(delegate bool(GdkEventMotion *event_motion, Widget w){
+				double x = event_motion.x, y = event_motion.y;
+				bool ctrl  = (event_motion.state & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (event_motion.state & GdkModifierType.SHIFT_MASK  ) != 0;
+				painter.mouse_motion(x,y, cast(PlotArea)w, ctrl, shift);
+				return false;
+			});
+		    addOnButtonPress(delegate bool(GdkEventButton *event_button, Widget w) {
+				import gdk.Event;
+				int nPress = Event.isDoubleClick(event_button)?2:1;
+				PlotArea plot_area = cast(PlotArea)w;
+				double x = event_button.x, y = event_button.y;
+				bool ctrl  = (event_button.state & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (event_button.state & GdkModifierType.SHIFT_MASK  ) != 0;
+				if (event_button.button == 1) painter.left_button_pressed (nPress,x,y,ctrl,shift);
+				if (event_button.button == 2) painter.mid_button_pressed  (nPress,x,y,this,ctrl,shift);		
+				if (event_button.button == 3) painter.right_button_pressed(nPress,x,y,ctrl,shift);
+				return false;
+			});
+		    addOnButtonRelease(delegate bool(GdkEventButton *event_button, Widget w) {
+				import gdk.Event;
+				int nPress = Event.isDoubleClick(event_button)?2:1;
+				PlotArea plot_area = cast(PlotArea)w;
+				double x = event_button.x, y = event_button.y;
+				bool ctrl  = (event_button.state & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (event_button.state & GdkModifierType.SHIFT_MASK  ) != 0;
+				if (event_button.button == 1) painter.left_button_released (nPress,x,y,ctrl,shift);
+				if (event_button.button == 2) painter.mid_button_released  (nPress,x,y,ctrl,shift);		
+				if (event_button.button == 3) painter.right_button_released(nPress,x,y,ctrl,shift);
+				return false;
+			});
+			addOnScroll(delegate bool(GdkEventScroll *event_scroll, Widget w) {
+				import gdk.Event;
+				//double x = event_scroll.x, y = event_scroll.y;
+				PlotArea plot_area = cast(PlotArea)w;
+				bool ctrl  = (event_scroll.state & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (event_scroll.state & GdkModifierType.SHIFT_MASK  ) != 0;
+				final switch(event_scroll.direction)
+				{
+					case GdkScrollDirection.DOWN:  painter.scroll( 0 , 1, ctrl, shift);  break;
+					case GdkScrollDirection.UP:	   painter.scroll( 0 ,-1, ctrl, shift);  break;
+					case GdkScrollDirection.LEFT:  painter.scroll(-1 , 0, ctrl, shift);  break;
+					case GdkScrollDirection.RIGHT: painter.scroll( 1 , 0, ctrl, shift);  break;
+					case GdkScrollDirection.SMOOTH:						 break;
+				}
+				return true;								
+			});
 
 
-//		} 
+		} 
 
 //		version(gtk4) { 
 //			///////////////////////////////////////////
@@ -1840,71 +1861,79 @@ class PlotWidget : Box {
 
 
 
-//	}
+	}
 
-//private:
+private:
 
-//	version(gtk3) {
-//		import cairo.Context, cairo.Surface;
-//		bool drawCallback(Scoped!Context cr, Widget widget) {
-//			GtkAllocation size;
-//			getAllocation(size);		
-//			drawFunc(null,cr.getContextStruct, size.width, size.height, cast(void*)this);
-//			return true;
-//		}
-//	}
-//	extern(C) 
-//	static void drawFunc(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
-//		GtkAllocation size;
-//		auto plot_area = cast(PlotArea)userData;
-//		plot_area.getAllocation(size);
-//		plot_area.draw_area.resize(size.width,size.height);
-//		plot_area.cr = cr;
-//		plot_area.draw_area.draw_content();
-//	}
-//	extern(C) 
-//	static void destroyNotify(void *data) {
-//	}
+	CanvasPainter painter;
 
-//	/////////////////////////////////////////////////////////
-//	// handle mouse motion and mouse  button press and release
-//	/////////////////////////////////////////////////////////
-//	void mouse_motion(double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
-//		draw_area.mouse_motion(x,y,ctrl,shift);
-//	}
-//	void right_button_pressed(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
-//		GtkAllocation size;	getAllocation(size);
-//		draw_area.resize(size.width,size.height);
-//		draw_area.right_button_pressed(nPress,x,y,ctrl,shift);
-//	}
-//	void right_button_released(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
-//		draw_area.right_button_released(nPress,x,y,ctrl,shift);
-//	}
-//	void mid_button_pressed(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
-//		draw_area.mid_button_pressed(nPress,x,y,ctrl,shift);
-//	}
-//	void mid_button_released(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
-//		draw_area.mid_button_released(nPress,x,y,ctrl,shift);
-//	}
-//	void left_button_pressed(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
-//		draw_area.left_button_pressed(nPress,x,y,ctrl,shift);
-//	}
-//	void left_button_released(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
-//		draw_area.left_button_released(nPress,x,y,ctrl,shift);
-//	}
-//	/////////////////////////////////////////////////////////
-//	// scrolling functions (mouse wheel)
-//	/////////////////////////////////////////////////////////
-//	void scroll(double dx, double dy, bool ctrl = false, bool shift = false) {
-//		import std.stdio;
-//		GtkAllocation size;
-//		getAllocation(size);
-//		draw_area.resize(size.width,size.height);
-//		draw_area.scroll(dx, dy, ctrl, shift);
-//	}
+	version(gtk3) {
+		import cairo.Context, cairo.Surface;
+		bool drawCallback(Scoped!Context cr, Widget widget) {
+			GtkAllocation size;
+			getAllocation(size);		
+			drawFunc(null, cr.getContextStruct, size.width, size.height, cast(void*)this);
+			return true;
+		}
+	}
+	extern(C) 
+	static void drawFunc(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
+		GtkAllocation size;
+		auto plot_area = cast(PlotArea)userData;
+		plot_area.getAllocation(size);
+		//plot_area.painter.resize(size.width,size.height);
+		plot_area.painter.canvas.width = size.width;
+		plot_area.painter.canvas.height = size.height;
+		plot_area.cr = cr;
+		plot_area.painter.draw_content();
+	}
+	extern(C) 
+	static void destroyNotify(void *data) {
+	}
 
-//	void delegate(double, double) updateMousePosLabel;
-//	void delegate(double, string) updateValue;
+	/////////////////////////////////////////////////////////
+	// handle mouse motion and mouse  button press and release
+	/////////////////////////////////////////////////////////
+	void mouse_motion(double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
+		painter.mouse_motion(x,y,this,ctrl,shift);
+	}
+	void right_button_pressed(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
+		GtkAllocation size;	getAllocation(size);
+		//painter.resize(size.width,size.height);
+		painter.canvas.width = size.width;
+		painter.canvas.height = size.height;
+		painter.right_button_pressed(nPress,x,y,ctrl,shift);
+	}
+	void right_button_released(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
+		painter.right_button_released(nPress,x,y,ctrl,shift);
+	}
+	void mid_button_pressed(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
+		painter.mid_button_pressed(nPress,x,y,this,ctrl,shift);
+	}
+	void mid_button_released(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
+		painter.mid_button_released(nPress,x,y,ctrl,shift);
+	}
+	void left_button_pressed(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
+		painter.left_button_pressed(nPress,x,y,ctrl,shift);
+	}
+	void left_button_released(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
+		painter.left_button_released(nPress,x,y,ctrl,shift);
+	}
+	/////////////////////////////////////////////////////////
+	// scrolling functions (mouse wheel)
+	/////////////////////////////////////////////////////////
+	void scroll(double dx, double dy, bool ctrl = false, bool shift = false) {
+		import std.stdio;
+		GtkAllocation size;
+		getAllocation(size);
+		//painter.resize(size.width,size.height);
+		painter.canvas.width = size.width;
+		painter.canvas.height = size.height;
+		painter.scroll(dx, dy, ctrl, shift);
+	}
+
+	void delegate(double, double) updateMousePosLabel;
+	void delegate(double, string) updateValue;
 
 
 }
