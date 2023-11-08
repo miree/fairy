@@ -250,7 +250,7 @@ public:
 			for (int i = 0; i < 100;++i) {
 				import std.conv;
 				try {
-					ui.win("window " ~ i.to!string);
+					ui.win("window" ~ i.to!string);
 					break;
 				} catch(Exception e) {
 					// window with this name was probably already present
@@ -1057,10 +1057,10 @@ class PlotWidget : Box {
 		check_nums_y.setActive(canvas.numbers[1]);
 		check_nums_top.setActive(canvas.numbers_ontop);
 		check_colorbar.setActive(canvas.color_bar);
+		spin_n_columns.setValue(canvas.columns_or_rows);
 		if (canvas.display_mode == DisplayMode.overlay) radio_overlay.setActive(true);
 		if (canvas.display_mode == DisplayMode.rows)    radio_rowmajor.setActive(true);
 		if (canvas.display_mode == DisplayMode.columns) radio_colmajor.setActive(true);
-		spin_n_columns.setValue(canvas.columns_or_rows);
 	}
 
 //	this(DrawArea area, string p_name, bool mode2d = false) {
