@@ -22,10 +22,15 @@ class GtkGui : Gui {
 	override void close_window(string name) {
 		import std.stdio;
 		writeln("close window ", name , "     all windows ", main_windows);
-		main_windows[name].close();
-		main_windows.remove(name);
+		if (name in main_windows) {
+			main_windows[name].close();
+			main_windows.remove(name);
+		}
 	}
 	override void redraw_window(string name) {
+		if (name in main_windows) {
+			main_windows[name].queueDraw();
+		}
 	}
 	override void save_window(string name) { // copy window properties to canvas
 		auto window = main_windows[name];
@@ -48,6 +53,11 @@ class GtkGui : Gui {
 	override void add_item(string name) {
 		foreach(window; main_windows) {
 			window.item_view.addItem(name, null);
+		}
+	}
+	override void update_from_canvas(string name) {
+		if (name in main_windows) {
+			main_windows[name].update_from_canvas(); 
 		}
 	}
 
@@ -83,7 +93,7 @@ class GtkGui : Gui {
 					}
 					foreach(name, window; main_windows) {
 						import ui;
-						//if (window.plotwidget.area.canvas.autorefresh) winrefresh(window.name);
+						if (window.canvas.autorefresh) winrefresh(window.name);
 					}
 					return true;
 				});
@@ -96,12 +106,8 @@ class GtkGui : Gui {
 		application.addOnShutdown(
 			delegate void(gio.Application.Application app) {
 				foreach(name; main_windows.byKey) save_window(name);
-
 				import std.stdio;
-				//import threads;
 				stderr.writeln("Application shutdown");
-				//application = null;
-				//terminate_all_threads();
 			}
 		);
 
@@ -110,11 +116,7 @@ class GtkGui : Gui {
 		import std.stdio;
 		writeln();
 	}
-
 }
-
-
-
 
 // some gtk3/gtk4 compatibility/convenience functions
 version(gtk3) 
@@ -165,37 +167,9 @@ string fixWindowsPaths(string path) {
 	}
 }
 
-//import gtk.Application;
-//import gtk.ApplicationWindow;
-//class MainWindow : ApplicationWindow
-//{
-//	import gtk.Button;
-//	Button button;
-//	this(string window_name, CanvasProperties *canvas_properties, Application application) {
-//		super(application);
-//		button = new Button("button");
-//		present();
-//		version(gtk3){ 
-//			showAll();
-//		}		
-//	}
-
-//}
-
-//alias long Window;
-//import gdk.c.types;
-//extern(C) int     XMoveWindow(void* display, Window window, int x, int y);
-//extern(C) Window  gdk_x11_surface_get_xid(GdkSurface* surface);
-
 import gio.SimpleAction;
 import glib.Variant;
 
-//void simple_action_quit(Variant var, SimpleAction action) {
-//	import ui;
-//	quit();
-//}
-
-import ui;
 import gtk.Application;
 import gtk.ApplicationWindow;
 class MainWindow : ApplicationWindow
@@ -203,10 +177,7 @@ class MainWindow : ApplicationWindow
 private:
 	CanvasProperties *canvas;
 
-
 	import gtk.Button;
-	//import treeview;
-	//import plotwidget;
 	import gtk.HeaderBar;
 	import gtk.Paned;
 	import gtk.Widget;
@@ -223,7 +194,6 @@ private:
 	//version(gtk4) {
 	//	import gio.MenuItem;
 	//}
-
 
 	const int min_width  = 600;
 	const int min_height = 400;
@@ -243,11 +213,8 @@ private:
 		Label  header_title;
 	Paned workspace;
 		ScrolledWindow item_view_scrolled_window;
-			//Button item_view;
-			//Button plot_widget;
 			ItemView item_view;
 		PlotWidget plot_widget;
-
 
 	SimpleAction new_window;
 	SimpleAction save_session_as;
@@ -258,104 +225,15 @@ private:
 
 public:
 
-	//override Geometry get_geometry() {
-	//	GuiWindow.Geometry result;
-	//	version(gtk3) {
-	//		getPosition(result.x, result.y);
-	//	}
-	//	GdkRectangle rect;
-	//	getAllocation(rect);
-	//	width = rect.width;
-	//	height = rect.height;
-	//	result.w = width;
-	//	result.h = height;
-	//	return result;
-	//}
-	int get_win_x() {
-		int x_pos, y_pos;
-		version(gtk3) {
-			getPosition(x_pos, y_pos);
-		}
-		return x_pos;
+	void update_from_canvas() {
+		assert(item_view !is null);
+		item_view.sync_with_session();
+		item_view.sync_with_canvas(canvas);
+		plot_widget.sync_with_canvas(canvas);
 	}
-	int get_win_y() {
-		int x_pos, y_pos;
-		version(gtk3) {
-			getPosition(x_pos, y_pos);
-		}
-		return y_pos;
-	}
-	int get_win_w() {
-		version(gtk3) {
-			getSize(width,height);
-		}
-		return width;
-	}
-	int get_win_h() {
-		version(gtk3) {
-			getSize(width,height);
-		}
-		return height;
-	}
-	bool get_win_maximized() {return false;}
-
-
-	//override DrawArea* get_draw_area() {
-	//	return &plot_widget.plot_area.draw_area;
-	//}
-	//override void close_window() {
-	//	import ui;
-	//	destroy();
-	//	gui_windows.remove(name);
-	//}
-	//override void window_font_size(int size) {
-	//	if (size < 0) size = 0;
-	//	plot_widget.plot_area.draw_area.window_text_size = size;
-	//	queueDraw();
-	//}
-	//override void area_changed() {
-	//	plot_widget.area_changed();
-	//}
-	//import item;
-	//override void add_item(string item_name, Item item) {
-	//	item_view.addItem(item_name, item);
-	//}
-	//override void remove_item(string item_name) {
-	//	item_view.removeItem(item_name);
-	//}
-	//override void update_items() {
-	//	item_view.updateTreeStoreFromSession(true);
-	//}
-	//override void show_visualizer(string item_name) {
-	//	item_view.show_visualizer(item_name);
-	//}
-	//override void hide_visualizer(string item_name) {
-	//	item_view.hide_visualizer(item_name);
-	//}
-
-
-	//void set_rows(int rows) {
-	//	//plot_widget.plot_area.draw_area.row_major = true;
-	//	plot_widget.plot_area.draw_area.columns_or_rows = rows;
-	//	plot_widget.spin_n_columns.setValue(rows);
-	//	plot_widget.radio_colmajor.setActive(true);
-	//	queueDraw();
-	//}
-	//void set_columns(int columns) {
-	//	//plot_widget.plot_area.draw_area.row_major = false;
-	//	plot_widget.plot_area.draw_area.columns_or_rows = columns;
-	//	plot_widget.spin_n_columns.setValue(columns);
-	//	plot_widget.radio_rowmajor.setActive(true);
-	//	queueDraw();
-	//}
-
-	//override void redraw() {
-	//	plot_widget.plot_area.queueDraw();
-	//}
 
 	this(string window_name, CanvasProperties *canvas_properties, Application application) {
 		canvas = canvas_properties;
-	//this(Application application, Geometry geom, DrawArea area, string window_name = null) {
 		super(application);
 		// check arguments
 		import std.algorithm;
@@ -364,16 +242,22 @@ public:
 		version(gtk3) {
 			move(canvas.xpos, canvas.ypos);
 		}
-		//if (window_name is null) {
-		//	import std.conv;
-		//	window_name = "window" ~ to!string(++windowIndexCtr);
-		//}
 
-		// actions 
 		import ui;
-		//new_window = new SimpleAction("new_window", null);
-		//new_window.addOnActivate((var,action)=>gui());
-		//addAction(new_window);
+
+		new_window = new SimpleAction("new_window", null);
+		new_window.addOnActivate(delegate(Variant var, SimpleAction action) {
+			for (int i = 0; i < 100;++i) {
+				import std.conv;
+				try {
+					ui.win("window " ~ i.to!string);
+					break;
+				} catch(Exception e) {
+					// window with this name was probably already present
+				}
+			}
+		});
+		addAction(new_window);
 
 		save_session_as = new SimpleAction("save_session_as", null);
 		save_session_as.addOnActivate(delegate(Variant var, SimpleAction action) {
@@ -473,8 +357,6 @@ public:
 		import gdk.Display;
 		import std.algorithm;
 		setDefaultSize(canvas_properties.width, canvas_properties.height);
-		//setDefaultSize( min(default_width,  Screen.width()), 
-		//	            min(default_height, Screen.height()) );
 
 		header_bar = new HeaderBar;
 		// add title to header bar
@@ -502,7 +384,7 @@ public:
 		header_bar.packStart(open_menu);
 
 		menu_top = new Menu;
-		//menu_top.append("new window",      "win.new_window");
+		menu_top.append("new window",      "win.new_window");
 		menu_top.append("save session as", "win.save_session_as");
 		menu_top.append("open session",    "win.open_session");
 		menu_top.append("quit",            "win.quit");
@@ -530,27 +412,18 @@ public:
 		window_toplevel_box = new Box(GtkOrientation.VERTICAL,0);
 
 
-		plot_widget = new PlotWidget(canvas_properties);//(area, window_name);
-		//plot_widget = new Button("plot_widget");
+		plot_widget = new PlotWidget(canvas_properties, window_name);//(area, window_name);
 		plot_widget.setHexpand(true);
 
 		item_view = new ItemView(plot_widget, this);
-		item_view.updateTreeStoreFromSession();
-		//item_view = new Button("item_view");
-		//import item;
 
-		//auto session_items = running_session.getItems();
-		//foreach(name, it; session_items) {
-		//	item_view.addItem(name, it);
-		//}
-		//item_view.update_checkboxes_from_drawing_area(&area);
-
+		item_view.sync_with_session();
+		item_view.sync_with_canvas(canvas);
 
 		item_view_scrolled_window = new ScrolledWindow();
 		item_view_scrolled_window.setPropagateNaturalWidth(true);
 		item_view_scrolled_window.setPropagateNaturalHeight(true);
 		item_view_scrolled_window.setChild(item_view);
-
 
 		workspace = new Paned(GtkOrientation.HORIZONTAL);
 		workspace.setPosition(200);
@@ -566,12 +439,35 @@ public:
 			workspace.setResizeEndChild(true);
 			workspace.setShrinkEndChild(false);
 		}
-
+		addOnDestroy((Widget) {
+			import fairy;
+			try {
+				fairy.session.close_window(name);
+			} catch (Exception e) {
+				// nothing
+				// we land here if the close was executed from command line 
+				// then fairy.sesssion.close_window is executed once called from command line
+				// and again if the window gets a Destroy-notification
+			}
+		});
+		version(gtk4) {
+			setHideOnClose(true);
+			addOnHide((Widget) {
+				import fairy;
+				try {
+					fairy.session.close_window(name);
+				} catch (Exception e) {
+					// nothing
+					// we land here if the close was executed from command line 
+					// then fairy.sesssion.close_window is executed once called from command line
+					// and again if the window gets a Hide-notification
+				}
+			});
+		}
 		addOnRealize((Widget) {
 			version (gtk3) {
 				import std.stdio;
 				getDefaultSize(width,height);
-				//move(canvas.xpos, canvas.ypos);
 			} 
 			version(gtk4) {
 				import std.stdio;
@@ -593,26 +489,24 @@ public:
 				//writeln("key press: ", e.keyval, " ", cast(int)e.state, "\r");
 				if (e.state == 0) {
 					switch(e.keyval) {
-						//case '1': .. case '9': 
-						//	plot_widget.spin_n_columns.setValue(e.keyval-'0'); 
-						//break;
-						//case 'u': refresh(name); break;
-						//case 'p': autorefresh(name); break;
-						//case 'q': zoom(name,1*1.2); break;
-						//case 'e': zoom(name,1/1.1666666666); break;
-						//case 'a': fairy.ui.move(name,'x',-0.2); break;
-						//case 'd': fairy.ui.move(name,'x',+0.2); break;
-						//case 's': fairy.ui.move(name,'y',-0.2); break;
-						//case 'w': fairy.ui.move(name,'y',+0.2); break;
-						//case 'o': overlay(name); break;
-						//case 'b': colorbar(name); break;
-						////case 'c': set_columns(cast(int)plot_widget.spin_n_columns.getValue()); break;
-						////case 'r': set_rows   (cast(int)plot_widget.spin_n_columns.getValue()); break;
-						//case 'z': autoscale  (name, 'z', "toggle");  break;
-						//case 'x': autoscale  (name, 'x', "toggle");  break;
-						//case 'y': autoscale  (name, 'y', "toggle");  break;
-						////case 'l':  logscale  (name, plot_widget.plot_area.draw_area.dim==2?'z':'y', "toggle");  break;
-						//case 'f': fit_content(name);                 break;
+						case '1': .. case '9': plot_widget.spin_n_columns.setValue(e.keyval-'0'); break;
+						case 'u': ui.winrefresh(name);                                 break;
+						case 'p': ui.winpoll(name);                                    break;
+						case 'q': ui.winzoom(name,1*1.2);                              break;
+						case 'e': ui.winzoom(name,1/1.1666666666);                     break;
+						case 'a': ui.winmove(name,'x',-0.2);                           break;
+						case 'd': ui.winmove(name,'x',+0.2);                           break;
+						case 's': ui.winmove(name,'y',-0.2);                           break;
+						case 'w': ui.winmove(name,'y',+0.2);                           break;
+						case 'o': ui.overlay(name);                                    break;
+						case 'b': ui.colorbar(name);                                   break;
+						case 'c': plot_widget.radio_colmajor.setActive(true);          break;
+						case 'r': plot_widget.radio_rowmajor.setActive(true);          break;
+						case 'z': ui.autoscale(name, 'z', "toggle");                   break;
+						case 'x': ui.autoscale(name, 'x', "toggle");                   break;
+						case 'y': ui.autoscale(name, 'y', "toggle");                   break;
+						case 'l': ui.logscale (name, canvas.dim==2?'z':'y', "toggle"); break;
+						case 'f': ui.winfit(name);                                     break;
 						default: {}
 					}
 				}
@@ -922,7 +816,7 @@ class ItemView : TreeView {
 
 	import item;
 
-	void updateTreeStoreFromSession(bool clear = false)
+	void sync_with_session(bool clear = false)
 	{	
 		if (clear) { treestore.clear(); }
 		import fairy;
@@ -1004,15 +898,15 @@ class ItemView : TreeView {
 		return count;
 	}
 
-//	void update_checkboxes_from_drawing_area(DrawArea* area) {
-//		import gobject.Value, std.typecons;
-//		//auto area = main_window.get_draw_area();
-//		foreach (v ; area.visualizers) {
-//			TreeIter iter = find_iter_for_itemname(v.name, treestore);
-//			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
-//			fix_parent_checkboxes(iter);
-//		}
-//	}
+	void sync_with_canvas(CanvasProperties* canvas) {
+		import gobject.Value, std.typecons;
+		//auto area = main_window.get_draw_area();
+		foreach (name ; canvas.itemnames) {
+			TreeIter iter = find_iter_for_itemname(name, treestore);
+			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
+			fix_parent_checkboxes(iter);
+		}
+	}
 
 	void removeItem(string itemname) {
 		TreeIter iter = find_iter_for_itemname(itemname, treestore);
@@ -1106,7 +1000,7 @@ class PlotWidget : Box {
 	import gtk.CheckButton, gtk.SpinButton, gtk.Button, gtk.Image;
 	import gtk.Label, gtk.Separator, gtk.ToggleButton, gtk.ScrolledWindow;
 
-	string parent_window_name;
+	string name;
 	//Box box;
 	//alias box this;
 	// Plot widget contains a PlotArea and controls for the PlotArea right below
@@ -1123,7 +1017,7 @@ class PlotWidget : Box {
 		alias CheckOrRadioButton = CheckButton;
 		alias CheckOrToggleButton = CheckButton;
 	}
-	CheckButton check_auto_refresh;
+	CheckButton check_autorefresh;
 	Button      button_refresh;
 	Label       autoscale_label;
 	CheckButton check_autoscale_x, check_autoscale_y, check_autoscale_z;
@@ -1134,10 +1028,9 @@ class PlotWidget : Box {
 	Label       nums_label;
 	CheckButton check_nums_x, check_nums_y, check_nums_top;
 	CheckButton check_colorbar;
-	CheckButton check_overlay;
-	CheckOrRadioButton radio_rowmajor, radio_colmajor; // grouped to form a gtk3 RadioButton
+	CheckOrRadioButton radio_overlay, radio_rowmajor, radio_colmajor; // grouped to form a gtk3 RadioButton
 	SpinButton  spin_n_columns;
-	Label       columns_label;
+	//Label       columns_label;
 	Box         mouse_pos_box;
 	Label       mouse_pos;
 	Box         mouse_pos_value_box;
@@ -1149,9 +1042,33 @@ class PlotWidget : Box {
 		}
 	}
 
+	void sync_with_canvas(CanvasProperties *canvas) {
+		check_autorefresh.setActive(canvas.autorefresh);
+		check_autoscale_x.setActive(canvas.autoscale[0]);
+		check_autoscale_y.setActive(canvas.autoscale[1]);
+		check_autoscale_z.setActive(canvas.autoscale[2]);
+		check_log_x.setActive(canvas.transform[0].logscale);
+		check_log_y.setActive(canvas.transform[1].logscale);
+		check_log_z.setActive(canvas.transform[2].logscale);
+		check_grid_x.setActive(canvas.grid[0]);
+		check_grid_y.setActive(canvas.grid[1]);
+		check_grid_top.setActive(canvas.grid_ontop);
+		check_nums_x.setActive(canvas.numbers[0]);
+		check_nums_y.setActive(canvas.numbers[1]);
+		check_nums_top.setActive(canvas.numbers_ontop);
+		check_colorbar.setActive(canvas.color_bar);
+		if (canvas.display_mode == DisplayMode.overlay) radio_overlay.setActive(true);
+		if (canvas.display_mode == DisplayMode.rows)    radio_rowmajor.setActive(true);
+		if (canvas.display_mode == DisplayMode.columns) radio_colmajor.setActive(true);
+		spin_n_columns.setValue(canvas.columns_or_rows);
+	}
+
 //	this(DrawArea area, string p_name, bool mode2d = false) {
-	this(CanvasProperties *canvas) {
+	this(CanvasProperties *canvas, string window_name) {
+		import ui;
+
 		super(GtkOrientation.VERTICAL, 0); // PlotWidget derived from Box
+		name = window_name;
 		//parent_window_name = p_name.dup;
 		//import std.stdio;
 //		//writeln("PlotWidget contructor name ", parent_window_name);
@@ -1176,18 +1093,16 @@ class PlotWidget : Box {
 		///////////////////////////////////////////////
 		// instanciate all the controls
 		///////////////////////////////////////////////
-		check_auto_refresh = new CheckButton("auto\nrefr.");
-		check_auto_refresh.setActive(canvas.autorefresh);
-		//check_auto_refresh.addOnToggled(
-		//		delegate void(CheckOrToggleButton button) {
-		//			fairy.ui.autorefresh(parent_window_name, button.getActive()?"true":"false");
-		//		}
-		//	);
+		check_autorefresh = new CheckButton("auto\nrefr.");
+		check_autorefresh.setActive(canvas.autorefresh);
+		check_autorefresh.addOnToggled(
+				delegate void(CheckOrToggleButton button) {
+					ui.winpoll(name, button.getActive()?"true":"false");
+				}
+			);
 
 		button_refresh = new Button("refr.");
-		//button_refresh.addOnClicked(delegate void(Button b) {
-		//		ui.refresh(parent_window_name);
-		//	});
+		button_refresh.addOnClicked((button) => ui.winrefresh(name));
 
 		///////////////////////////////////////////////////////
 		autoscale_label = new Label("fit");
@@ -1197,18 +1112,18 @@ class PlotWidget : Box {
 		check_autoscale_x.setActive(canvas.autoscale[0]);
 		check_autoscale_y.setActive(canvas.autoscale[1]);
 		check_autoscale_z.setActive(canvas.autoscale[2]);
-		//check_autoscale_x.addOnToggled(
-		//					delegate void(CheckOrToggleButton button) {
-		//						fairy.ui.autoscale(parent_window_name, 'x', button.getActive()?"true":"false");
-		//					} );
-		//check_autoscale_y.addOnToggled(
-		//					delegate void(CheckOrToggleButton button) {
-		//						fairy.ui.autoscale(parent_window_name, 'y', button.getActive()?"true":"false");
-		//					} );
-		//check_autoscale_z.addOnToggled(
-		//					delegate void(CheckOrToggleButton button) {
-		//						fairy.ui.autoscale(parent_window_name, 'z', button.getActive()?"true":"false");
-		//					} );
+		check_autoscale_x.addOnToggled(
+							delegate void(CheckOrToggleButton button) {
+								autoscale(name, 'x', button.getActive()?"true":"false");
+							} );
+		check_autoscale_y.addOnToggled(
+							delegate void(CheckOrToggleButton button) {
+								autoscale(name, 'y', button.getActive()?"true":"false");
+							} );
+		check_autoscale_z.addOnToggled(
+							delegate void(CheckOrToggleButton button) {
+								autoscale(name, 'z', button.getActive()?"true":"false");
+							} );
 
 
 		///////////////////////////////////////////////////////
@@ -1219,21 +1134,21 @@ class PlotWidget : Box {
 		check_log_x.setActive(canvas.transform[0].logscale);
 		check_log_y.setActive(canvas.transform[1].logscale);
 		check_log_z.setActive(canvas.transform[2].logscale);
-		//check_log_x.addOnToggled(
-		//	delegate void(CheckOrToggleButton button) {
-		//						fairy.ui.logscale(parent_window_name, 'x', button.getActive()?"true":"false");
-		//					}
-		//	);
-		//check_log_y.addOnToggled(
-		//	delegate void(CheckOrToggleButton button) {
-		//						fairy.ui.logscale(parent_window_name, 'y', button.getActive()?"true":"false");
-		//					}
-		//	);
-		//check_log_z.addOnToggled(
-		//	delegate void(CheckOrToggleButton button) {
-		//						fairy.ui.logscale(parent_window_name, 'z', button.getActive()?"true":"false");
-		//					}
-		//	);
+		check_log_x.addOnToggled(
+			delegate void(CheckOrToggleButton button) {
+								logscale(name, 'x', button.getActive()?"true":"false");
+							}
+			);
+		check_log_y.addOnToggled(
+			delegate void(CheckOrToggleButton button) {
+								logscale(name, 'y', button.getActive()?"true":"false");
+							}
+			);
+		check_log_z.addOnToggled(
+			delegate void(CheckOrToggleButton button) {
+								logscale(name, 'z', button.getActive()?"true":"false");
+							}
+			);
 
 		///////////////////////////////////////////////////////
 		grid_label     = new Label("grid");
@@ -1245,129 +1160,70 @@ class PlotWidget : Box {
 		check_grid_y.setActive(canvas.grid[1]);
 		//check_grid_z.setActive(canvas.draw_grid_color);
 		check_grid_top.setActive(canvas.grid_ontop);
-//		check_grid_x.addOnToggled(
-//			delegate void(CheckOrToggleButton button) {
-//								plot_area.draw_area.draw_grid_vertical = button.getActive();
-//								plot_area.queueDraw();
-//							}
-//			);
-//		check_grid_y.addOnToggled(
-//			delegate void(CheckOrToggleButton button) {
-//								plot_area.draw_area.draw_grid_horizontal = button.getActive();
-//								plot_area.queueDraw();
-//							}
-//			);
-//		//check_grid_z.addOnToggled(
-//		//	delegate void(CheckOrToggleButton button) {
-//		//						plot_area.draw_area.draw_grid_color = button.getActive();
-//		//						plot_area.queueDraw();
-//		//					}
-//		//	);
-//		check_grid_top.addOnToggled(
-//			delegate void(CheckOrToggleButton button) {
-//								plot_area.draw_area.draw_grid_ontop = button.getActive();
-//								//plot_area.setGridOnTop(button.getActive());
-//								plot_area.queueDraw();
-//							}
-//			);
+		check_grid_x.addOnToggled(
+			delegate void(CheckOrToggleButton button) {
+								grid(name, "x", button.getActive()?"true":"false");
+							}
+			);
+		check_grid_y.addOnToggled(
+			delegate void(CheckOrToggleButton button) {
+								grid(name, "y", button.getActive()?"true":"false");
+							}
+			);
+		check_grid_top.addOnToggled(
+			delegate void(CheckOrToggleButton button) {
+								grid(name, "top", button.getActive()?"true":"false");
+							}
+			);
 
 		nums_label     = new Label("nums");
 		check_nums_x   = new CheckButton("X");
 		check_nums_y   = new CheckButton("Y");
-		//check_nums_z   = new CheckButton("Z");
 		check_nums_top = new CheckButton("top");
 		check_nums_x.setActive(canvas.numbers[0]);
 		check_nums_y.setActive(canvas.numbers[1]);
-		//check_nums_z.setActive(canvas.draw_nums_color);
 		check_nums_top.setActive(canvas.numbers_ontop);
-//		check_nums_x.addOnToggled(
-//			delegate void(CheckOrToggleButton button) {
-//								plot_area.draw_area.draw_nums_vertical = button.getActive();
-//								plot_area.queueDraw();
-//							}
-//			);
-//		check_nums_y.addOnToggled(
-//			delegate void(CheckOrToggleButton button) {
-//								plot_area.draw_area.draw_nums_horizontal = button.getActive();
-//								plot_area.queueDraw();
-//							}
-//			);
-//		//check_nums_z.addOnToggled(
-//		//	delegate void(CheckOrToggleButton button) {
-//		//						plot_area.draw_area.draw_nums_color = button.getActive();
-//		//						plot_area.queueDraw();
-//		//					}
-//		//	);
-//		check_nums_top.addOnToggled(
-//			delegate void(CheckOrToggleButton button) {
-//								plot_area.draw_area.draw_nums_ontop = button.getActive();
-//								//plot_area.setGridOnTop(button.getActive());
-//								plot_area.queueDraw();
-//							}
-//			);
-
+		check_nums_x.addOnToggled(  (button) => ui.numbers(name,  "x" , button.getActive()?"true":"false"));
+		check_nums_y.addOnToggled(  (button) => ui.numbers(name,  "y" , button.getActive()?"true":"false"));
+		check_nums_top.addOnToggled((button) => ui.numbers(name, "top", button.getActive()?"true":"false"));
 
 		///////////////////////////////////////////////////////
-		check_overlay = new CheckButton("over-\nlay");
-		check_overlay.setActive(canvas.display_mode == DisplayMode.overlay);
+		//check_overlay = new CheckButton("over-\nlay");
+		//check_overlay.setActive(canvas.display_mode == DisplayMode.overlay);
 //		check_overlay.addOnToggled(
 //							delegate void(CheckOrToggleButton button) {
 //								fairy.ui.overlay(parent_window_name, button.getActive()?"true":"false");
 //							} );
 
-		check_colorbar = new CheckButton("col-\nbar");
+		check_colorbar = new CheckButton("colorbar");
 		check_colorbar.setActive(canvas.color_bar);
-//		check_colorbar.addOnToggled(
-//							delegate void(CheckOrToggleButton button) {
-//								plot_area.draw_area.draw_color_bar = button.getActive();
-//								plot_area.queueDraw();
-//							} );
-//		//plot_area.setGrid(cast(int)_spin_columns.getValue());
+		check_colorbar.addOnToggled( (button) => ui.colorbar(name, button.getActive()?"true":"false"));
 
 
-
-		radio_rowmajor = new CheckOrRadioButton("1 2\n3 4");
-		radio_colmajor = new CheckOrRadioButton("1 3\n2 4");
+		radio_overlay  = new CheckOrRadioButton("overlay");
+		radio_rowmajor = new CheckOrRadioButton("rows");
+		radio_colmajor = new CheckOrRadioButton("columns");
 		version(gtk3){ 
-			radio_colmajor.joinGroup(radio_rowmajor);
+			radio_colmajor.joinGroup(radio_overlay);
+			radio_rowmajor.joinGroup(radio_overlay);
 		} else {
-			radio_colmajor.setGroup(radio_rowmajor);
+			radio_colmajor.setGroup(radio_overlay);
+			radio_rowmajor.setGroup(radio_overlay);
 		}
+		if (canvas.display_mode == DisplayMode.overlay) radio_overlay.setActive(true);
 		if (canvas.display_mode == DisplayMode.rows)    radio_rowmajor.setActive(true);
 		if (canvas.display_mode == DisplayMode.columns) radio_colmajor.setActive(true);
-//		radio_rowmajor.addOnToggled(
-//			delegate void(CheckOrToggleButton button) {
-//				if (button.getActive()) {
-//					columns_label.setLabel("cols");
-//					fairy.ui.columns(parent_window_name, plot_area.draw_area.columns_or_rows);
-//				} else {
-//					columns_label.setLabel("rows");
-//					fairy.ui.rows(parent_window_name, plot_area.draw_area.columns_or_rows);
-//				}
-//			} );
+		radio_overlay.addOnToggled(delegate void(CheckOrToggleButton button) {	if (button.getActive()) ui.overlay(name); });
+		radio_rowmajor.addOnToggled(delegate void(CheckOrToggleButton button) {	if (button.getActive()) ui.rows   (name, cast(int)spin_n_columns.getValue); });
+		radio_colmajor.addOnToggled(delegate void(CheckOrToggleButton button) {	if (button.getActive()) ui.columns(name, cast(int)spin_n_columns.getValue); });
 
-
-		columns_label = new Label("cols");
-		if (canvas.display_mode == DisplayMode.rows) {
-			columns_label.setLabel("rows");
-		}
 		spin_n_columns = new SpinButton(1,50,1);
 		spin_n_columns.setValue(canvas.columns_or_rows);
-//		spin_n_columns.addOnValueChanged(
-//			delegate void(SpinButton button) {
-//				import std.stdio;
-//				auto value = cast(int)button.getValue();
-//				writeln(plot_area.draw_area.columns_or_rows, " <=> ", value);
-//				if (plot_area.draw_area.columns_or_rows != value) {
-//					if (radio_rowmajor.getActive()) {
-//						writeln("call columns");
-//						fairy.ui.columns(parent_window_name, value);
-//					} else {
-//						writeln("call rows");
-//						fairy.ui.rows(parent_window_name, value);
-//					}
-//				}
-//			} );
+		spin_n_columns.addOnValueChanged(
+			delegate void(SpinButton button) {
+				if (canvas.display_mode == DisplayMode.rows)    ui.rows   (name, cast(int)button.getValue);
+				if (canvas.display_mode == DisplayMode.columns) ui.columns(name, cast(int)button.getValue);
+			} );
 
 //		///////////////////////////////////////////////////////
 
@@ -1394,7 +1250,7 @@ class PlotWidget : Box {
 		///////////////////////////////////////////////
 		// add all controls into the Box Widget
 		///////////////////////////////////////////////
-		controls.append(check_auto_refresh);
+		controls.append(check_autorefresh);
 		controls.append(button_refresh);
 
 		//controls.append(new Separator(GtkOrientation.VERTICAL));
@@ -1452,13 +1308,18 @@ class PlotWidget : Box {
 		//controls.append(grid_nums_checks_z);
 		controls.append(grid_nums_checks_top);
 
-		controls.append(check_colorbar);
+		auto colorbar_overlay = new Box(GtkOrientation.VERTICAL, 0);
+		colorbar_overlay.append(check_colorbar);
+		colorbar_overlay.append(radio_overlay);
+		controls.append(colorbar_overlay);
 		controls.append(new Separator(GtkOrientation.VERTICAL));
-		controls.append(check_overlay);
-		controls.append(radio_rowmajor);
-		controls.append(radio_colmajor);
 		controls.append(spin_n_columns);
-		controls.append(columns_label);
+		auto row_col_radios = new Box(GtkOrientation.VERTICAL, 0);
+		row_col_radios.append(radio_rowmajor);
+		row_col_radios.append(radio_colmajor);
+		controls.append(row_col_radios);
+
+		//controls.append(columns_label);
 
 		controls.append(new Separator(GtkOrientation.VERTICAL));
 		controls.append(mouse_pos_box);
@@ -1472,7 +1333,7 @@ class PlotWidget : Box {
 //		check_autoscale_x.setActive(plot_area.draw_area.autoscale_x);
 //		check_autoscale_y.setActive(plot_area.draw_area.autoscale_y);
 //		check_autoscale_z.setActive(plot_area.draw_area.autoscale_z);
-//		check_auto_refresh.setActive(plot_area.draw_area.autorefresh);
+//		check_autorefresh.setActive(plot_area.draw_area.autorefresh);
 //		check_log_x.setActive(plot_area.draw_area.transform._logx);
 //		check_log_y.setActive(plot_area.draw_area.transform._logy);
 //		check_log_z.setActive(plot_area.draw_area.transform._logz);

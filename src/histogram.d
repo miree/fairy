@@ -564,20 +564,20 @@ public:
 			return false;
 		}
 		import std.algorithm;
-		double maximum = _bin_data[leftbin..rightbin].maxElement();
-		double minimum = _bin_data[leftbin..rightbin].minElement();
+		auto good_bins = _bin_data[leftbin..rightbin].filter!(bin=>bin !is double.init);
+		if (good_bins.empty) return false;
+		
+		double maximum = good_bins.maxElement();
+		double minimum = good_bins.minElement();
 
 		if (t[1].logscale) {
 			import std.stdio;
-			//writeln("bottom-top logscale y");
-			auto bins_larger_0 = _bin_data.filter!(x=>x>0.0);
+			auto bins_larger_0 = good_bins.filter!(x=>x>0.0);
 			double minimum_larger_0;
-			if (!bins_larger_0.empty) minimum_larger_0 = _bin_data.filter!(x=>x>0.0).minElement();
-			if (minimum_larger_0 is double.init) return false;
-			//writeln("min max = ", minimum, " " , maximum);
+			if (bins_larger_0.empty) return false;
+			minimum_larger_0 = _bin_data.filter!(x=>x>0.0).minElement();
 			bt[0] = t[1].log(minimum, minimum_larger_0/2.0);
 			bt[1] = t[1].log(maximum, minimum_larger_0/2.0);
-			//writeln("log(min) log(max) = ", bt[0], " " , bt[1]);
 			return true;
 		}
 		bt[0] = minimum;
@@ -689,7 +689,7 @@ d.set_color(1,0,0);
 	// draw horizontal part
 	xhist += bin_width;
 	x2 = t[0].world2canvas(t[0].log(xhist));
-	d.horizontal_line(y1, x1, x2);
+	if (y1 !is double.init) d.horizontal_line(y1, x1, x2);
 	import std.stdio;
 	//int color =1;
 	//d.set_color(color,0,0);
@@ -703,7 +703,7 @@ d.set_color(1,0,0);
 		import std.algorithm;
 		double y1d=y1, y2d=y2;
 		if (y2d<y1d) swap(y1d,y2d);
-		d.vertical_line(x2, y1d-0.5*d.get_line_width, y2d+0.5*d.get_line_width);
+		if (y1 !is double.init && y2 !is double.init) d.vertical_line(x2, y1d-0.5*d.get_line_width, y2d+0.5*d.get_line_width);
 		y1 = y2;
 
 		// draw horizontal part of next bin
@@ -711,7 +711,7 @@ d.set_color(1,0,0);
 		xhist += bin_width;
 		mipmap_idx += 1;
 		x2 = t[0].world2canvas(t[0].log(xhist));
-		d.horizontal_line(y2, x1, x2);
+		if (y2 !is double.init) d.horizontal_line(y2, x1, x2);
 		if (x2-x1 < d.get_line_width) { // need to switch to mipmap 
 			mipmap_level  = 0;
 
@@ -736,7 +736,7 @@ d.set_color(1,0,0);
 
 				import std.algorithm;
 				if (y2<y1) swap(y1,y2);
-				d.vertical_line(x1, y1-0.5*d.get_line_width, y2+0.5*d.get_line_width);
+				if (y1 !is double.init && y2 !is double.init) d.vertical_line(x1, y1-0.5*d.get_line_width, y2+0.5*d.get_line_width);
 
 				xhist += bin_width;
 				mipmap_idx += 1;

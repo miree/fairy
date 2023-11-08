@@ -96,6 +96,21 @@ struct Session {
 			throw new Exception("window with name \""~name~"\" already exists");
 		}
 	}
+	void close_window(string name) {
+		check_name_helper("window ", name);
+		if ((name in windows) !is null) {
+			windows.remove(name);
+			if (start_gui) {
+				if (main_gui !is null) {
+					main_gui.close_window(name);
+				}
+			}
+		} else {
+			throw new Exception("there is no window with name \""~name~"\"");
+		}
+
+	}
+
 	string list_windows() {
 		import std.algorithm, std.array, std.conv;
 		string result;
