@@ -322,35 +322,20 @@ void remove_window(string name) {
 // return false in case of timeout
 bool iterate(uint timeout_ms) {
 	import std.datetime;
-	return receiveTimeout(dur!"msecs"(timeout_ms),
-		&cmdline_Command,
-		&cmdline_Quit,
-		&cmdline_QuitWithError
+	import cmdline;
+	bool timeout = 
+	receiveTimeout(dur!"msecs"(timeout_ms),
+		&cmdline.handle_Command,
+		&cmdline.handle_Quit,
+		&cmdline.handle_QuitWithError
 	);	
-}
-
-//////////////////////////////////////////////////////////
-/// responses to messages from module cmdline
-//////////////////////////////////////////////////////////
-import cmdline;
-@trusted
-void cmdline_Command(cmdline.Command cmd) {
-	import std.stdio;
-	try {
-		import std.array: split;
-		auto tokens = cmd.command.split;
-		cmdline.run_with_args(tokens).writeln;
-	} catch (Exception e) {
-		writeln("Error: ", e.msg);
+	version(elderpt) {
+		import elderpt;
+		timeout |= receiveTimeout(dur!"msecs"(0),
+			&elderpt.handle_MsgHist1dCreate,
+			&elderpt.handle_MsgHist2dCreate
+		);
 	}
-
-	cmd.tid.send(cmdline.Continue());
+	return timeout;
 }
 
-void cmdline_Quit(cmdline.Quit q) {
-	running = false;	
-}
-
-void cmdline_QuitWithError(cmdline.QuitWithError qe) {
-	throw(new Exception(qe.msg, qe.file, qe.line));
-}

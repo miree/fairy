@@ -54,8 +54,8 @@ public:
 
 	void fill(double position, double value = 1.0) {
 		++item_version;
-		ulong idx = cast(ulong)(0.5+data.bins.length*(position - data.left)/(data.right-data.left));
-		import std.stdio; writeln("fill pos ", idx);
+		ulong idx = cast(ulong)(1.0*data.bins.length*(position - data.left)/(data.right-data.left));
+		//import std.stdio; writeln("fill pos ", idx);
 		     if (idx < 0)                 data.underflow += value;
 		else if (idx >= data.bins.length) data.overflow  += value;
 		else {
@@ -65,6 +65,13 @@ public:
 				data.bins[cast(uint)idx] += value;
 			} 
 		}
+	}
+
+	void set_bin(int bin, double value) {
+		if (bin >= 0 && bin < data.bins.length) {
+			++item_version;
+			data.bins[bin] = value;
+		} 
 	}
 
 	override ulong getVersion() {
@@ -144,8 +151,8 @@ public:
 	}
 
 	void fill(double position_x, double position_y, double value = 1.0) {
-		ulong idx_x = cast(ulong)(0.5+data.bins_x*(position_x - data.left)  /(data.right - data.left  ));
-		ulong idx_y = cast(ulong)(0.5+data.bins_y*(position_y - data.bottom)/(data.top   - data.bottom));
+		ulong idx_x = cast(ulong)(1.0*data.bins_x*(position_x - data.left)  /(data.right - data.left  ));
+		ulong idx_y = cast(ulong)(1.0*data.bins_y*(position_y - data.bottom)/(data.top   - data.bottom));
 		//import std.stdio; writeln("fill at idx_x ", idx_x, ":", _lower, " ", _data[idx], " ", _higher);
 		ulong quadrant = 0;
 		if (idx_x >= 0) quadrant += (idx_x < data.bins_x)?1:2;
@@ -160,6 +167,15 @@ public:
 			else                               data.bins[idx] += value;
 		}
 		++item_version;
+	}
+	void set_bin(int binx, int biny, double value) {
+		if (binx >= 0 && binx < data.bins_x) {
+			if (biny >= 0 && biny < data.bins_y) {
+				++item_version;
+				ulong idx = biny*data.bins_x+binx;
+				data.bins[idx] = value;
+			}
+		}
 	}
 
 	override Visualizer create_visualizer(BackendInterface backend) 

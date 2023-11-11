@@ -4,8 +4,11 @@ fairy: src/*.d
 allegro5: src/*.d
 	dmd -Isrc -i src/app.d -of=fairy -version=allegro5
 
+elderpt: src/*.d
+	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 -version=elderpt -L-L/home/michael/local/lib
+
 gtk3: src/*.d
-	ldc -Isrc -i src/app.d -of=fairy --d-version=gtk3 -I/usr/include/d/gtkd-3
+	ldc -Isrc -i src/app.d -of=fairy --d-version=gtk3 --d-version=elderpt -L-L/home/michael/local/lib -I/usr/include/d/gtkd-3
 
 minigui: src/*.d
 	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui

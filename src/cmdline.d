@@ -9,6 +9,34 @@ struct QuitWithError { string msg; string file; ulong line; }
 struct Quit {}
 struct Continue {};
 
+//////////////////////////////////////////////////////////
+/// responses to messages from module cmdline
+//////////////////////////////////////////////////////////
+@trusted
+void handle_Command(cmdline.Command cmd) {
+	import std.stdio;
+	try {
+		import std.array: split;
+		auto tokens = cmd.command.split;
+		cmdline.run_with_args(tokens).writeln;
+	} catch (Exception e) {
+		writeln("Error: ", e.msg);
+	}
+
+	cmd.tid.send(cmdline.Continue());
+}
+
+void handle_Quit(cmdline.Quit q) {
+	import fairy;
+	fairy.running = false;	
+}
+
+void handle_QuitWithError(cmdline.QuitWithError qe) {
+	throw(new Exception(qe.msg, qe.file, qe.line));
+}
+
+
+
 @trusted int wait_for_input() {
 	import core.sys.posix.poll : poll, pollfd, POLLIN;
 	import core.sys.posix.unistd : STDIN_FILENO;

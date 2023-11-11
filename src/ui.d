@@ -268,6 +268,24 @@ string show(string item_name, string window_name) {
 }
 
 
+version (elderpt) {
+@UI_EXPORT("control elderpt thread", 
+	["start pause stop auto",
+	 "elderpt configuration file"])
+@trusted
+string elderpt(string command = "auto", string config_file = "analysis.config") {
+	import std.concurrency;
+	import elderpt;
+	static bool running = false;
+	static Tid elderpt_tid;
+	if (!running && command == "auto") {
+		running = true;
+		elderpt_tid = spawn(&run_elderpt, thisTid, config_file);
+	}
+	return "";
+}
+
+}
 
 
 @UI_EXPORT("quit program")
