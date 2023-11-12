@@ -352,18 +352,19 @@ void handle_elderpt_MsgHist2dCreate(MsgHist2dCreate msg) {
 bool iterate(uint timeout_ms) {
 	import std.datetime;
 	import cmdline;
-	bool timeout = 
-	receiveTimeout(dur!"msecs"(timeout_ms),
+	bool got_cmd = false;
+
+	while (receiveTimeout(dur!"msecs"(timeout_ms),
 		&cmdline.handle_Command,
 		&cmdline.handle_Quit,
 		&cmdline.handle_QuitWithError
-	);	
+	)) { got_cmd = true; }	
 	version(elderpt) {
-		receiveTimeout(dur!"msecs"(0),
+		while (receiveTimeout(dur!"msecs"(0),
 			&handle_elderpt_MsgHist1dCreate,
 			&handle_elderpt_MsgHist2dCreate
-		);
+		)) {}
 	}
-	return timeout;
+	return got_cmd;
 }
 

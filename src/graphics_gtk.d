@@ -799,10 +799,10 @@ class ItemView : TreeView {
 			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(active));
 		}
 		if (treestore.getInt(iter, COLUMN_IS_ITEM)) {
-			import std.stdio;
-			writeln(active, " " , fullname);
+			//import std.stdio;
+			//writeln(active, " " , fullname);
 			import ui;
-			ui.show(fullname, main_window.name);//, fullname, active?"true":"false");
+			ui.show(fullname, main_window.name, active?"true":"false");
 		}
 		//// add or remove the visualizer from plotaera
 		//auto visualizer = runningSession.getVisualizerForItemName(fullname);

@@ -238,13 +238,14 @@ string wave(string name) {
 
 @UI_EXPORT("show item in window",
 	["name of item to display",
-	 "name of window on which the item should be shown"])
-string show(string item_name, string window_name) {
+	 "name of window on which the item should be shown",
+	 "true or false"])
+string show(string item_name, string window_name, string action = "true") {
 	import fairy;
 	import std.algorithm;
 	auto canvas = fairy.session.get_canvas(window_name);
 	auto visual = fairy.session.get_visual_item(item_name);
-	if (!canvas.itemnames.canFind(item_name)) { // add item
+	if (!canvas.itemnames.canFind(item_name) && action == "true") { // add item
 		canvas.itemnames ~= item_name;
 		if (canvas.itemnames.length==1) {
 			import std.stdio;
@@ -254,7 +255,7 @@ string show(string item_name, string window_name) {
 			//canvas.transform[1].logscale = false;
 			//canvas.transform[2].logscale = false;
 		}
-	} else { // remove item
+	} else if (action == "false") { // remove item
 		string[] itemnames;
 		foreach(item; canvas.itemnames) {
 			if (item != item_name) {
