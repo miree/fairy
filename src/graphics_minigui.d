@@ -88,8 +88,8 @@ private:
 public:
 	@trusted
 	this(string canvas_name, CanvasProperties *canvas_pointer) {
-		import std.stdio;
-		writeln("new minigui window with name ", canvas_name);
+		//import std.stdio;
+		//writeln("new minigui window with name ", canvas_name);
 		assert(canvas_pointer !is null);
 		canvas = canvas_pointer;
 		name = canvas_name;
