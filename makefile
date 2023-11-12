@@ -11,7 +11,7 @@ gtk3: src/*.d
 	ldc -Isrc -i src/app.d -of=fairy --d-version=gtk3 --d-version=elderpt -L-L/home/michael/local/lib -I/usr/include/d/gtkd-3
 
 minigui: src/*.d
-	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui
+	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui -version=elderpt  -L-L/home/michael/local/lib
 
 ldc-allegro5: src/*.d
 	ldc -O -release -Isrc -i src/app.d -of=fairy --d-version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color -L-lasound

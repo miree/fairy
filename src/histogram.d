@@ -77,6 +77,9 @@ public:
 	override ulong getVersion() {
 		return item_version;
 	}
+	override void overrideVersion(ulong new_version) {
+		item_version = new_version;
+	}
 
 	override Visualizer create_visualizer(BackendInterface backend) 
 	{
@@ -187,6 +190,9 @@ public:
 	override ulong getVersion() {
 		return item_version;
 	}
+	override void overrideVersion(ulong new_version) {
+		item_version = new_version;
+	}
 private:
 	ulong item_version = 0;
 	Data data;
@@ -220,6 +226,9 @@ class FileHistogram : Visual, Item {
 	override ulong getVersion() {
 		need_to_reload();
 		return item_version;
+	}
+	override void overrideVersion(ulong new_version) {
+		item_version = new_version;
 	}
 
 	// Visual Interface

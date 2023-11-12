@@ -40,18 +40,30 @@ struct Session {
 		}	
 	}
 
-	void add_item(string name, Item item) {
+	void add_item(string name, Item item, NameCollisionPolicy policy = NameCollisionPolicy.disallow) {
 		check_name_helper("item ", name);
 		if (start_gui) {
 			if (main_gui !is null) {
 				main_gui.add_item(name);
 			}
 		}
-		if ((name in items) is null) {
-			items[name] = ItemStore(item);
-		} else {
-			throw new Exception("item with name \""~name~"\" already exists");
+		if ((name in items) !is null) { // item already exists
+			final switch(policy) {
+				case NameCollisionPolicy.replace:
+					import std.stdio;
+					writeln("item " ~ name ~ " will be replaced");
+					auto old_visual = cast(Visual)(items[name].item); // visual items should inherit the version number
+					auto new_visual = cast(Visual)item;
+					if (old_visual !is null && new_visual !is null) {
+						new_visual.overrideVersion(old_visual.getVersion);
+					}
+				break;
+				case NameCollisionPolicy.disallow:
+					throw new Exception("item with name \""~name~"\" already exists");
+				break;
+			}
 		}
+		items[name] = ItemStore(item);
 	}
 	void remove_item(string name) {
 		check_name_helper("item ", name);
@@ -318,6 +330,23 @@ void remove_window(string name) {
 }
 
 
+version (elderpt) {
+
+import elderpt;
+@trusted
+void handle_elderpt_MsgHist1dCreate(MsgHist1dCreate msg) {
+	import item, histogram;
+	fairy.session.add_item(msg.name, cast(Hist1)msg.hist, NameCollisionPolicy.replace);
+}
+@trusted
+void handle_elderpt_MsgHist2dCreate(MsgHist2dCreate msg) {
+	import item, histogram;
+	fairy.session.add_item(msg.name, cast(Hist2)msg.hist, NameCollisionPolicy.replace);
+}
+
+}
+
+
 @trusted
 // return false in case of timeout
 bool iterate(uint timeout_ms) {
@@ -330,11 +359,13 @@ bool iterate(uint timeout_ms) {
 		&cmdline.handle_QuitWithError
 	);	
 	version(elderpt) {
-		import elderpt;
-		timeout |= receiveTimeout(dur!"msecs"(0),
-			&elderpt.handle_MsgHist1dCreate,
-			&elderpt.handle_MsgHist2dCreate
-		);
+		if (receiveTimeout(dur!"msecs"(0),
+			&handle_elderpt_MsgHist1dCreate,
+			&handle_elderpt_MsgHist2dCreate
+		)) { // main process receives a message from elder framewor
+			 // (no human interaction) -> no need to rewrite the input prompt "fairy>".
+			return false;
+		}
 	}
 	return timeout;
 }

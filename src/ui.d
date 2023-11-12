@@ -268,25 +268,6 @@ string show(string item_name, string window_name) {
 }
 
 
-version (elderpt) {
-@UI_EXPORT("control elderpt thread", 
-	["start pause stop auto",
-	 "elderpt configuration file"])
-@trusted
-string elderpt(string command = "auto", string config_file = "analysis.config") {
-	import std.concurrency;
-	import elderpt;
-	static bool running = false;
-	static Tid elderpt_tid;
-	if (!running && command == "auto") {
-		running = true;
-		elderpt_tid = spawn(&run_elderpt, thisTid, config_file);
-	}
-	return "";
-}
-
-}
-
 
 @UI_EXPORT("quit program")
 @trusted
@@ -594,8 +575,53 @@ string shell(string[] args) {
 	return execute(args).output;
 }
 
+//////////////////////////////////////
+// elderpt user interface
+//////////////////////////////////////
+version (elderpt) {
+
+@UI_EXPORT("control elderpt thread", 
+	["start pause continue stop",
+	 "elderpt configuration file"])
+@trusted
+string elderpt(string command, string config_file = "analysis.config") {
+	import elderpt;
+	import std.concurrency;
+	if (command == "start") {
+		if (elderpt.running) throw new Exception("elderpt already running");
+		elderpt.running = true;
+		elderpt.tid = spawn(&run_elderpt, thisTid, config_file);
+	}
+	if (command == "pause") {
+		if (!elderpt.running) throw new Exception("elderpt is not running");
+		if (elderpt.paused)   throw new Exception("elderpt is already paused");
+		elderpt.paused = true;
+		elderpt.tid.send(MsgPause());
+		receive((MsgAck msg) {});
+	}
+	if (command == "continue") {
+		if (!elderpt.running) throw new Exception("elderpt is not running");
+		if (!elderpt.paused)   throw new Exception("elderpt is not paused");
+		elderpt.paused = false;
+		elderpt.tid.send(MsgContinue());
+		receive((MsgAck msg) {});
+	}
+	if (command == "stop") {
+		if (!elderpt.running) throw new Exception("elderpt is not running");
+		elderpt.running = false;
+		elderpt.tid.send(MsgStop());
+		receive((MsgAck msg) {});
+	}
+	return "";
+}
+
+}
 
 
+
+//////////////////////////////////////
+// help command
+//////////////////////////////////////
 
 alias helper(alias T) = T;
 @UI_EXPORT("display help for exported functions", 

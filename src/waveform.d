@@ -67,6 +67,9 @@ public:
 	override ulong getVersion() {
 		return item_version;
 	}
+	override void overrideVersion(ulong new_version) {
+		item_version = new_version;
+	}
 	override Visualizer create_visualizer(BackendInterface backend)
 	{
 		return new WaveformVisualizer(item_version, d.data, d.N, d.left, d.right);

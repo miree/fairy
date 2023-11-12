@@ -4,10 +4,21 @@ module elderpt;
 pragma(lib, "elderpt-0.1");
 
 
-bool elder_item_added = false;
-
 import std.concurrency;
 Tid main_thread;
+
+bool running = false;
+bool paused  = false;
+Tid  tid;
+
+
+@trusted
+static ~this() {
+	if (running) {
+		tid.send(MsgStop());
+		receive((MsgAck msg) {});
+	}
+}
 
 
 // D bindings for the elderpt C interface
@@ -75,11 +86,12 @@ extern(C) int hist1d_create(const char *name,
 	main_thread.send(MsgHist1dCreate(itemname, cast(shared Hist1)(elder_histograms_1D[handle])));
 	return handle;
 }
-void handle_MsgHist1dCreate(MsgHist1dCreate msg) {
-	import fairy;
-	import std.stdio;
-	fairy.session.add_item(msg.name, cast(Hist1)msg.hist);
-}
+//void handle_MsgHist1dCreate(MsgHist1dCreate msg) {
+//	import fairy, item;
+//	import std.stdio;
+//	bool allow_replace = true;
+//	fairy.session.add_item(msg.name, cast(Hist1)msg.hist, NameCollisionPolicy.replace);
+//}
 
 extern(C) void hist1d_fill(int handle, double value) {
 	if (handle < elder_histograms_1D.length) {
@@ -123,11 +135,11 @@ extern(C) int hist2d_create(const char *name,
 	main_thread.send(MsgHist2dCreate(itemname, cast(shared Hist2)(elder_histograms_2D[handle])));
 	return handle;
 }
-void handle_MsgHist2dCreate(MsgHist2dCreate msg) {
-	import fairy;
-	import std.stdio;
-	fairy.session.add_item(msg.name, cast(Hist2)msg.hist);
-}
+//void handle_MsgHist2dCreate(MsgHist2dCreate msg) {
+//	import fairy, item;
+//	import std.stdio;
+//	fairy.session.add_item(msg.name, cast(Hist2)msg.hist, NameCollisionPolicy.replace);
+//}
 
 extern(C) void hist2d_fill(int handle, double value1, double value2) {
 	if (handle < elder_histograms_2D.length) {
@@ -561,9 +573,10 @@ class ElderPtWindow : ApplicationWindow
 	}
 }
 +/
-//struct MsgPause {}
-//struct MsgContinue {}
-//struct MsgStop {}
+struct MsgPause {}
+struct MsgContinue {}
+struct MsgStop {}
+struct MsgAck {}
 //struct MsgStopAck {} // sent in response to MsgStop
 //struct MsgEventsPerSecond {long events;}
 void run_elderpt(Tid main_thread_tid, string config_filename) {
@@ -590,21 +603,24 @@ void run_elderpt(Tid main_thread_tid, string config_filename) {
 	import std.datetime;
 
 	auto evt = elder_pt_event_create();
-	for (uint i;;++i) {
-		auto t = Clock.currTime;//.toUnixTime;
-						  //uint number,
-						  //uint type,
-						  //uint trigger,
-						  //uint time,
-						  //uint msec,
-						  //ulong timestamp);
-		uint time_secs = cast(uint)t.toUnixTime;
-		uint frac_msecs = 0;
-		uint timestamp = 0;
-		elder_pt_event_clear(evt, i, 1, 1, time_secs, frac_msecs, timestamp);
-		elder_pt_controller_clear(ctrl);
-		elder_pt_controller_unpack(ctrl, iface, evt);
-		elder_pt_controller_process(ctrl, iface);
+	bool paused = false;
+	bool stop = false;
+	for (uint i; ;++i) {
+		if (!paused) {
+			auto t = Clock.currTime;
+			uint time_secs = cast(uint)t.toUnixTime;
+			uint frac_msecs = 0;
+			uint timestamp = 0;
+			elder_pt_event_clear(evt, i, 1, 1, time_secs, frac_msecs, timestamp);
+			elder_pt_controller_clear(ctrl);
+			elder_pt_controller_unpack(ctrl, iface, evt);
+			elder_pt_controller_process(ctrl, iface);
+		}
+		receiveTimeout(paused?100.msecs:Duration.zero,
+			(MsgPause    msg) { paused = true;  main_thread.send(MsgAck()); },
+			(MsgContinue msg) { paused = false; main_thread.send(MsgAck()); },
+			(MsgStop     msg) { stop   = true;  main_thread.send(MsgAck()); });
+		if (stop) break;
 	}
 	elder_pt_event_destroy(evt);
 }

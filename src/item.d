@@ -17,3 +17,8 @@ struct ItemStore {
 	@SERIALIZE string type;
 	@SERIALIZE JSONValue data;
 }
+
+enum NameCollisionPolicy{
+	disallow,
+	replace
+}

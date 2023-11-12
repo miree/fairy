@@ -63,6 +63,7 @@ private int global_text_size = 20;
 interface Visual {
 	Visualizer create_visualizer(BackendInterface backend);
 	ulong getVersion();
+	void overrideVersion(ulong);
 }
 
 class Visualizer
