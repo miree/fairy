@@ -808,6 +808,7 @@ public:
 		_xlabel   = xlabel;
 		_ylabel   = ylabel;
 		_zlabel   = zlabel;
+		backend = d;
 
 		//getZminZmaxInLeftRightBottomTop(_zmin, _zmax, _left,_right, _bottom, _top, )
 		import std.algorithm;
@@ -831,6 +832,10 @@ public:
 		generate_rgb_data(_bin_data, _bins_x, _bins_y, _zmin, _zmax, _bins_x*2, bitmap_data, bitmap_data_log);
 		d.access_bitmap_done(bitmap_handle);
 		d.access_bitmap_done(bitmap_handle_log);
+	}
+	~this() {
+		backend.destroy_bitmap(bitmap_handle);
+		backend.destroy_bitmap(bitmap_handle_log);
 	}
 
 	double gen_color(in double height, in Transform[3] t) const {
@@ -1309,6 +1314,8 @@ private:
 	int     stride;
 	ubyte[] _rgb_data;
 	ubyte[] _log_rgb_data;
+
+	BackendInterface backend;
 
 	//import cairo.Pattern, gdk.Cairo;
 	//Pattern _image_surface_pattern;

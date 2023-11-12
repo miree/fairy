@@ -417,6 +417,7 @@ public:
 		return handle;
 	}
 	override void destroy_bitmap(ulong handle) {
+		al_destroy_bitmap(bitmaps[handle]);
 		bitmaps.remove(handle);
 	}
 	@trusted
