@@ -51,8 +51,8 @@ struct Session {
 			final switch(policy) {
 				case NameCollisionPolicy.replace:
 					import std.stdio;
-					writeln("item " ~ name ~ " will be replaced");
-					auto old_visual = cast(Visual)(items[name].item); // visual items should inherit the version number
+					// visual items should inherit the version number
+					auto old_visual = cast(Visual)(items[name].item); 
 					auto new_visual = cast(Visual)item;
 					if (old_visual !is null && new_visual !is null) {
 						new_visual.overrideVersion(old_visual.getVersion);
@@ -359,13 +359,10 @@ bool iterate(uint timeout_ms) {
 		&cmdline.handle_QuitWithError
 	);	
 	version(elderpt) {
-		if (receiveTimeout(dur!"msecs"(0),
+		receiveTimeout(dur!"msecs"(0),
 			&handle_elderpt_MsgHist1dCreate,
 			&handle_elderpt_MsgHist2dCreate
-		)) { // main process receives a message from elder framewor
-			 // (no human interaction) -> no need to rewrite the input prompt "fairy>".
-			return false;
-		}
+		);
 	}
 	return timeout;
 }

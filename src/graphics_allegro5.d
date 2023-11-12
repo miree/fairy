@@ -69,7 +69,7 @@ class Allegro5Gui : Gui {
 		font = fonts[default_font_size];
 
 
-		auto timeout_timer = al_create_timer(0.050);
+		auto timeout_timer = al_create_timer(0.10);
 		al_register_event_source(queue, al_get_timer_event_source(timeout_timer));
 		al_start_timer(timeout_timer);
 
@@ -89,94 +89,104 @@ class Allegro5Gui : Gui {
 		while(fairy.running) {
 			ALLEGRO_EVENT event;
 			al_wait_for_event(queue, &event);
+			{
+			//while (al_get_next_event(queue, &event)) {
 
-			if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) 
-			{
-				auto window = MainWindow.main_windows[event.display.source];
-				window.close_window();
-			} 
-			else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE) 
-			{
-				auto window = MainWindow.main_windows[event.display.source];
-				al_acknowledge_resize(event.display.source);
-				window.resize(event.display.width, event.display.height);
+				if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) 
+				{
+					auto window = MainWindow.main_windows[event.display.source];
+					import ui;
+					ui.close(window.name);
+					//window.close_window();
+				} 
+				else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE) 
+				{
+					auto window = MainWindow.main_windows[event.display.source];
+					al_acknowledge_resize(event.display.source);
+					window.resize(event.display.width, event.display.height);
 
-				window.need_redraw();
-			} 
-			else if (event.type == ALLEGRO_EVENT_DISPLAY_EXPOSE) 
-			{
-				auto window = MainWindow.main_windows[event.display.source];
-				window.need_redraw();
-			} 
-			else if (event.type == ALLEGRO_EVENT_KEY_DOWN) {
-				auto window = MainWindow.main_windows[event.keyboard.display];
-				int key = event.keyboard.keycode;
-				window.keypress(key);
-				if (key == ALLEGRO_KEY_SPACE) {
-					window.space_pressed = true;
+					window.need_redraw();
+				} 
+				else if (event.type == ALLEGRO_EVENT_DISPLAY_EXPOSE) 
+				{
+					auto window = MainWindow.main_windows[event.display.source];
+					window.need_redraw();
+				} 
+				else if (event.type == ALLEGRO_EVENT_KEY_DOWN) {
+					auto window = MainWindow.main_windows[event.keyboard.display];
+					int key = event.keyboard.keycode;
+					window.keypress(key);
+					if (key == ALLEGRO_KEY_SPACE) {
+						window.space_pressed = true;
+						window.need_redraw();
+					}
+				}
+				else if (event.type == ALLEGRO_EVENT_KEY_UP) {
+					auto window = MainWindow.main_windows[event.keyboard.display];
+					int key = event.keyboard.keycode;
+					if (key == ALLEGRO_KEY_SPACE) window.space_pressed = false;
 					window.need_redraw();
 				}
-			}
-			else if (event.type == ALLEGRO_EVENT_KEY_UP) {
-				auto window = MainWindow.main_windows[event.keyboard.display];
-				int key = event.keyboard.keycode;
-				if (key == ALLEGRO_KEY_SPACE) window.space_pressed = false;
-				window.need_redraw();
-			}
-			else if (event.type == ALLEGRO_EVENT_TIMER) 
-			{
-				foreach(display, window; MainWindow.main_windows) {
-					import std.datetime.stopwatch;
-					if (window.canvas.autorefresh) {
-						import ui;
-						winrefresh(window.name);
-					}
-					if (window.redraw_scheduled && window.time_since_last_redraw.peek() > msecs(20)) {
-						window.initialize();
-						window.draw();
+				else if (event.type == ALLEGRO_EVENT_TIMER) 
+				{
+					foreach(display, ref window; MainWindow.main_windows) {
+						import std.datetime;
+						if (window.canvas.autorefresh && (Clock.currTime - window.time_of_last_refresh) > msecs(100)) {
+							window.time_of_last_refresh = Clock.currTime;
+							window.canvas.refresh = true;
+							window.redraw_scheduled = true;
+						}
 					}
 				}
-			}
-			else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) 
-			{
-				auto window = MainWindow.main_windows[event.mouse.display];
-				import std.stdio;
-				if (event.mouse.button == 1) {
-					window.painter.left_button_pressed(1, event.mouse.x, event.mouse.y);
-				} else if (event.mouse.button == 2) { // right button
-					window.painter.right_button_pressed(1, event.mouse.x, event.mouse.y);
-				} else if (event.mouse.button == 3) { // middle button
-					window.painter.mid_button_pressed(1, event.mouse.x, event.mouse.y, window);
-				}
-			} 
-			else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP) 
-			{
-				auto window = MainWindow.main_windows[event.mouse.display];
-				import std.stdio;
-				if (event.mouse.button == 1) {
-					window.painter.left_button_released(1, event.mouse.x, event.mouse.y);
-				} else if (event.mouse.button == 2) { // right button
-					window.painter.right_button_released(1, event.mouse.x, event.mouse.y);
-				} else if (event.mouse.button == 3) { // middle button
-					window.painter.mid_button_released(1, event.mouse.x, event.mouse.y);
-				}
-			} 
-			else if (event.type == ALLEGRO_EVENT_MOUSE_AXES) 
-			{
-				auto window = MainWindow.main_windows[event.mouse.display];
-				if (event.mouse.dx || event.mouse.dy) {
-					window.painter.mouse_motion(event.mouse.x, event.mouse.y, window);
-				}
-				if (event.mouse.dz || event.mouse.dw) {
-					window.painter.scroll(-event.mouse.dw,   // w-axis is left right
-						                 -event.mouse.dz    // z-axis is up down (normal mouse wheel movement)
-						                 );
-				}
+				else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) 
+				{
+					auto window = MainWindow.main_windows[event.mouse.display];
+					import std.stdio;
+					if (event.mouse.button == 1) {
+						window.painter.left_button_pressed(1, event.mouse.x, event.mouse.y);
+					} else if (event.mouse.button == 2) { // right button
+						window.painter.right_button_pressed(1, event.mouse.x, event.mouse.y);
+					} else if (event.mouse.button == 3) { // middle button
+						window.painter.mid_button_pressed(1, event.mouse.x, event.mouse.y, window);
+					}
+				} 
+				else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP) 
+				{
+					auto window = MainWindow.main_windows[event.mouse.display];
+					import std.stdio;
+					if (event.mouse.button == 1) {
+						window.painter.left_button_released(1, event.mouse.x, event.mouse.y);
+					} else if (event.mouse.button == 2) { // right button
+						window.painter.right_button_released(1, event.mouse.x, event.mouse.y);
+					} else if (event.mouse.button == 3) { // middle button
+						window.painter.mid_button_released(1, event.mouse.x, event.mouse.y);
+					}
+				} 
+				else if (event.type == ALLEGRO_EVENT_MOUSE_AXES) 
+				{
+					auto window = MainWindow.main_windows[event.mouse.display];
+					if (event.mouse.dx || event.mouse.dy) {
+						window.painter.mouse_motion(event.mouse.x, event.mouse.y, window);
+					}
+					if (event.mouse.dz || event.mouse.dw) {
+						window.painter.scroll(-event.mouse.dw,   // w-axis is left right
+							                 -event.mouse.dz    // z-axis is up down (normal mouse wheel movement)
+							                 );
+					}
 
-			} 
+				} 
+			}
+
+			foreach(display, ref window; MainWindow.main_windows) {
+				import std.datetime;
+				if (window.redraw_scheduled && (Clock.currTime - window.time_of_last_redraw) > msecs(100)) {
+					window.initialize();
+					window.draw();
+				}
+			}
+
 
 			if (fairy.iterate(0)) {
-
 				import std.stdio;
 				stdout.write("fairy> ");
 				stdout.flush();
@@ -209,6 +219,11 @@ private:
 	string name;
 
 	bool redraw_scheduled = false;
+
+	import std.datetime;
+	SysTime time_of_last_redraw;
+	SysTime time_of_last_refresh;
+
 
 public:
 
@@ -245,7 +260,8 @@ public:
 
 		draw();
 
-		time_since_last_redraw.start();
+		time_of_last_redraw  = Clock.currTime;
+		time_of_last_refresh = Clock.currTime;
 	}
 
 	void need_redraw() {
@@ -255,22 +271,25 @@ public:
 	void draw() {
 		al_set_target_bitmap(al_get_backbuffer(display));
 		painter.draw_content();
-		time_since_last_redraw.reset();
+		time_of_last_redraw  = Clock.currTime;
 		redraw_scheduled = false;
 	}
 
 	void resize(int w, int h) {
 		canvas.width = w;
 		canvas.height = h;
-		//area.resize(w,h);
 	}
 
 	void close_window() {
 		import ui;
 		import fairy;
+		if (display is null) {
+			return;
+		}
 		al_unregister_event_source(queue, al_get_display_event_source(display));
 		al_destroy_display(display);
 		main_windows.remove(display);
+		display = null;
 	}
 
 	////////////////////////////////////////
@@ -323,8 +342,8 @@ public:
 		return true;
 	}
 	override void initialize() {
-		al_set_target_bitmap(al_get_backbuffer(display));
-		set_text_size(default_font_size);
+		//al_set_target_bitmap(al_get_backbuffer(display));
+		//set_text_size(default_font_size);
 	}
 
 	override void reset_clip() {
@@ -500,8 +519,6 @@ public:
 		al_get_text_dimensions(font, str.toStringz, &xi, &yi, &wi, &hi);
 		al_draw_text(font, color, x+text_margin_x, y-yi-hi-text_margin_y, ALLEGRO_ALIGN_LEFT, str.toStringz); 
 	}
-	import std.datetime.stopwatch;
-	StopWatch time_since_last_redraw;
 	override void show_mouse_pos(double x, double y, double z) {
 		import std.stdio;
 		mouse_x = x;

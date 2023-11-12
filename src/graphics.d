@@ -288,8 +288,6 @@ struct CanvasPainter {
 		auto old = canvas.transform[0];
 		double left,right;
 		foreach(name, ref vis; visualizers) {
-			import std.stdio;
-			writeln("fit_content_x ", name);
 			double[2] lr; 
 			if (!vis.get_leftright(lr,canvas.transform)) continue;
 			left =(left  is double.init)?lr[0]:min(left,lr[0]);
