@@ -1465,6 +1465,7 @@ class PlotArea :  DrawingArea, BackendInterface {
 	//}
 	struct Bitmap {
 		uint[] data;
+		ImageSurface surface;
 		Pattern pattern;
 		int w,h;
 		int stride;
@@ -1483,16 +1484,18 @@ class PlotArea :  DrawingArea, BackendInterface {
 		bmp.h = h;
 		bmp.stride = stride;		
 
-		auto image_surface = ImageSurface.createForData(cast(ubyte*)bmp.data.ptr, CairoFormat.ARGB32, w, h, stride);
-		auto image_surface_pattern = Pattern.createForSurface(image_surface);
-		image_surface_pattern.setFilter(CairoFilter.NEAREST);
+		bmp.surface = ImageSurface.createForData(cast(ubyte*)bmp.data.ptr, CairoFormat.ARGB32, w, h, stride);
+		bmp.pattern = Pattern.createForSurface(bmp.surface);
+		bmp.pattern.setFilter(CairoFilter.NEAREST);
 
-		bmp.pattern = image_surface_pattern;
 		bitmaps[handle] = bmp;
 		return handle;
 	}
 	override void   destroy_bitmap(ulong handle) {
 		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+
+		bitmaps[handle].pattern.destroy;
+		bitmaps[handle].surface.destroy;
 		bitmaps.remove(handle);
 	}
 	@trusted
