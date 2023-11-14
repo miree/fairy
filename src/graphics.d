@@ -61,7 +61,7 @@ void set_global_text_size(int size) {
 private int global_text_size = 20;
 
 interface Visual {
-	Visualizer create_visualizer(BackendInterface backend);
+	Visualizer create_visualizer(BackendInterface backend, Visualizer old = null);
 	ulong getVersion();
 	void overrideVersion(ulong);
 }
@@ -388,7 +388,7 @@ struct CanvasPainter {
 					visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
 				} else if (canvas.refresh) {
 					if (visualizers[itemname].getVersion < fairy.session.get_visual_item(itemname).getVersion) {
-						visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
+						visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend, visualizers[itemname]);
 					}
 				}
 				items_with_visualizer ~= itemname;
@@ -671,7 +671,8 @@ struct CanvasPainter {
 		//writeln("right click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
 		double x_world = mouse_transform[0].canvas2world(x);
 		//writeln("x:", x, " y:",y, "  x_world:",x_world, " y_world:",y_world);	
-		if (x_world <= mouse_transform[0].max && 
+		if (canvas.color_bar &&
+			x_world <= mouse_transform[0].max && 
 			x_world >= mouse_transform[0].max - mouse_transform[0].width*canvas.color_key_width) {
 			//writeln("right click in z-colorbar");
 			canvas.transform[2].scale_start(y, canvas.rows, canvas.height, true);
@@ -701,7 +702,8 @@ struct CanvasPainter {
 		import std.stdio;
 		//writeln("middle click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
 		double x_world = mouse_transform[0].canvas2world(x);
-		if (x_world <= mouse_transform[0].max && 
+		if (canvas.color_bar &&
+			x_world <= mouse_transform[0].max && 
 			x_world >= mouse_transform[0].max - mouse_transform[0].width*canvas.color_key_width) {
 			if (backend.inverted_y_direction) canvas.transform[2].translate_start(-y/(canvas.height/canvas.rows), canvas.rows, canvas.height);
 			else                              canvas.transform[2].translate_start(y/(canvas.height/canvas.rows), canvas.rows, canvas.height);

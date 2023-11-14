@@ -580,6 +580,10 @@ struct MsgAck {}
 //struct MsgStopAck {} // sent in response to MsgStop
 //struct MsgEventsPerSecond {long events;}
 void run_elderpt(Tid main_thread_tid, string config_filename) {
+
+	elder_histograms_2D_count = 0;
+	elder_histograms_1D_count = 0;
+
 	import std.datetime;
 	main_thread = main_thread_tid;
 
@@ -592,8 +596,6 @@ void run_elderpt(Tid main_thread_tid, string config_filename) {
 	void *ctrl = elder_pt_controller_create(name.ptr, iface);
 
 	scope(exit) { // clean up
-		import std.stdio;
-		writeln("run elderpt -> scope(exit): destroy ctrl and iface");
 		elder_pt_controller_destroy(ctrl);
 		ctrl = null;
 		elder_pt_interface_destroy(iface);

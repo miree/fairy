@@ -81,9 +81,9 @@ public:
 		item_version = new_version;
 	}
 
-	override Visualizer create_visualizer(BackendInterface backend) 
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) 
 	{
-		return new Hist1Visualizer(item_version, data.bins, data.left, data.right);
+		return new Hist1Visualizer(old, item_version, data.bins, data.left, data.right);
 	}
 private:
 	Data data;
@@ -181,9 +181,9 @@ public:
 		}
 	}
 
-	override Visualizer create_visualizer(BackendInterface backend) 
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) 
 	{
-		return new Hist2Visualizer(item_version, backend, data.bins, 
+		return new Hist2Visualizer(old, item_version, backend, data.bins, 
 								   data.bins_x, data.bins_y, 
 								   data.left, data.right, data.bottom, data.top);
 	}
@@ -232,13 +232,13 @@ class FileHistogram : Visual, Item {
 	}
 
 	// Visual Interface
-	override Visualizer create_visualizer(BackendInterface backend) {
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) {
 		HistData hist_data = read_file(data.filename);
 		switch(hist_data.dim) {
-			case 1: return new Hist1Visualizer(item_version, hist_data.data, hist_data.left, hist_data.right);
+			case 1: return new Hist1Visualizer(old, item_version, hist_data.data, hist_data.left, hist_data.right);
 			break;
 			case 2: 
-				return new Hist2Visualizer(item_version, backend, hist_data.data, 
+				return new Hist2Visualizer(old, item_version, backend, hist_data.data, 
 										   hist_data.bins_x, hist_data.bins_y, 
 										   hist_data.left, hist_data.right, hist_data.bottom, hist_data.top);
 			break;
@@ -473,7 +473,7 @@ class Hist1Visualizer : Visualizer
 public:
 
 	import std.stdio;
-	this(ulong itemversion,/+ulong colorIdx, +/double[] data, double left, double right)//, string xlabel = null, string ylabel = null)
+	this(Visualizer old, ulong itemversion,/+ulong colorIdx, +/double[] data, double left, double right)//, string xlabel = null, string ylabel = null)
 	{
 		//writeln("Hist1Visualizer constructor ", left, " ", right);
 		ulong dim;
@@ -790,15 +790,22 @@ class Hist2Visualizer : Visualizer
 public:
 
 	//import cairo.Pattern, gdk.Cairo;
-	@trusted this(ulong itemversion, BackendInterface d,/*ulong colorIdx,*/ double[] data, 
+	@trusted this(Visualizer old, ulong itemversion, BackendInterface d,/*ulong colorIdx,*/ double[] data, 
 		ulong width, ulong height, 
 		double left, double right, double bottom, double top,
 		string xlabel = null, string ylabel = null, string zlabel = null)
 	{
+		auto old_hist2 = cast(Hist2Visualizer)old;
 		import std.stdio;
 		ulong dim;
 		super(itemversion, dim=2);
-		_bin_data = data.dup;
+		// recycle the memory if it has the same length
+		if (old_hist2 !is null && data.length == old_hist2._bin_data.length) {
+			_bin_data = old_hist2._bin_data;
+			_bin_data[] = data[];
+		} else {
+			_bin_data = data.dup;
+		}
 		_bins_x   = width;
 		_bins_y   = height;
 		_left     = left;
@@ -823,9 +830,16 @@ public:
 		//import std.stdio;
 		//writeln(_bin_data);
 		//writeln(_zmin, " <<< ", _zmax);
+		if (old_hist2 !is null && data.length == old_hist2._bin_data.length) {
+			bitmap_handle = old_hist2.bitmap_handle;
+			old_hist2.bitmap_handle = 0;
+			bitmap_handle_log = old_hist2.bitmap_handle_log;
+			old_hist2.bitmap_handle_log = 0;
+		} else {
+			bitmap_handle          = d.create_bitmap(cast(int)_bins_x*2, cast(int)_bins_y*2);
+			bitmap_handle_log      = d.create_bitmap(cast(int)_bins_x*2, cast(int)_bins_y*2);
 
-		bitmap_handle     = d.create_bitmap(cast(int)_bins_x*2, cast(int)_bins_y*2);
-		bitmap_handle_log = d.create_bitmap(cast(int)_bins_x*2, cast(int)_bins_y*2);
+		}
 		uint[] bitmap_data     = d.access_bitmap_data(bitmap_handle);
 		uint[] bitmap_data_log = d.access_bitmap_data(bitmap_handle_log);
 		//assert(bitmap_data.length == _bin_data.length);
@@ -834,8 +848,8 @@ public:
 		d.access_bitmap_done(bitmap_handle_log);
 	}
 	~this() {
-		backend.destroy_bitmap(bitmap_handle);
-		backend.destroy_bitmap(bitmap_handle_log);
+		if (bitmap_handle)     backend.destroy_bitmap(bitmap_handle);
+		if (bitmap_handle_log) backend.destroy_bitmap(bitmap_handle_log);
 	}
 
 	double gen_color(in double height, in Transform[3] t) const {
