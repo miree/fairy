@@ -924,9 +924,9 @@ public:
 					auto source2_idx  = (y)*stride + (old_xoffset+x*2+1);
 
 					*cast(uint*)&log_rgb_data[cast(uint)rgb_data_idx] = ((0xfefefefeL & log_rgb_data[cast(uint)source1_idx])+
-						                                       (0xfefefefeL & log_rgb_data[cast(uint)source2_idx]))>>1;
+					                                                     (0xfefefefeL & log_rgb_data[cast(uint)source2_idx]))>>1;
 					*cast(uint*)&rgb_data[cast(uint)rgb_data_idx]     = ((0xfefefefeL & rgb_data[cast(uint)source1_idx])+
-						                                       (0xfefefefeL & rgb_data[cast(uint)source2_idx]))>>1;
+					                                                     (0xfefefefeL & rgb_data[cast(uint)source2_idx]))>>1;
 
 				}
 				old_xoffset = xoffset;
@@ -947,9 +947,9 @@ public:
 					auto source2_idx  = (old_yoffset+y*2+1)*stride + (x);
 
 					*cast(uint*)&log_rgb_data[cast(uint)rgb_data_idx] = ((0xfefefefeL & log_rgb_data[cast(uint)source1_idx])+
-						                                       (0xfefefefeL & log_rgb_data[cast(uint)source2_idx]))>>1;
+					                                                     (0xfefefefeL & log_rgb_data[cast(uint)source2_idx]))>>1;
 					*cast(uint*)&rgb_data[cast(uint)rgb_data_idx]     = ((0xfefefefeL & rgb_data[cast(uint)source1_idx])+
-						                                       (0xfefefefeL & rgb_data[cast(uint)source2_idx]))>>1;
+					                                                     (0xfefefefeL & rgb_data[cast(uint)source2_idx]))>>1;
 				}
 				int  old_xoffset = 0;
 				auto xoffset = cast(int)width;
@@ -962,9 +962,9 @@ public:
 						auto source2_idx  = (old_yoffset+y*2+1)*stride + (old_xoffset+x*2+1);
 
 						*cast(uint*)&log_rgb_data[cast(uint)rgb_data_idx] = ((0xfefefefeL & log_rgb_data[cast(uint)source1_idx])+
-							                                       (0xfefefefeL & log_rgb_data[cast(uint)source2_idx]))>>1;
+						                                                     (0xfefefefeL & log_rgb_data[cast(uint)source2_idx]))>>1;
 						*cast(uint*)&rgb_data[cast(uint)rgb_data_idx]     = ((0xfefefefeL & rgb_data[cast(uint)source1_idx])+
-							                                       (0xfefefefeL & rgb_data[cast(uint)source2_idx]))>>1;
+						                                                     (0xfefefefeL & rgb_data[cast(uint)source2_idx]))>>1;
 					}
 					old_xoffset = xoffset;
 					xoffset += deltaxoffset;

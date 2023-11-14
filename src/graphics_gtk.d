@@ -1493,7 +1493,7 @@ class PlotArea :  DrawingArea, BackendInterface {
 	}
 	override void   destroy_bitmap(ulong handle) {
 		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
-
+		bitmaps[handle].data = null;
 		bitmaps[handle].pattern.destroy;
 		bitmaps[handle].surface.destroy;
 		bitmaps.remove(handle);
@@ -1505,10 +1505,11 @@ class PlotArea :  DrawingArea, BackendInterface {
 	}
 	override void    access_bitmap_done(ulong handle) {
 		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
-		auto image_surface = ImageSurface.createForData(cast(ubyte*)bitmaps[handle].data.ptr, CairoFormat.ARGB32, bitmaps[handle].w, bitmaps[handle].h, bitmaps[handle].stride);
-		auto image_surface_pattern = Pattern.createForSurface(image_surface);
-		image_surface_pattern.setFilter(CairoFilter.NEAREST);
-		bitmaps[handle].pattern = image_surface_pattern;
+		bitmaps[handle].surface.destroy;
+		bitmaps[handle].pattern.destroy;
+		bitmaps[handle].surface = ImageSurface.createForData(cast(ubyte*)bitmaps[handle].data.ptr, CairoFormat.ARGB32, bitmaps[handle].w, bitmaps[handle].h, bitmaps[handle].stride);
+		bitmaps[handle].pattern = Pattern.createForSurface(bitmaps[handle].surface);
+		bitmaps[handle].pattern.setFilter(CairoFilter.NEAREST);
 	}
 	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
 		                                  double dx, double dy, double dw, double dh) {

@@ -516,7 +516,7 @@ struct CanvasPainter {
 					canvas.transform[0].update_coefficients(column, columns, canvas.width);
 					canvas.transform[1].update_coefficients(row,    rows,    canvas.height , backend.inverted_y_direction);
 					canvas.transform[2].update_coefficients(0, 1, 1);
-					grid_transforms[idx] = canvas.transform;
+					grid_transforms[idx][] = canvas.transform[];
 					double x1 =      column  * cast(double)canvas.width  / columns;
 					double y1 =         row  * cast(double)canvas.height / rows;
 					double x2 = (1.0+column) * cast(double)canvas.width  / columns;
@@ -574,8 +574,6 @@ struct CanvasPainter {
 		mouse_pos_x = x;
 		mouse_pos_y = y;
 
-		import std.stdio;
-		//write("motion ", x, " ", y, "  "); 
 		// determine mouse position and update the mouse_pos label
 		string mouse_itemname = null;
 		foreach( idx, transform ; grid_transforms) {
@@ -584,10 +582,8 @@ struct CanvasPainter {
 			double y_world = transform[1].canvas2world(y);
 			double z_world = transform[2].canvas2world((y_world - transform[1].min)/transform[1].width);
 
-			if (x_world > canvas.transform[0].min && x_world < canvas.transform[0].max &&
-				y_world > canvas.transform[1].min && y_world < canvas.transform[1].max) {
-
-				//writeln("mouse_transfrom idx = ", idx);
+			if (x_world > transform[0].min && x_world < transform[0].max &&
+				y_world > transform[1].min && y_world < transform[1].max) {
 
 				mouse_transform = transform;
 				if (canvas.transform[0].logscale) {
