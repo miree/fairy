@@ -609,8 +609,9 @@ void run_elderpt(Tid main_thread_tid, string config_filename) {
 		if (!paused) {
 			auto t = Clock.currTime;
 			uint time_secs = cast(uint)t.toUnixTime;
-			uint frac_msecs = 0;
+			auto timeval = t.toTimeVal;
 			uint timestamp = 0;
+			uint frac_msecs = cast(uint)(timeval.tv_usec/1e3);
 			elder_pt_event_clear(evt, i, 1, 1, time_secs, frac_msecs, timestamp);
 			elder_pt_controller_clear(ctrl);
 			elder_pt_controller_unpack(ctrl, iface, evt);
