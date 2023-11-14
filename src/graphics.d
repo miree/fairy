@@ -337,14 +337,15 @@ struct CanvasPainter {
 		double right= canvas.transform[0].max;
 		double bottom = canvas.transform[1].min;
 		double top    = canvas.transform[1].max;
+		int i = 0;
 		foreach(ref vis; visualizers.byValue) {
 			double[2] z12;
 			if (!vis.get_zminmax_in_leftright_bottomtop(z12, [left,right], [bottom,top], canvas.transform)) continue;
 			double z1 = z12[0];
 			double z2 = z12[1];
 			//import std.stdio; writeln("inside fit_content_z ", z1," " ,z2);
-			zmin = (z1 is double.init)?z1:(zmin is double.init)?z1:min(zmin,z1);
-			zmax = (z2 is double.init)?z2:(zmax is double.init)?z2:min(zmax,z2);
+			zmin = (zmin is double.init)?z1:(zmin is double.init)?z1:min(zmin,z1);
+			zmax = (zmax is double.init)?z2:(zmax is double.init)?z2:max(zmax,z2);
 		}
 		//import std.stdio; writeln("inside fit_content_z ", z1," " ,z2);
 		if (zmin !is double.init && zmax !is double.init) {
