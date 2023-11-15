@@ -288,6 +288,10 @@ void loop(string[] args) {
 				import graphics_minigui;
 				main_gui = new MiniGui;
 			}
+			else version(minigui_gl) {
+				import graphics_minigui_gl;
+				main_gui = new MiniGuiGL;
+			}
 			else {
 				stdout.writeln("Error: no graphics back-end available");
 				start_gui = false;
