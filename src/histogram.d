@@ -516,7 +516,10 @@ public:
 			//	d.fill();
 			//}
 			double line_width = 2.0;
-			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width);
+			d.set_color(1.0,0.5,0.5);
+			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
+			d.set_color(1.0,0.0,0.0);
+			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, false);
 		} catch(Exception e) {
 			import std.stdio;
 			writeln ("there was an Exception: ", e.file, ":", e.line, " -> ", e.msg, "\r");
@@ -675,7 +678,7 @@ private: // state
 }
 
 import transform;
-void drawMixedHistogram(T, MinMax)(BackendInterface d, Transform[3] t, double min, double max, immutable(T[]) bins, immutable(MinMax[][]) mipmap, double line_width) {
+void drawMixedHistogram(T, MinMax)(BackendInterface d, Transform[3] t, double min, double max, immutable(T[]) bins, immutable(MinMax[][]) mipmap, double line_width, bool filled = true) {
 	if (bins is null) {
 		import std.stdio;
 		writeln("********************   drawHistogram bins is null\r");
@@ -693,8 +696,8 @@ void drawMixedHistogram(T, MinMax)(BackendInterface d, Transform[3] t, double mi
 	}
 	d.set_line_width(line_width);
 
-d.set_line_width(2);
-d.set_color(1,0,0);
+//d.set_line_width(2);
+//d.set_color(1,0,0);
 
 	double bin_width = (max-min)/bins.length;
 
@@ -711,10 +714,14 @@ d.set_color(1,0,0);
 	double x1,x2, y1,y2;
 	x1 = t[0].world2canvas(t[0].log(xhist));
 	y1 = t[1].world2canvas(t[1].log(bins[idx_start]));
+	double y0 = t[1].world2canvas(t[1].log(0));
 	// draw horizontal part
 	xhist += bin_width;
 	x2 = t[0].world2canvas(t[0].log(xhist));
-	if (y1 !is double.init) d.horizontal_line(y1, x1, x2);
+	if (y1 !is double.init) {
+		if (filled) { d.rectangle(x1,y0,x2+1,y1); d.fill();}
+		else 		{ d.horizontal_line(y1, x1, x2); d.stroke();}
+	}
 	import std.stdio;
 	//int color =1;
 	//d.set_color(color,0,0);
@@ -728,7 +735,7 @@ d.set_color(1,0,0);
 		import std.algorithm;
 		double y1d=y1, y2d=y2;
 		if (y2d<y1d) swap(y1d,y2d);
-		if (y1 !is double.init && y2 !is double.init) d.vertical_line(x2, y1d-0.5*d.get_line_width, y2d+0.5*d.get_line_width);
+		if (y1 !is double.init && y2 !is double.init && !filled) d.vertical_line(x2, y1d-0.5*d.get_line_width, y2d+0.5*d.get_line_width);
 		y1 = y2;
 
 		// draw horizontal part of next bin
@@ -736,7 +743,10 @@ d.set_color(1,0,0);
 		xhist += bin_width;
 		mipmap_idx += 1;
 		x2 = t[0].world2canvas(t[0].log(xhist));
-		if (y2 !is double.init) d.horizontal_line(y2, x1, x2);
+		if (y2 !is double.init) {
+			if (filled) { d.rectangle(x1,y0,x2+1,y2); d.fill(); }
+			else        { d.horizontal_line(y2, x1, x2); d.stroke(); }
+		}
 		if (x2-x1 < d.get_line_width) { // need to switch to mipmap 
 			mipmap_level  = 0;
 
@@ -761,7 +771,15 @@ d.set_color(1,0,0);
 
 				import std.algorithm;
 				if (y2<y1) swap(y1,y2);
-				if (y1 !is double.init && y2 !is double.init) d.vertical_line(x1, y1-0.5*d.get_line_width, y2+0.5*d.get_line_width);
+				if (y1 !is double.init && y2 !is double.init) {
+					if (filled) {
+						     if (y0>y2) d.vertical_line(x1,y0,y1);
+						else if (y0<y1) d.vertical_line(x1,y2,y0);
+						else            d.vertical_line(x1,y2,y1);
+					} else {
+						d.vertical_line(x1, y1-0.5*d.get_line_width, y2+0.5*d.get_line_width);
+					}
+				}
 
 				xhist += bin_width;
 				mipmap_idx += 1;
