@@ -149,6 +149,15 @@ class DrawArea : OpenGlWidget, BackendInterface
 	double rx1,ry1,rx2,ry2;
 	bool rect_valid = false;
 
+	struct MiniImage {
+		int w;
+		int h;
+		uint[] argb_data;
+		uint gl_tex;
+	}
+	ulong image_counter = 0;
+	MiniImage[ulong] images;
+
 	this(string window_name, CanvasProperties *canvas_ptr, Widget parent) {
 		canvas = canvas_ptr;
 		name = window_name;
@@ -260,7 +269,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 		// rest of simpledisplay/minigui usually do, do the
 		// y + glfont.ascent to bring it down a little. So this
 		// example puts the string in the upper left of the window.
-		glfont.drawString(0, 0 + glfont.ascent/2, "Hello!!", Color.black);
+		//glfont.drawString(0, 0 + glfont.ascent/2, "Hello!!", Color.black);
 
 	}
 	//override Rectangle paintContent(WidgetPainter w_painter, const Rectangle bounds) {
@@ -363,18 +372,72 @@ class DrawArea : OpenGlWidget, BackendInterface
 	// bitmap drawing
 	@trusted
 	override ulong  create_bitmap(int w, int h) {
-		return 0;
+		++image_counter;
+		images[image_counter] = MiniImage(w,h,null);
+		images[image_counter].argb_data = new uint[w*h];
+		glEnable(GL_TEXTURE_2D);
+		glGenTextures(1, &images[image_counter].gl_tex);
+		return image_counter;
 	}
 	override void   destroy_bitmap(ulong handle) {
+		glEnable(GL_TEXTURE_2D);
+		glDeleteTextures(1, &images[image_counter].gl_tex);
+		images.remove(handle);
 	}
 	@trusted
 	override uint[] access_bitmap_data(ulong handle) {
-		return null;
+		return images[handle].argb_data;
 	}
-	override void   access_bitmap_done(ulong handle) {
+	@trusted
+	override void access_bitmap_done(ulong handle) {
+		glEnable(GL_TEXTURE_2D);
+		//glGenTextures(1, &images[handle].gl_tex);
+		glBindTexture(GL_TEXTURE_2D, images[handle].gl_tex);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			GL_RGBA,
+			images[handle].w,
+			images[handle].h,
+			0,
+			GL_BGRA,
+			GL_UNSIGNED_BYTE,
+			images[handle].argb_data.ptr);
+		assert(!glGetError());
+		glBindTexture(GL_TEXTURE_2D, 0);
 	}
+
 	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
 		                         double dx, double dy, double dw, double dh) {
+		glEnable(GL_TEXTURE_2D);
+		//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_BLEND);
+		glBindTexture(GL_TEXTURE_2D, images[handle].gl_tex);
+		glMatrixMode(GL_TEXTURE);
+		glPushMatrix();
+		glLoadIdentity();
+		glScalef(1.0/images[handle].w, 1.0/images[handle].h,0);
+
+		glBegin(GL_QUADS); 
+			glColor4f(1,1,1,1); glTexCoord2f(sx   , sy   ); glVertex2f(dx   , dy);
+			glColor4f(1,1,1,1); glTexCoord2f(sx+sw, sy   ); glVertex2f(dx+dw, dy); 
+			glColor4f(1,1,1,1); glTexCoord2f(sx+sw, sy+sh); glVertex2f(dx+dw, dy+dh); 
+			glColor4f(1,1,1,1); glTexCoord2f(sx   , sy+sh); glVertex2f(dx   , dy+dh); 
+		glEnd();
+		//glBegin(GL_QUADS); 
+		//	glTexCoord2f(0,0); glVertex3f(dx   , dy   , 0);      
+		//	glTexCoord2f(1,0); glVertex3f(dx+dw, dy   , 0);      
+		//	glTexCoord2f(1,1); glVertex3f(dx+dw, dy+dh, 0);   
+		//	glTexCoord2f(0,1); glVertex3f(dx   , dy+dh, 0);   
+		//glEnd();
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glPopMatrix();
 	}
 
 	// text drawing 
@@ -390,6 +453,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 	override void text(double x, double y, string str) {
 		//import std.stdio;
 		//writeln("text ", str, " at ", x, " ", y);
+		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		glfont.drawString(cast(int)x, cast(int)y, str, Color(255*cr,255*cg,255*cb));
 	} 
 
