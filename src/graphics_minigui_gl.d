@@ -149,8 +149,6 @@ class DrawArea : OpenGlWidget, BackendInterface
 	double rx1,ry1,rx2,ry2;
 	bool rect_valid = false;
 
-	double cx1,cy1,cx2,cy2;
-
 	struct MiniImage {
 		int w;
 		int h;
@@ -234,6 +232,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 
 
 		glEnable(GL_BLEND);
+		//glEnable(GL_SCISSOR_TEST);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		//glClearColor(0,0,0,0);
 		//glClear(GL_COLOR_BUFFER_BIT);
@@ -254,8 +253,10 @@ class DrawArea : OpenGlWidget, BackendInterface
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 
+
 		glOrtho(0, width, height,0 , 0, 1);
 
+		//glScissor(cast(int)cx1,cast(int)cy1, cast(int)(cx2-cx1), cast(int)(cy2-cy1));
 
 		painter.draw_content();
 
@@ -300,19 +301,16 @@ class DrawArea : OpenGlWidget, BackendInterface
 	} // must be called after anything else
 
 	override void reset_clip() {
-		cx1 = 0;
-		cy1 = 0;
-		cx2 = width;
-		cy2 = height;
+		glDisable(GL_SCISSOR_TEST);
 	}
 	override void set_clip(double x1, double y1, double x2, double y2) {
-		cx1 = x1;
-		cy1 = y1;
-		cx2 = x2;
-		cy2 = y2;
+		glEnable(GL_SCISSOR_TEST);
 		import std.algorithm;
 		if (x1>x2) swap(x1,x2);
 		if (y1>y1) swap(y1,y2);
+		int w = cast(int)(x2-x1);
+		int h = cast(int)(y2-y1);
+		glScissor(cast(int)x1,cast(int)(height-y2-h)+h,w,h);
 	}
 
 	override void clear(double r, double g, double b) {
@@ -334,14 +332,6 @@ class DrawArea : OpenGlWidget, BackendInterface
 		return line_width;
 	}
 	override void vertical_line(double xd, double y1d, double y2d) {
-		if (xd<cx1) return;
-		if (xd>cx2) return;
-		import std.algorithm;
-		if (y1d>y2d) swap(y1d,y2d);
-		if (y1d>cy2) return;
-		if (y2d<cy1) return;
-		if (y1d<cy1) y1d=cy1;
-		if (y2d>cy2) y2d=cy2;
 		glBegin(GL_QUADS);
 		glVertex2f(xd+line_width/2.0,y1d);
 		glVertex2f(xd-line_width/2.0,y1d);
@@ -350,14 +340,6 @@ class DrawArea : OpenGlWidget, BackendInterface
 		glEnd();
 	}
 	override void horizontal_line(double yd, double x1d, double x2d) {
-		if (yd<cy1) return;
-		if (yd>cy2) return;
-		import std.algorithm;
-		if (x1d>x2d) swap(x1d,x2d);
-		if (x1d>cx2) return;
-		if (x2d<cx1) return;
-		if (x1d<cx1) x1d=cx1;
-		if (x2d>cx2) x2d=cx2;
 		glBegin(GL_QUADS);
 		glVertex2f(x1d,yd+line_width/2.0);
 		glVertex2f(x1d,yd-line_width/2.0);
@@ -366,10 +348,26 @@ class DrawArea : OpenGlWidget, BackendInterface
 		glEnd();
 	}
 	override void line(double x1d, double y1d, double x2d, double y2d) {
-		glBegin(GL_LINE_STRIP);
-		glVertex2f(x1d,y1d);
-		glVertex2f(x2d,y2d);
+		double dx=x2d-x1d;
+		double dy=y2d-y1d;
+		double ox=-dy;
+		double oy= dx;
+		import std.math;
+		double lo=sqrt(ox*ox+oy*oy);
+		if (lo < 1e-6) return;
+
+		glBegin(GL_QUADS);
+			glVertex2f(x1d+line_width*ox/2/lo, y1d+line_width*oy/2/lo);
+			glVertex2f(x2d+line_width*ox/2/lo, y2d+line_width*oy/2/lo);
+			glVertex2f(x2d-line_width*ox/2/lo, y2d-line_width*oy/2/lo);
+			glVertex2f(x1d-line_width*ox/2/lo, y1d-line_width*oy/2/lo);
 		glEnd();
+
+
+		//glBegin(GL_LINE_STRIP);
+		//glVertex2f(x1d,y1d);
+		//glVertex2f(x2d,y2d);
+		//glEnd();
 	}
 	override void rectangle(double x1d, double y1d, double x2d, double y2d) {
 		rx1=x1d;
