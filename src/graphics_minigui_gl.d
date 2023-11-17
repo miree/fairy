@@ -84,7 +84,23 @@ private:
 
 	//Button button;
 
-	DrawArea draw_area;
+	Widget plotwidget;
+		DrawArea           draw_area;
+		HorizontalLayout   controls;
+			Checkbox           autorefresh;
+			Button             refresh;
+			VerticalLayout     fitlog;
+				HorizontalLayout fitlayout;
+					TextLabel    fitlabel;
+					Checkbox     fitX;
+					Checkbox     fitY;
+					Checkbox     fitZ;
+				HorizontalLayout loglayout;
+					TextLabel    loglabel;
+					Checkbox     logX;
+					Checkbox     logY;
+					Checkbox     logZ;
+
 
 public:
 	@trusted
@@ -111,7 +127,25 @@ public:
 		}
 
 		//button = new Button(name, window);
-		draw_area = new DrawArea(canvas_name, canvas_pointer, window);
+		plotwidget = new Widget(window);
+		draw_area = new DrawArea(canvas_name, canvas_pointer, plotwidget);
+
+		controls = new HorizontalLayout(100,plotwidget);
+		autorefresh = new Checkbox("autorefresh", controls);
+		refresh     = new Button("refresh", controls);
+		fitlog  = new VerticalLayout(controls);
+			fitlayout = new HorizontalLayout(fitlog);
+				fitlabel = new TextLabel("fit",fitlayout);
+				fitX     = new Checkbox ("X"  ,fitlayout);
+				fitY     = new Checkbox ("Y"  ,fitlayout);
+				fitZ     = new Checkbox ("Z"  ,fitlayout);
+			loglayout = new HorizontalLayout(fitlog);
+				loglabel = new TextLabel("log",loglayout);
+				logX     = new Checkbox ("X"  ,loglayout);
+				logY     = new Checkbox ("Y"  ,loglayout);
+				logZ     = new Checkbox ("Z"  ,loglayout);
+
+
 
 		simple.onClosing = delegate () { 
 			import fairy;
