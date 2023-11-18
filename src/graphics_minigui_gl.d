@@ -194,6 +194,12 @@ public:
 		       logX.addEventListener(EventType.change,   () { ui.logscale( canvas_name, 'x', logX.isChecked?"true":"false"); });
 		       logY.addEventListener(EventType.change,   () { ui.logscale( canvas_name, 'y', logY.isChecked?"true":"false"); });
 		       logZ.addEventListener(EventType.change,   () { ui.logscale( canvas_name, 'z', logZ.isChecked?"true":"false"); });
+		       gridX.addEventListener(EventType.change,  () { ui.grid(canvas_name, "x",   gridX.isChecked?"true":"false"); });
+		       gridY.addEventListener(EventType.change,  () { ui.grid(canvas_name, "y",   gridY.isChecked?"true":"false"); });
+		       gridTop.addEventListener(EventType.change,() { ui.grid(canvas_name, "top", gridTop.isChecked?"true":"false"); });
+		       numsX.addEventListener(EventType.change,  () { ui.numbers( canvas_name, "x",   numsX.isChecked?"true":"false"); });
+		       numsY.addEventListener(EventType.change,  () { ui.numbers( canvas_name, "y",   numsY.isChecked?"true":"false"); });
+		       numsTop.addEventListener(EventType.change,() { ui.numbers( canvas_name, "top", numsTop.isChecked?"true":"false"); });
 
 		simple.onClosing = delegate () { 
 			import fairy;
