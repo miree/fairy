@@ -31,6 +31,11 @@ class MiniGuiGL : Gui {
 	override void remove_item(string name) {
 	}
 	override void add_item(string name) {
+		import std.stdio;
+		writeln("add item", name);
+		foreach(window_name, window; MainWindow.main_windows) {
+			window.item_view.addOption(name);
+		}
 	}
 	override void update_from_canvas(string name) {
 		foreach(n,win; MainWindow.main_windows) {
@@ -107,39 +112,41 @@ private:
 
 	//Button button;
 
-	Widget plotwidget;
-		DrawArea           draw_area;
-		HorizontalLayout   controls;
-			VerticalLayout     autorefr;    
-				Checkbox         autorefresh;
-				Button           refresh;
-			VerticalLayout     fitlog;
-				HorizontalLayout fitlayout;
-					TextLabel    fitlabel;
-					Checkbox     fitX;
-					Checkbox     fitY;
-					Checkbox     fitZ;
-				HorizontalLayout loglayout;
-					TextLabel    loglabel;
-					Checkbox     logX;
-					Checkbox     logY;
-					Checkbox     logZ;
-			VerticalLayout     gridnums;
-				HorizontalLayout gridlayout;
-					TextLabel      gridlabel;
-					Checkbox       gridX;
-					Checkbox       gridY;
-					Checkbox       gridTop;
-				HorizontalLayout numslayout;
-					TextLabel      numslabel;
-					Checkbox       numsX;
-					Checkbox       numsY;
-					Checkbox       numsTop;
-			VerticalLayout     modecontrol;
-				Fieldset         modeselect;
-					Radiobox       radio_overlay;
-					Radiobox       radio_rows;
-					Radiobox       radio_cols;
+	HorizontalLayout   main_content;
+		ListWidget         item_view;
+		Widget             plotwidget;
+			DrawArea           draw_area;
+			HorizontalLayout   controls;
+				VerticalLayout     autorefr;    
+					Checkbox         autorefresh;
+					Button           refresh;
+				VerticalLayout     fitlog;
+					HorizontalLayout fitlayout;
+						TextLabel    fitlabel;
+						Checkbox     fitX;
+						Checkbox     fitY;
+						Checkbox     fitZ;
+					HorizontalLayout loglayout;
+						TextLabel    loglabel;
+						Checkbox     logX;
+						Checkbox     logY;
+						Checkbox     logZ;
+				VerticalLayout     gridnums;
+					HorizontalLayout gridlayout;
+						TextLabel      gridlabel;
+						Checkbox       gridX;
+						Checkbox       gridY;
+						Checkbox       gridTop;
+					HorizontalLayout numslayout;
+						TextLabel      numslabel;
+						Checkbox       numsX;
+						Checkbox       numsY;
+						Checkbox       numsTop;
+				VerticalLayout     modecontrol;
+					Fieldset         modeselect;
+						Radiobox       radio_overlay;
+						Radiobox       radio_rows;
+						Radiobox       radio_cols;
 
 
 public:
@@ -166,8 +173,13 @@ public:
 
 		}
 
-		//button = new Button(name, window);
-		plotwidget = new Widget(window);
+		main_content = new HorizontalLayout(window);
+		item_view  = new ListWidget(main_content);
+		import fairy, std.algorithm, std.array;
+		foreach (itemname; fairy.session.items.byKey.array.sort) {
+			item_view.addOption(itemname);
+		}
+		plotwidget = new Widget(main_content);
 		draw_area = new DrawArea(canvas_name, canvas_pointer, plotwidget);
 
 		controls = new HorizontalLayout(40,plotwidget);
