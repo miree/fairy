@@ -1,7 +1,13 @@
 module graphics_gtk;
 @trusted:
 
-pragma(lib, "gtkd-3");
+version(gtk3) {
+	pragma(lib, "gtkd-3");
+} 
+version(gtk4) {
+	pragma(lib, "gtkd-4");
+} 
+
 
 import graphics;
 
@@ -29,7 +35,7 @@ class GtkGui : Gui {
 	}
 	override void redraw_window(string name) {
 		if (name in main_windows) {
-			main_windows[name].queueDraw();
+			main_windows[name].plot_widget.plot_area.need_redraw();
 		}
 	}
 	override void save_window(string name) { // copy window properties to canvas
@@ -475,11 +481,11 @@ public:
 				getDefaultSize(width,height);
 				import gdk.Display, gdk.MonitorGdk;
 				auto monitors = Display.getDefault().getMonitors();
-				writeln("monitors size=", monitors.getNItems());
+				//writeln("monitors size=", monitors.getNItems());
 				auto monitor = new MonitorGdk( cast(GdkMonitor*)monitors.getItem(0) );
 				GdkRectangle rect;
 				monitor.getGeometry(rect);
-				writeln("rect ", rect);
+				//writeln("rect ", rect);
 			}		
 		});
 
@@ -1524,7 +1530,6 @@ class PlotArea :  DrawingArea, BackendInterface {
 		cairo_restore(cr);
 	}
 
-
 	override void need_redraw() {
 		queueDraw();
 	}
@@ -1560,16 +1565,16 @@ class PlotArea :  DrawingArea, BackendInterface {
 //public:
 //	DrawArea draw_area;
 
-//	version(gtk4) {
-//		import gtk.EventControllerMotion;
-//		import gtk.EventControllerScroll, gtk.c.types;
-//		import gtk.GestureClick, gdk.c.types;
-//		EventControllerMotion motion_controller;
-//		EventControllerScroll scroll_controller;
-//		GestureClick left_click;
-//		GestureClick right_click;
-//		GestureClick middle_click;
-//	}
+	version(gtk4) {
+		import gtk.EventControllerMotion;
+		import gtk.EventControllerScroll, gtk.c.types;
+		import gtk.GestureClick, gdk.c.types;
+		EventControllerMotion motion_controller;
+		EventControllerScroll scroll_controller;
+		GestureClick left_click;
+		GestureClick right_click;
+		GestureClick middle_click;
+	}
 
 	this(CanvasProperties *canvas, 
 		 void delegate(double,double) @trusted updateMousePosLabel_func ,
@@ -1637,92 +1642,92 @@ class PlotArea :  DrawingArea, BackendInterface {
 
 		} 
 
-//		version(gtk4) { 
-//			///////////////////////////////////////////
-//			// mouse motion
-//			///////////////////////////////////////////
-//			setDrawFunc(&drawFunc, cast(void*)this, &destroyNotify);
-//			// detect mouse motion in the PlotArea
-//			import gtk.EventControllerMotion;
-//			motion_controller = new EventControllerMotion();
-//			//gulong addOnMotion(void delegate(double, double, EventControllerMotion) dlg, ConnectFlags connectFlags=cast(ConnectFlags)0)
-//			motion_controller.addOnMotion(delegate(double x, double y, EventControllerMotion controller) {
-//				//import std.stdio;
-//				//writeln("x=", x, "     y=", y);
-//				bool ctrl  = (controller.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (controller.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-//				mouse_motion(x,y, cast(PlotArea)controller.getWidget(), ctrl, shift);
-//			});
+		version(gtk4) { 
+			///////////////////////////////////////////
+			// mouse motion
+			///////////////////////////////////////////
+			setDrawFunc(&drawFunc, cast(void*)this, &destroyNotify);
+			// detect mouse motion in the PlotArea
+			import gtk.EventControllerMotion;
+			motion_controller = new EventControllerMotion();
+			//gulong addOnMotion(void delegate(double, double, EventControllerMotion) dlg, ConnectFlags connectFlags=cast(ConnectFlags)0)
+			motion_controller.addOnMotion(delegate(double x, double y, EventControllerMotion controller) {
+				//import std.stdio;
+				//writeln("x=", x, "     y=", y);
+				bool ctrl  = (controller.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (controller.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+				mouse_motion(x,y, cast(PlotArea)controller.getWidget(), ctrl, shift);
+			});
 
-//			// this can cause a crash, but I believe it is a bug in gtk4 and not in this program
-//			// before crashing there are many of these assertion failures: 
-//			// (fairy:386601): Gtk-CRITICAL **: 23:01:37.635: gtk_event_controller_handle_crossing: assertion 'GTK_IS_EVENT_CONTROLLER (controller)' failed
-//			// (fairy:386601): Gtk-CRITICAL **: 23:01:37.773: gtk_event_controller_handle_crossing: assertion 'GTK_IS_EVENT_CONTROLLER (controller)' failed
-//			// The crash can be triggered by moving the mouse back and forth between two different MainWindows
-//			// and click some widgets. After a while, these assertion messages will appaer and shortly after the application dies.
-//			addController(motion_controller); // <- THIS CAN CAUSE A CRASH!!!!!
+			// this can cause a crash, but I believe it is a bug in gtk4 and not in this program
+			// before crashing there are many of these assertion failures: 
+			// (fairy:386601): Gtk-CRITICAL **: 23:01:37.635: gtk_event_controller_handle_crossing: assertion 'GTK_IS_EVENT_CONTROLLER (controller)' failed
+			// (fairy:386601): Gtk-CRITICAL **: 23:01:37.773: gtk_event_controller_handle_crossing: assertion 'GTK_IS_EVENT_CONTROLLER (controller)' failed
+			// The crash can be triggered by moving the mouse back and forth between two different MainWindows
+			// and click some widgets. After a while, these assertion messages will appaer and shortly after the application dies.
+			addController(motion_controller); // <- THIS CAN CAUSE A CRASH!!!!!
 
-//			///////////////////////////////////////////
-//			// mouse wheel 
-//			///////////////////////////////////////////
-//			import gtk.EventControllerScroll, gtk.c.types;
-//			scroll_controller = new EventControllerScroll(GtkEventControllerScrollFlags.VERTICAL | 
-//			                                                   GtkEventControllerScrollFlags.HORIZONTAL);
-//			scroll_controller.addOnScroll(delegate bool(double dx, double dy, EventControllerScroll controller) {
-//				bool ctrl  = (controller.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (controller.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-//				scroll(dx,dy, ctrl, shift);
-//				return true;
-//			});
-//			addController(scroll_controller);
+			///////////////////////////////////////////
+			// mouse wheel 
+			///////////////////////////////////////////
+			import gtk.EventControllerScroll, gtk.c.types;
+			scroll_controller = new EventControllerScroll(GtkEventControllerScrollFlags.VERTICAL | 
+			                                                   GtkEventControllerScrollFlags.HORIZONTAL);
+			scroll_controller.addOnScroll(delegate bool(double dx, double dy, EventControllerScroll controller) {
+				bool ctrl  = (controller.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (controller.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+				scroll(dx,dy, ctrl, shift);
+				return true;
+			});
+			addController(scroll_controller);
 
 
-//			///////////////////////////////////////////
-//			// detect mouse clicks in the PlotArea
-//			///////////////////////////////////////////
-//			import gtk.GestureClick, gdk.c.types;
-//			left_click = new GestureClick;
-//			addController(left_click);
-//			left_click.setButton(BUTTON_PRIMARY); 
-//			left_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
-//				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-//				left_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-//			});
-//			left_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
-//				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-//				left_button_released(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-//			});
+			///////////////////////////////////////////
+			// detect mouse clicks in the PlotArea
+			///////////////////////////////////////////
+			import gtk.GestureClick, gdk.c.types;
+			left_click = new GestureClick;
+			addController(left_click);
+			left_click.setButton(BUTTON_PRIMARY); 
+			left_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
+				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+				left_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+			});
+			left_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
+				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+				left_button_released(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+			});
 
-//			right_click = new GestureClick;
-//			addController(right_click);
-//			right_click.setButton(BUTTON_SECONDARY); 
-//			right_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
-//				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-//				right_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-//			});
-//			right_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
-//				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-//				right_button_released(nPress, x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-//			});
+			right_click = new GestureClick;
+			addController(right_click);
+			right_click.setButton(BUTTON_SECONDARY); 
+			right_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
+				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+				right_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+			});
+			right_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
+				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+				right_button_released(nPress, x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+			});
 
-//			middle_click = new GestureClick;
-//			addController(middle_click);
-//			middle_click.setButton(BUTTON_MIDDLE); 
-//			middle_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
-//				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-//				mid_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-//			});
-//			middle_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
-//				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-//				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-//				mid_button_released(nPress, x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-//			});
-//		}
+			middle_click = new GestureClick;
+			addController(middle_click);
+			middle_click.setButton(BUTTON_MIDDLE); 
+			middle_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
+				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+				mid_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+			});
+			middle_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
+				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+				mid_button_released(nPress, x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+			});
+		}
 
 
 

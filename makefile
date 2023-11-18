@@ -10,6 +10,9 @@ elderpt: src/*.d
 gtk3: src/*.d
 	ldc -Isrc -i src/app.d -of=fairy --d-version=gtk3 --d-version=elderpt -L-L/home/michael/.local/lib -I/usr/include/d/gtkd-3
 
+gtk4: src/*.d
+	dmd -Isrc -i src/app.d -of=fairy -version=gtk4 -version=elderpt -L-L/home/michael/.local/lib -I/usr/include/d/gtkd-4
+
 minigui: src/*.d
 	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui -version=elderpt  -L-L/home/michael/.local/lib
 
