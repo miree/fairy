@@ -979,10 +979,7 @@ class ItemView : TreeView {
 			import std.stdio;
 			TreeIter iter;
 			treestore.getIterFromString(iter, remove_path);
-			//plotwidget.removeVisualizer(treestore.getString(iter, COLUMN_FULLNAME));
-			//writeln("remove : ", remove_path, " -> ", _treestore.getValue(iter, COLUMN_FULLNAME).getString());
 			treestore.remove(iter);
-			//writeln(" executed:");
 		}
 	}	
 	
@@ -1020,16 +1017,10 @@ version(gtk3) {
 
 import gtk.Box;
 class PlotWidget : Box {
-	//this() {
-	//	super(GtkOrientation.VERTICAL, 0);
-	//}
 	import gtk.CheckButton, gtk.SpinButton, gtk.Button, gtk.Image;
 	import gtk.Label, gtk.Separator, gtk.ToggleButton, gtk.ScrolledWindow;
 
 	string name;
-	//Box box;
-	//alias box this;
-	// Plot widget contains a PlotArea and controls for the PlotArea right below
 	PlotArea plot_area;
 	Box      controls;
 	ScrolledWindow controls_scrolled_window; // controls are quite wide, so they are contained in a scrolled window
@@ -1056,7 +1047,6 @@ class PlotWidget : Box {
 	CheckButton check_colorbar;
 	CheckOrRadioButton radio_overlay, radio_rowmajor, radio_colmajor; // grouped to form a gtk3 RadioButton
 	SpinButton  spin_n_columns;
-	//Label       columns_label;
 	Box         mouse_pos_box;
 	Label       mouse_pos;
 	Box         mouse_pos_value_box;
@@ -1089,22 +1079,15 @@ class PlotWidget : Box {
 		if (canvas.display_mode == DisplayMode.columns) radio_colmajor.setActive(true);
 	}
 
-//	this(DrawArea area, string p_name, bool mode2d = false) {
 	this(CanvasProperties *canvas, string window_name) {
 		import ui;
 
 		super(GtkOrientation.VERTICAL, 0); // PlotWidget derived from Box
 		name = window_name;
-		//parent_window_name = p_name.dup;
-		//import std.stdio;
-//		//writeln("PlotWidget contructor name ", parent_window_name);
-
 		///////////////////////////////////////////////
 		// place two top-level widgets
 		///////////////////////////////////////////////
 		plot_area = new PlotArea(canvas, &setMousePosLabel, &setMousePosLabelValue);
-		//plot_area = new Button("plot area");
-		//plot_area.draw_area = area;
 		plot_area.setVexpand(true);
 		controls = new Box(GtkOrientation.HORIZONTAL, 0);
 		controls_scrolled_window = new ScrolledWindow();
@@ -1180,11 +1163,9 @@ class PlotWidget : Box {
 		grid_label     = new Label("grid");
 		check_grid_x   = new CheckButton("X");
 		check_grid_y   = new CheckButton("Y");
-		//check_grid_z   = new CheckButton("Z");
 		check_grid_top = new CheckButton("top");
 		check_grid_x.setActive(canvas.grid[0]);
 		check_grid_y.setActive(canvas.grid[1]);
-		//check_grid_z.setActive(canvas.draw_grid_color);
 		check_grid_top.setActive(canvas.grid_ontop);
 		check_grid_x.addOnToggled(
 			delegate void(CheckOrToggleButton button) {
@@ -1213,13 +1194,6 @@ class PlotWidget : Box {
 		check_nums_y.addOnToggled(  (button) => ui.numbers(name,  "y" , button.getActive()?"true":"false"));
 		check_nums_top.addOnToggled((button) => ui.numbers(name, "top", button.getActive()?"true":"false"));
 
-		///////////////////////////////////////////////////////
-		//check_overlay = new CheckButton("over-\nlay");
-		//check_overlay.setActive(canvas.display_mode == DisplayMode.overlay);
-//		check_overlay.addOnToggled(
-//							delegate void(CheckOrToggleButton button) {
-//								fairy.ui.overlay(parent_window_name, button.getActive()?"true":"false");
-//							} );
 
 		check_colorbar = new CheckButton("colorbar");
 		check_colorbar.setActive(canvas.color_bar);
@@ -1252,13 +1226,6 @@ class PlotWidget : Box {
 			} );
 
 //		///////////////////////////////////////////////////////
-
-//		//mouse_pos_box = new Box(GtkOrientation.HORIZONTAL,0);
-//		//mouse_pos_box.setSizeRequest(150,0);
-//		//mouse_pos_value_box = new Box(GtkOrientation.HORIZONTAL,0);
-//		//mouse_pos_value_box.setSizeRequest(150,0);
-//		//mouse_pos_box.append(mouse_pos);
-//		//mouse_pos_value_box.append(mouse_pos_value);
 
 		mouse_pos = new Label("  x=0\n  y=0");
 		mouse_pos.setJustify(GtkJustification.LEFT);
@@ -1301,11 +1268,6 @@ class PlotWidget : Box {
 		controls.append(fit_log_checks_y);
 		controls.append(fit_log_checks_z);
 
-		//controls.append(new Separator(GtkOrientation.VERTICAL));
-		//controls.append(log_label);
-		//controls.append(check_log_y);
-		//controls.append(check_log_z);
-
 		controls.append(new Separator(GtkOrientation.VERTICAL));
 
 		auto grid_nums_label = new Box(GtkOrientation.VERTICAL, 0);
@@ -1320,10 +1282,6 @@ class PlotWidget : Box {
 		grid_nums_checks_y.append(check_grid_y);
 		grid_nums_checks_y.append(check_nums_y);
 
-		//auto grid_nums_checks_z = new Box(GtkOrientation.VERTICAL, 0);
-		//grid_nums_checks_z.append(check_grid_z);
-		//grid_nums_checks_z.append(check_nums_z);
-
 		auto grid_nums_checks_top = new Box(GtkOrientation.VERTICAL, 0);
 		grid_nums_checks_top.append(check_grid_top);
 		grid_nums_checks_top.append(check_nums_top);
@@ -1331,7 +1289,6 @@ class PlotWidget : Box {
 		controls.append(grid_nums_label);
 		controls.append(grid_nums_checks_x);
 		controls.append(grid_nums_checks_y);
-		//controls.append(grid_nums_checks_z);
 		controls.append(grid_nums_checks_top);
 
 		auto colorbar_overlay = new Box(GtkOrientation.VERTICAL, 0);
@@ -1345,49 +1302,11 @@ class PlotWidget : Box {
 		row_col_radios.append(radio_colmajor);
 		controls.append(row_col_radios);
 
-		//controls.append(columns_label);
-
 		controls.append(new Separator(GtkOrientation.VERTICAL));
 		controls.append(mouse_pos_box);
 		controls.append(mouse_pos_value_box);
 
 	}
-
-//	// this function should assume that plot_area.draw_area settings were changed
-//	// and should set all gui elements to correctly represent these changes
-//	void area_changed() {
-//		check_autoscale_x.setActive(plot_area.draw_area.autoscale_x);
-//		check_autoscale_y.setActive(plot_area.draw_area.autoscale_y);
-//		check_autoscale_z.setActive(plot_area.draw_area.autoscale_z);
-//		check_autorefresh.setActive(plot_area.draw_area.autorefresh);
-//		check_log_x.setActive(plot_area.draw_area.transform._logx);
-//		check_log_y.setActive(plot_area.draw_area.transform._logy);
-//		check_log_z.setActive(plot_area.draw_area.transform._logz);
-//		check_grid_x.setActive(plot_area.draw_area.draw_grid_vertical);
-//		check_grid_y.setActive(plot_area.draw_area.draw_grid_horizontal);
-//		check_grid_top.setActive(plot_area.draw_area.draw_grid_ontop);
-//		check_overlay.setActive(plot_area.draw_area.overlay);
-//		check_colorbar.setActive(plot_area.draw_area.draw_color_bar);
-//		import std.stdio;
-//		if (plot_area.draw_area.row_major && !radio_rowmajor.getActive()) {
-//			radio_rowmajor.setActive(true);
-//			writeln("set label to columns");
-//			columns_label.setLabel("cols");
-//		} 
-//		if (!plot_area.draw_area.row_major && radio_rowmajor.getActive()) {
-//			radio_colmajor.setActive(true);
-//			writeln("set label to rows");
-//			columns_label.setLabel("rows");
-//		}
-//		if (cast(int)spin_n_columns.getValue() != plot_area.draw_area.columns_or_rows) {
-//			spin_n_columns.setValue(plot_area.draw_area.columns_or_rows);
-//		}
-//		queueDraw();
-//	}
-//	void items_changed(bool active) {
-
-//		// TODO: make the changes to the ItemView widget to represent the 
-//	}
 
 	void setMousePosLabel(double x, double y) {
 		import std.format;
@@ -1486,9 +1405,6 @@ class PlotArea :  DrawingArea, BackendInterface {
 	}
 
 	import cairo.ImageSurface, cairo.Pattern;
-	//version(gtk3){ // seems to be not needed
-	//	import gdk.Cairo;	
-	//}
 	struct Bitmap {
 		uint[] data;
 		ImageSurface surface;
@@ -1582,9 +1498,6 @@ class PlotArea :  DrawingArea, BackendInterface {
 		cairo_show_text(cr, strz);
 	}
 
-//public:
-//	DrawArea draw_area;
-
 	version(gtk4) {
 		import gtk.EventControllerMotion;
 		import gtk.EventControllerScroll, gtk.c.types;
@@ -1672,20 +1585,12 @@ class PlotArea :  DrawingArea, BackendInterface {
 			motion_controller = new EventControllerMotion();
 			//gulong addOnMotion(void delegate(double, double, EventControllerMotion) dlg, ConnectFlags connectFlags=cast(ConnectFlags)0)
 			motion_controller.addOnMotion(delegate(double x, double y, EventControllerMotion controller) {
-				//import std.stdio;
-				//writeln("x=", x, "     y=", y);
 				bool ctrl  = (controller.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
 				bool shift = (controller.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
 				mouse_motion(x,y, cast(PlotArea)controller.getWidget(), ctrl, shift);
 			});
 
-			// this can cause a crash, but I believe it is a bug in gtk4 and not in this program
-			// before crashing there are many of these assertion failures: 
-			// (fairy:386601): Gtk-CRITICAL **: 23:01:37.635: gtk_event_controller_handle_crossing: assertion 'GTK_IS_EVENT_CONTROLLER (controller)' failed
-			// (fairy:386601): Gtk-CRITICAL **: 23:01:37.773: gtk_event_controller_handle_crossing: assertion 'GTK_IS_EVENT_CONTROLLER (controller)' failed
-			// The crash can be triggered by moving the mouse back and forth between two different MainWindows
-			// and click some widgets. After a while, these assertion messages will appaer and shortly after the application dies.
-			addController(motion_controller); // <- THIS CAN CAUSE A CRASH!!!!!
+			addController(motion_controller); 
 
 			///////////////////////////////////////////
 			// mouse wheel 
