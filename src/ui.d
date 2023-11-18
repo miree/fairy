@@ -555,7 +555,7 @@ string winshow(string name, string mode = "double", int w = -1, int h = -1) {
 		                 );
 	if (m==AsciiRender.Mode.quad_pixel || m==AsciiRender.Mode.double_pixel) h *= 2;
 	if (m==AsciiRender.Mode.quad_pixel) w *= 2;
-	auto renderer = scoped!AsciiRender(w,h,m);
+	auto renderer = new AsciiRender(w,h,m);
 
 	// adapt the canvas properties to better match the requirements of ascii rendering
 	// e.g. a grid is only disturbing at such low resolutions
