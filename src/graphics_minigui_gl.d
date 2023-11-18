@@ -23,6 +23,8 @@ class MiniGuiGL : Gui {
 	override void save_window(string name) {
 		auto window = MainWindow.main_windows[name];
 		auto point = window.window.globalCoordinates();
+		window.canvas.width  = window.window.width;
+		window.canvas.height = window.window.height;
 		window.canvas.xpos = point.x; 
 		window.canvas.ypos = point.y; 
 	}
@@ -45,6 +47,12 @@ class MiniGuiGL : Gui {
 			win.numsX.isChecked       = win.canvas.numbers[0];
 			win.numsY.isChecked       = win.canvas.numbers[1];
 			win.numsTop.isChecked     = win.canvas.numbers_ontop;
+			win.radio_overlay.isChecked = false;
+			win.radio_rows.isChecked    = false;
+			win.radio_cols.isChecked    = false;
+			if (win.canvas.display_mode == DisplayMode.overlay) win.radio_overlay.isChecked = true;
+			if (win.canvas.display_mode == DisplayMode.rows)    win.radio_rows.isChecked    = true;
+			if (win.canvas.display_mode == DisplayMode.columns) win.radio_cols.isChecked    = true;
 		}
 	}
 	override void loop() {
@@ -127,6 +135,11 @@ private:
 					Checkbox       numsX;
 					Checkbox       numsY;
 					Checkbox       numsTop;
+			VerticalLayout     modecontrol;
+				Fieldset         modeselect;
+					Radiobox       radio_overlay;
+					Radiobox       radio_rows;
+					Radiobox       radio_cols;
 
 
 public:
@@ -184,6 +197,11 @@ public:
 				numsX     = new Checkbox ("X"  ,numslayout);      numsX.isChecked = canvas.numbers[0];
 				numsY     = new Checkbox ("Y"  ,numslayout);      numsY.isChecked = canvas.numbers[1];
 				numsTop   = new Checkbox ("top",numslayout);      numsTop.isChecked = canvas.numbers_ontop;
+		modecontrol = new VerticalLayout(controls);
+			modeselect = new Fieldset("mode",modecontrol);
+				radio_overlay = new Radiobox("overlay", modeselect);  if (canvas.display_mode == DisplayMode.overlay) radio_overlay.isChecked = true;
+				radio_rows    = new Radiobox("rows"   , modeselect);  if (canvas.display_mode == DisplayMode.rows)    radio_rows.isChecked = true;
+				radio_cols    = new Radiobox("columns", modeselect);  if (canvas.display_mode == DisplayMode.columns) radio_cols.isChecked = true;
 
 		import ui;
 		autorefresh.addEventListener(EventType.change,   () { ui.winpoll(canvas_name, autorefresh.isChecked?"true":"false"); });
@@ -200,7 +218,9 @@ public:
 		       numsX.addEventListener(EventType.change,  () { ui.numbers( canvas_name, "x",   numsX.isChecked?"true":"false"); });
 		       numsY.addEventListener(EventType.change,  () { ui.numbers( canvas_name, "y",   numsY.isChecked?"true":"false"); });
 		       numsTop.addEventListener(EventType.change,() { ui.numbers( canvas_name, "top", numsTop.isChecked?"true":"false"); });
-
+		       radio_overlay.addEventListener(EventType.change, () { if (radio_overlay.isChecked) ui.overlay(canvas_name); });
+		       radio_rows.addEventListener(EventType.change,    () { if (radio_rows.isChecked) ui.rows   (canvas_name, canvas.columns_or_rows); });
+		       radio_cols.addEventListener(EventType.change,    () { if (radio_cols.isChecked) ui.columns(canvas_name, canvas.columns_or_rows); });
 		simple.onClosing = delegate () { 
 			import fairy;
 			main_windows.remove(name);
