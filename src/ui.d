@@ -78,15 +78,24 @@ void update_window_gui(string window_name) {
 	["new session name, file does not exist a new session is created"])
 string session_open(string session_name) {
 	import fairy, histogram;
+	if (session_name == fairy.session.name) return "session already open";
+
 	if (start_gui) foreach (name; fairy.session.windows.byKey) if (fairy.main_gui !is null) fairy.main_gui.save_window(name);
+
+	version(elderpt) {
+		import elderpt;
+		//bool elderpt_was_running = elderpt.running;
+		if (elderpt.running) {
+			ui.elderpt("stop");
+			assert(elderpt.running == false);
+		}
+	}
 
 	fairy.session.write_to_file();
 	fairy.session.close();
 	fairy.session.name = session_name;
 	fairy.session.read_from_file();
 
-	//import std.stdio;
-	//fairy.session.windows.byKey.writeln();
 	if (start_gui) {// gui is already running
 		foreach (name, ref window; fairy.session.windows) {
 			if (fairy.main_gui !is null) {
@@ -94,6 +103,13 @@ string session_open(string session_name) {
 			}
 		}
 	}
+
+	//version(elderpt) {
+	//	if (elderpt_was_running) {
+	//		ui.elderpt("start");
+	//	}
+	//}
+
 	return "";
 }
 

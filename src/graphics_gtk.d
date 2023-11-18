@@ -26,8 +26,8 @@ class GtkGui : Gui {
 		main_windows[name] = new MainWindow(name, &canvas, application);
 	}
 	override void close_window(string name) {
-		import std.stdio;
-		writeln("close window ", name , "     all windows ", main_windows);
+		//import std.stdio;
+		//writeln("close window ", name , "     all windows ", main_windows);
 		if (name in main_windows) {
 			main_windows[name].close();
 			main_windows.remove(name);
@@ -41,7 +41,7 @@ class GtkGui : Gui {
 	override void save_window(string name) { // copy window properties to canvas
 		auto window = main_windows[name];
 		GdkRectangle rect;
-		window.getAllocation(rect);
+		window.window_toplevel_box.getAllocation(rect);
 		window.canvas.width  = rect.width;
 		window.canvas.height = rect.height;
 		version(gtk3) {
@@ -228,9 +228,16 @@ private:
 	SimpleAction quit_program;
 	SimpleAction expand_all_selected;
 	SimpleAction remove_all_selected;
+	SimpleAction show_all_selected;
+	SimpleAction show_all_recursive;
+	SimpleAction hide_all_selected;
+	SimpleAction hide_all_recursive;
 
 	import gtk.EventControllerKey;
 	EventControllerKey event_controller_key;
+
+	import glib.Timeout;
+	Timeout open_session_timeout;
 
 public:
 
@@ -244,6 +251,7 @@ public:
 	this(string window_name, CanvasProperties *canvas_properties, Application application) {
 		canvas = canvas_properties;
 		super(application);
+		setDecorated(true);
 		// check arguments
 		import std.algorithm;
 		width  = (canvas_properties.width >0)?max(canvas_properties.width , min_width):min_width;
@@ -326,10 +334,12 @@ public:
 							import std.stdio; writeln("filename=", filename);
 						}
 						if (filename.endsWith(".session")) { filename = filename[0..$-8]; }
-						import ui;
-						ui.session_open(filename);
-						//change_session(filename);
-						//notifySessionChange();
+						// execute the command with a short delay to make sure the dialog window is closed before the action is executed
+						open_session_timeout = new Timeout(100, delegate bool() {
+							import ui;
+							ui.session_open(filename);
+							return false;
+						});
 						dialog.close();
 					} 
 					if (response == ResponseType.CANCEL) dialog.close(); 
@@ -345,16 +355,42 @@ public:
 			ui.quit();
 		});
 		addAction(quit_program);
-		//expand_all_selected = new SimpleAction("expand_all", null);
-		//expand_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
-		//	item_view.expand_all_selected();
-		//});
-		//addAction(expand_all_selected);
-		//remove_all_selected = new SimpleAction("remove_selected", null);
-		//remove_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
-		//	item_view.remove_all_selected();
-		//});
-		//addAction(remove_all_selected);
+
+		expand_all_selected = new SimpleAction("expand_all", null);
+		expand_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
+			item_view.expand_all_selected();
+		});
+		addAction(expand_all_selected);
+
+		show_all_selected = new SimpleAction("show_all_selected", null);
+		show_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
+			item_view.show_all_selected();
+		});
+		addAction(show_all_selected);
+
+		show_all_recursive = new SimpleAction("show_all_recursive", null);
+		show_all_recursive.addOnActivate(delegate(Variant var, SimpleAction action) {
+			item_view.show_all_recursive();
+		});
+		addAction(show_all_recursive);
+
+		hide_all_selected = new SimpleAction("hide_all_selected", null);
+		hide_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
+			item_view.hide_all_selected();
+		});
+		addAction(hide_all_selected);
+
+		hide_all_recursive = new SimpleAction("hide_all_recursive", null);
+		hide_all_recursive.addOnActivate(delegate(Variant var, SimpleAction action) {
+			item_view.hide_all_recursive();
+		});
+		addAction(hide_all_recursive);
+
+		remove_all_selected = new SimpleAction("remove_selected", null);
+		remove_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
+			item_view.remove_all_selected();
+		});
+		addAction(remove_all_selected);
 
 
 		name = window_name;
@@ -378,18 +414,22 @@ public:
 			header_bar.setTitle("fairy - " ~ window_name); 
 		}
 
-		// add menu button to title bar
-		open_menu = new Button();
+		// add menu and other buttons to title bar
+		open_menu    = new Button();
+		//close_window = new Button();
 		version(gtk3) {
 			import gtk.Image, gtk.c.types;
 			auto open_image = new Image;
 			open_image.setFromIconName("open-menu-symbolic", IconSize.LARGE_TOOLBAR);
 			open_menu.setImage(open_image);
-
+			header_bar.setShowCloseButton(true);		
 		}
 		version(gtk4) { 
 			open_menu.setIconName("open-menu-symbolic"); 
+			header_bar.setShowTitleButtons(true);
 		}
+
+		//header_bar.packEnd(close_window);
 		header_bar.packStart(open_menu);
 
 		application.setAccelsForAction("win.new_window", ["<Control>n"]);
@@ -451,22 +491,26 @@ public:
 			workspace.setResizeEndChild(true);
 			workspace.setShrinkEndChild(false);
 		}
-		addOnDestroy((Widget) {
-			import fairy;
-			try {
-				fairy.session.close_window(name);
-			} catch (Exception e) {
-				// nothing
-				// we land here if the close was executed from command line 
-				// then fairy.sesssion.close_window is executed once called from command line
-				// and again if the window gets a Destroy-notification
-			}
-		});
+		version(gtk3) {
+			addOnHide((Widget) {
+				import fairy;
+				try {
+					if ((name in GtkGui.main_windows) !is null) GtkGui.main_windows.remove(name);
+					fairy.session.close_window(name);
+				} catch (Exception e) {
+					// nothing
+					// we land here if the close was executed from command line 
+					// then fairy.sesssion.close_window is executed once called from command line
+					// and again if the window gets a Destroy-notification
+				}
+			});
+		}
 		version(gtk4) {
 			setHideOnClose(true);
 			addOnHide((Widget) {
 				import fairy;
 				try {
+					if ((name in GtkGui.main_windows) !is null) GtkGui.main_windows.remove(name);
 					fairy.session.close_window(name);
 				} catch (Exception e) {
 					// nothing
@@ -623,6 +667,57 @@ class ItemView : TreeView {
 			}
 		}
 	}
+	void show_all_selected() {
+		string[] names; 
+		foreach(selected_iter; getSelectedIters()) {
+			names ~= treestore.getString(selected_iter, COLUMN_FULLNAME);
+		}
+		foreach(name; names) {
+			try {
+				import ui;
+				if (name !is null) ui.show(name, main_window.name);
+			} catch (Exception e) {
+				import std.stdio;
+				writeln("cannot show " ~ name ~": " ~ e.msg);
+			}
+		}
+	}
+	void show_all_recursive() {
+		string[] names; 
+		foreach(selected_iter; getSelectedIters()) {
+			bool active = true;
+			iterate_children_depth_first(&active, treestore, selected_iter, 0,
+				(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) { 
+					switch_iter(treestore, iter, plotwidget, force_active);
+				});
+		}
+	}
+
+	void hide_all_selected() {
+		string[] names; 
+		foreach(selected_iter; getSelectedIters()) {
+			names ~= treestore.getString(selected_iter, COLUMN_FULLNAME);
+		}
+		foreach(name; names) {
+			try {
+				import ui;
+				if (name !is null) ui.show(name, main_window.name, "false");
+			} catch (Exception e) {
+				import std.stdio;
+				writeln("cannot show " ~ name ~": " ~ e.msg);
+			}
+		}
+	}
+	void hide_all_recursive() {
+		string[] names; 
+		foreach(selected_iter; getSelectedIters()) {
+			bool active = false;
+			iterate_children_depth_first(&active, treestore, selected_iter, 0,
+				(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) { 
+					switch_iter(treestore, iter, plotwidget, force_active);
+				});
+		}
+	}
 
 
 	this(PlotWidget pw, MainWindow mainwindow) {
@@ -723,6 +818,33 @@ class ItemView : TreeView {
 			popup_menu.append( // expand all underlying items and folders
 				new MenuItem(
 					delegate(MenuItem m) { // the action to perform if that menu entry is selected
+						show_all_selected();
+					},
+					"show", // menu entry label
+					"show selected items"// description
+				)
+			);
+			popup_menu.append( // expand all underlying items and folders
+				new MenuItem(
+					delegate(MenuItem m) { // the action to perform if that menu entry is selected
+						show_all_recursive();
+					},
+					"show recursive", // menu entry label
+					"show selected items and their children"// description
+				)
+			);
+			popup_menu.append( // expand all underlying items and folders
+				new MenuItem(
+					delegate(MenuItem m) { // the action to perform if that menu entry is selected
+						hide_all_recursive();
+					},
+					"hide recursive", // menu entry label
+					"hide selected items and their children"// description
+				)
+			);
+			popup_menu.append( // expand all underlying items and folders
+				new MenuItem(
+					delegate(MenuItem m) { // the action to perform if that menu entry is selected
 						remove_all_selected();
 					},
 					"remove", // menu entry label
@@ -743,8 +865,11 @@ class ItemView : TreeView {
 
 		version(gtk4) {
 			menu = new Menu;
-			menu.append("expand all", "win.expand_all");
-			menu.append("remove",     "win.remove_selected");
+			menu.append("expand all",     "win.expand_all");
+			menu.append("show",           "win.show_all_selected");
+			menu.append("show recursive", "win.show_all_recursive");
+			menu.append("hide recursive", "win.hide_all_recursive");
+			menu.append("remove",         "win.remove_selected");
 
 			popup_menu = new PopoverMenu(menu); 
 			right_click = new GestureClick;
@@ -1121,19 +1246,9 @@ class PlotWidget : Box {
 		check_autoscale_x.setActive(canvas.autoscale[0]);
 		check_autoscale_y.setActive(canvas.autoscale[1]);
 		check_autoscale_z.setActive(canvas.autoscale[2]);
-		check_autoscale_x.addOnToggled(
-							delegate void(CheckOrToggleButton button) {
-								autoscale(name, 'x', button.getActive()?"true":"false");
-							} );
-		check_autoscale_y.addOnToggled(
-							delegate void(CheckOrToggleButton button) {
-								autoscale(name, 'y', button.getActive()?"true":"false");
-							} );
-		check_autoscale_z.addOnToggled(
-							delegate void(CheckOrToggleButton button) {
-								autoscale(name, 'z', button.getActive()?"true":"false");
-							} );
-
+		check_autoscale_x.addOnToggled((button) => autoscale(name, 'x', button.getActive()?"true":"false"));
+		check_autoscale_y.addOnToggled((button) => autoscale(name, 'y', button.getActive()?"true":"false"));
+		check_autoscale_z.addOnToggled((button) => autoscale(name, 'z', button.getActive()?"true":"false"));
 
 		///////////////////////////////////////////////////////
 		log_label = new Label("log");
@@ -1143,21 +1258,9 @@ class PlotWidget : Box {
 		check_log_x.setActive(canvas.transform[0].logscale);
 		check_log_y.setActive(canvas.transform[1].logscale);
 		check_log_z.setActive(canvas.transform[2].logscale);
-		check_log_x.addOnToggled(
-			delegate void(CheckOrToggleButton button) {
-								logscale(name, 'x', button.getActive()?"true":"false");
-							}
-			);
-		check_log_y.addOnToggled(
-			delegate void(CheckOrToggleButton button) {
-								logscale(name, 'y', button.getActive()?"true":"false");
-							}
-			);
-		check_log_z.addOnToggled(
-			delegate void(CheckOrToggleButton button) {
-								logscale(name, 'z', button.getActive()?"true":"false");
-							}
-			);
+		check_log_x.addOnToggled((button) => logscale(name, 'x', button.getActive()?"true":"false"));
+		check_log_y.addOnToggled((button) => logscale(name, 'y', button.getActive()?"true":"false"));
+		check_log_z.addOnToggled((button) => logscale(name, 'z', button.getActive()?"true":"false"));
 
 		///////////////////////////////////////////////////////
 		grid_label     = new Label("grid");
@@ -1167,21 +1270,9 @@ class PlotWidget : Box {
 		check_grid_x.setActive(canvas.grid[0]);
 		check_grid_y.setActive(canvas.grid[1]);
 		check_grid_top.setActive(canvas.grid_ontop);
-		check_grid_x.addOnToggled(
-			delegate void(CheckOrToggleButton button) {
-								grid(name, "x", button.getActive()?"true":"false");
-							}
-			);
-		check_grid_y.addOnToggled(
-			delegate void(CheckOrToggleButton button) {
-								grid(name, "y", button.getActive()?"true":"false");
-							}
-			);
-		check_grid_top.addOnToggled(
-			delegate void(CheckOrToggleButton button) {
-								grid(name, "top", button.getActive()?"true":"false");
-							}
-			);
+		check_grid_x.addOnToggled((button)   => grid(name,  "x",  button.getActive()?"true":"false"));
+		check_grid_y.addOnToggled((button)   => grid(name,  "y",  button.getActive()?"true":"false"));
+		check_grid_top.addOnToggled((button) => grid(name, "top", button.getActive()?"true":"false"));
 
 		nums_label     = new Label("nums");
 		check_nums_x   = new CheckButton("X");

@@ -209,7 +209,7 @@ struct Session {
 	void write_to_file() {
 		import std.stdio : writeln;
 		auto filename = name~".session";
-		writeln("save session to file ", filename);
+		//writeln("save session to file ", filename);
 		JSONValue json_out;
 		// windows are easy, because we can directly serialize the array
 		json_out["windows"] = serialize(windows);
