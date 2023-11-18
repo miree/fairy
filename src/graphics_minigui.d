@@ -236,6 +236,8 @@ class DrawArea : Widget, BackendInterface
 		//	first_draw = false;
 		//}
 
+		canvas.width = bounds.width;
+		canvas.height = bounds.height;
 		widget_painter = &w_painter;
 
 		painter.draw_content();

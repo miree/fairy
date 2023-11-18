@@ -31,6 +31,21 @@ class MiniGuiGL : Gui {
 	override void add_item(string name) {
 	}
 	override void update_from_canvas(string name) {
+		foreach(n,win; MainWindow.main_windows) {
+			win.autorefresh.isChecked = win.canvas.autorefresh;
+			win.fitX.isChecked        = win.canvas.autoscale[0];
+			win.fitY.isChecked        = win.canvas.autoscale[1];
+			win.fitZ.isChecked        = win.canvas.autoscale[2];
+			win.logX.isChecked        = win.canvas.transform[0].logscale;
+			win.logY.isChecked        = win.canvas.transform[1].logscale;
+			win.logZ.isChecked        = win.canvas.transform[2].logscale;
+			win.gridX.isChecked       = win.canvas.grid[0];
+			win.gridY.isChecked       = win.canvas.grid[1];
+			win.gridTop.isChecked     = win.canvas.grid_ontop;
+			win.numsX.isChecked       = win.canvas.numbers[0];
+			win.numsY.isChecked       = win.canvas.numbers[1];
+			win.numsTop.isChecked     = win.canvas.numbers_ontop;
+		}
 	}
 	override void loop() {
 		import fairy;
@@ -87,8 +102,9 @@ private:
 	Widget plotwidget;
 		DrawArea           draw_area;
 		HorizontalLayout   controls;
-			Checkbox           autorefresh;
-			Button             refresh;
+			VerticalLayout     autorefr;    
+				Checkbox         autorefresh;
+				Button           refresh;
 			VerticalLayout     fitlog;
 				HorizontalLayout fitlayout;
 					TextLabel    fitlabel;
@@ -100,6 +116,17 @@ private:
 					Checkbox     logX;
 					Checkbox     logY;
 					Checkbox     logZ;
+			VerticalLayout     gridnums;
+				HorizontalLayout gridlayout;
+					TextLabel      gridlabel;
+					Checkbox       gridX;
+					Checkbox       gridY;
+					Checkbox       gridTop;
+				HorizontalLayout numslayout;
+					TextLabel      numslabel;
+					Checkbox       numsX;
+					Checkbox       numsY;
+					Checkbox       numsTop;
 
 
 public:
@@ -130,22 +157,43 @@ public:
 		plotwidget = new Widget(window);
 		draw_area = new DrawArea(canvas_name, canvas_pointer, plotwidget);
 
-		controls = new HorizontalLayout(100,plotwidget);
-		autorefresh = new Checkbox("autorefresh", controls);
-		refresh     = new Button("refresh", controls);
+		controls = new HorizontalLayout(40,plotwidget);
+
+		autorefr = new VerticalLayout(80,controls);
+			autorefresh = new Checkbox("autorefresh", autorefr); autorefresh.isChecked = canvas.autorefresh;
+			refresh     = new Button("refresh", autorefr);
 		fitlog  = new VerticalLayout(controls);
 			fitlayout = new HorizontalLayout(fitlog);
-				fitlabel = new TextLabel("fit",fitlayout);
-				fitX     = new Checkbox ("X"  ,fitlayout);
-				fitY     = new Checkbox ("Y"  ,fitlayout);
-				fitZ     = new Checkbox ("Z"  ,fitlayout);
+				fitlabel = new TextLabel("fit",fitlayout);       
+				fitX     = new Checkbox ("X"  ,fitlayout);        fitX.isChecked = canvas.autoscale[0];
+				fitY     = new Checkbox ("Y"  ,fitlayout);        fitY.isChecked = canvas.autoscale[1];
+				fitZ     = new Checkbox ("Z"  ,fitlayout);        fitZ.isChecked = canvas.autoscale[2];
 			loglayout = new HorizontalLayout(fitlog);
 				loglabel = new TextLabel("log",loglayout);
-				logX     = new Checkbox ("X"  ,loglayout);
-				logY     = new Checkbox ("Y"  ,loglayout);
-				logZ     = new Checkbox ("Z"  ,loglayout);
+				logX     = new Checkbox ("X"  ,loglayout);        logX.isChecked = canvas.transform[0].logscale;
+				logY     = new Checkbox ("Y"  ,loglayout);        logY.isChecked = canvas.transform[1].logscale;
+				logZ     = new Checkbox ("Z"  ,loglayout);        logZ.isChecked = canvas.transform[2].logscale;
+		gridnums  = new VerticalLayout(controls);
+			gridlayout = new HorizontalLayout(gridnums);
+				gridlabel = new TextLabel("grid",gridlayout);
+				gridX     = new Checkbox ("X"  ,gridlayout);      gridX.isChecked = canvas.grid[0];
+				gridY     = new Checkbox ("Y"  ,gridlayout);      gridY.isChecked = canvas.grid[1];
+				gridTop   = new Checkbox ("top",gridlayout);      gridTop.isChecked = canvas.grid_ontop;
+			numslayout = new HorizontalLayout(gridnums);
+				numslabel = new TextLabel("num",numslayout);
+				numsX     = new Checkbox ("X"  ,numslayout);      numsX.isChecked = canvas.numbers[0];
+				numsY     = new Checkbox ("Y"  ,numslayout);      numsY.isChecked = canvas.numbers[1];
+				numsTop   = new Checkbox ("top",numslayout);      numsTop.isChecked = canvas.numbers_ontop;
 
-
+		import ui;
+		autorefresh.addEventListener(EventType.change,   () { ui.winpoll(canvas_name, autorefresh.isChecked?"true":"false"); });
+		    refresh.addEventListener(EventType.triggered,() { ui.winrefresh(canvas_name); });
+		       fitX.addEventListener(EventType.change,   () { ui.autoscale(canvas_name, 'x', fitX.isChecked?"true":"false"); });
+		       fitY.addEventListener(EventType.change,   () { ui.autoscale(canvas_name, 'y', fitY.isChecked?"true":"false"); });
+		       fitZ.addEventListener(EventType.change,   () { ui.autoscale(canvas_name, 'z', fitZ.isChecked?"true":"false"); });
+		       logX.addEventListener(EventType.change,   () { ui.logscale( canvas_name, 'x', logX.isChecked?"true":"false"); });
+		       logY.addEventListener(EventType.change,   () { ui.logscale( canvas_name, 'y', logY.isChecked?"true":"false"); });
+		       logZ.addEventListener(EventType.change,   () { ui.logscale( canvas_name, 'z', logZ.isChecked?"true":"false"); });
 
 		simple.onClosing = delegate () { 
 			import fairy;
@@ -287,11 +335,10 @@ class DrawArea : OpenGlWidget, BackendInterface
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 
-
 		glOrtho(0, width, height,0 , 0, 1);
 
-		//glScissor(cast(int)cx1,cast(int)cy1, cast(int)(cx2-cx1), cast(int)(cy2-cy1));
-
+		canvas.height=height;
+		canvas.width=width;
 		painter.draw_content();
 
 		// you can do other glScale, glRotate, glTranslate, etc
