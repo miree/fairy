@@ -542,8 +542,8 @@ public:
 		version(gtk3) {
 			addOnKeyPress(delegate bool(GdkEventKey* e, Widget w) { // the action to perform if that menu entry is selected
 				handle_keyboard_shortcut(e.keyval);
-				//return true; // don't propagate
-				return false; // propagate
+				return true; // don't propagate
+				//return false; // propagate
 			});
 		}
 		version(gtk4) {
