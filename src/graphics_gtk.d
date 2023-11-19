@@ -43,8 +43,11 @@ class GtkGui : Gui {
 		GdkRectangle rect;
 		window.window_toplevel_box.getAllocation(rect);
 		window.canvas.width  = rect.width;
-		window.canvas.height = rect.height;
+		version(gtk4) {
+			window.canvas.height = rect.height+56;
+		}
 		version(gtk3) {
+			window.canvas.height = rect.height;
 			int x,y;
 			window.getPosition(x, y);
 			window.canvas.xpos = x;
