@@ -1,23 +1,26 @@
+LD_FLAGS = -L-L/home/michael/.local/lib -L-rpath=/home/michael/.local/lib
+
+
 fairy: src/*.d
-	dmd -Isrc -i src/app.d -of=fairy
+	dmd -Isrc -i src/app.d -of=fairy $(LD_FLAGS)
 
 allegro5: src/*.d
-	dmd -Isrc -i src/app.d -of=fairy -version=allegro5
+	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 $(LD_FLAGS)
 
 elderpt: src/*.d
-	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 -version=elderpt -L-L/home/michael/.local/lib
+	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 -version=elderpt $(LD_FLAGS)
 
 gtk3: src/*.d
-	ldc -Isrc -i src/app.d -of=fairy --d-version=gtk3 --d-version=elderpt -L-L/home/michael/.local/lib -I/usr/include/d/gtkd-3
+	ldc -Isrc -i src/app.d -of=fairy --d-version=gtk3 --d-version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-3
 
 gtk4: src/*.d
-	dmd -Isrc -i src/app.d -of=fairy -version=gtk4 -version=elderpt -L-L/home/michael/.local/lib -I/usr/include/d/gtkd-4
+	dmd -Isrc -i src/app.d -of=fairy -version=gtk4 -version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-4
 
 minigui: src/*.d
-	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui -version=elderpt  -L-L/home/michael/.local/lib
+	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui -version=elderpt  $(LD_FLAGS)
 
 minigui_gl: src/*.d
-	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui_gl -version=elderpt  -L-L/home/michael/.local/lib
+	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui_gl -version=elderpt  $(LD_FLAGS)
 
 ldc-allegro5: src/*.d
 	ldc -O -release -Isrc -i src/app.d -of=fairy --d-version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color -L-lasound
