@@ -232,6 +232,8 @@ private:
 	SimpleAction show_all_recursive;
 	SimpleAction hide_all_selected;
 	SimpleAction hide_all_recursive;
+	SimpleAction reset_all_selected;
+	SimpleAction reset_all_recursive;
 
 	import gtk.EventControllerKey;
 	EventControllerKey event_controller_key;
@@ -385,6 +387,18 @@ public:
 			item_view.hide_all_recursive();
 		});
 		addAction(hide_all_recursive);
+
+		reset_all_selected = new SimpleAction("reset_all_selected", null);
+		reset_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
+			item_view.reset_all_selected();
+		});
+		addAction(reset_all_selected);
+
+		reset_all_recursive = new SimpleAction("reset_all_recursive", null);
+		reset_all_recursive.addOnActivate(delegate(Variant var, SimpleAction action) {
+			item_view.reset_all_recursive();
+		});
+		addAction(reset_all_recursive);
 
 		remove_all_selected = new SimpleAction("remove_selected", null);
 		remove_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
@@ -719,6 +733,35 @@ class ItemView : TreeView {
 		}
 	}
 
+	void reset_all_selected() {
+		string[] names; 
+		foreach(selected_iter; getSelectedIters()) {
+			names ~= treestore.getString(selected_iter, COLUMN_FULLNAME);
+		}
+		foreach(name; names) {
+			try {
+				import ui;
+				if (name !is null) ui.reset(name);
+			} catch (Exception e) {
+				import std.stdio;
+				writeln("cannot show " ~ name ~": " ~ e.msg);
+			}
+		}
+	}
+	void reset_all_recursive() {
+		import ui;
+		foreach(selected_iter; getSelectedIters()) {
+			string full_name = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			if (full_name !is null && full_name.length > 0) {
+				try { if (full_name !is null) ui.reset(full_name); } catch (Exception e) { }
+			} 
+			iterate_children_depth_first(null, treestore, selected_iter, 0,
+				(bool* dummy, string full_name, TreeStore treestore, TreeIter iter, int nothing) {
+					try { if (full_name !is null) ui.reset(full_name); } catch (Exception e) { }
+				});
+		}
+	}
+
 
 	this(PlotWidget pw, MainWindow mainwindow) {
 		plotwidget = pw;
@@ -806,51 +849,14 @@ class ItemView : TreeView {
 
 		version(gtk3) {
 			popup_menu = new Menu;
-			popup_menu.append( // expand all underlying items and folders
-				new MenuItem(
-					delegate(MenuItem m) { // the action to perform if that menu entry is selected
-						expand_all_selected();
-					},
-					"expand all", // menu entry label
-					"recursively expand all nested items"// description
-				)
-			);
-			popup_menu.append( // expand all underlying items and folders
-				new MenuItem(
-					delegate(MenuItem m) { // the action to perform if that menu entry is selected
-						show_all_selected();
-					},
-					"show", // menu entry label
-					"show selected items"// description
-				)
-			);
-			popup_menu.append( // expand all underlying items and folders
-				new MenuItem(
-					delegate(MenuItem m) { // the action to perform if that menu entry is selected
-						show_all_recursive();
-					},
-					"show recursive", // menu entry label
-					"show selected items and their children"// description
-				)
-			);
-			popup_menu.append( // expand all underlying items and folders
-				new MenuItem(
-					delegate(MenuItem m) { // the action to perform if that menu entry is selected
-						hide_all_recursive();
-					},
-					"hide recursive", // menu entry label
-					"hide selected items and their children"// description
-				)
-			);
-			popup_menu.append( // expand all underlying items and folders
-				new MenuItem(
-					delegate(MenuItem m) { // the action to perform if that menu entry is selected
-						remove_all_selected();
-					},
-					"remove", // menu entry label
-					"remove selected items"// description
-				)
-			);
+			popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
+			popup_menu.append( new MenuItem( (m) => show_all_recursive(),  "show recursive", "show selected items and their children"));
+			popup_menu.append( new MenuItem( (m) => hide_all_recursive(),  "hide recursive", "hide selected items and their children"));
+			popup_menu.append( new MenuItem( (m) => reset_all_recursive(), "reset recursive", "reset selected items and their children"));
+			popup_menu.append( new MenuItem( (m) => show_all_selected(),   "show", "show selected items"));
+			popup_menu.append( new MenuItem( (m) => hide_all_selected(),   "hide", "hide only selected items"));
+			popup_menu.append( new MenuItem( (m) => reset_all_selected(),  "reset", "reset selected items and"));
+			popup_menu.append( new MenuItem( (m) => remove_all_selected(), "remove", "remove selected items"));
 			addOnButtonPress(
 				delegate bool(GdkEventButton* e, Widget w) {
 					w.onButtonPressEvent(e); 
@@ -865,11 +871,14 @@ class ItemView : TreeView {
 
 		version(gtk4) {
 			menu = new Menu;
-			menu.append("expand all",     "win.expand_all");
-			menu.append("show",           "win.show_all_selected");
-			menu.append("show recursive", "win.show_all_recursive");
-			menu.append("hide recursive", "win.hide_all_recursive");
-			menu.append("remove",         "win.remove_selected");
+			menu.append("expand recursive", "win.expand_all");
+			menu.append("show recursive",   "win.show_all_recursive");
+			menu.append("hide recursive",   "win.hide_all_recursive");
+			menu.append("reset recursive",  "win.reset_all_recursive");
+			menu.append("show",             "win.show_all_selected");
+			menu.append("hide",             "win.hide_all_selected");
+			menu.append("reset",            "win.reset_all_selected");
+			menu.append("remove",           "win.remove_selected");
 
 			popup_menu = new PopoverMenu(menu); 
 			right_click = new GestureClick;

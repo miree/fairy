@@ -51,6 +51,10 @@ public:
 	override string get_type() const pure {
 		return "histogram.Hist1";
 	}
+	override void reset() {
+		data.bins[] = double.init;
+		++item_version;
+	}
 
 	void fill(double position, double value = 1.0) {
 		++item_version;
@@ -104,6 +108,7 @@ class Hist2 : Visual, Item
 {
 public:
 	struct Data{
+		@SERIALIZE double initial;
 		@SERIALIZE double[] bins;
 		@SERIALIZE ulong  bins_x;
 		@SERIALIZE ulong  bins_y;
@@ -122,6 +127,7 @@ public:
 		                                 // counts[5] are right outside
 	}
 	this(ulong nbins_x, ulong nbins_y, double left, double right, double bottom, double top, double initial = double.init) {
+		data.initial     = initial;
 		data.bins        = new double[cast(uint)nbins_x*cast(uint)nbins_y];
 		data.bins[]      = initial;
 		data.bins_x      = nbins_x;
@@ -151,6 +157,10 @@ public:
 	override JSONValue toJSON() const { return serialize(data); }
 	override string get_type() const pure {
 		return "histogram.Hist2";
+	}
+	override void reset() {
+		data.bins[] = data.initial;
+		++item_version;
 	}
 
 	void fill(double position_x, double position_y, double value = 1.0) {
@@ -222,6 +232,9 @@ class FileHistogram : Visual, Item {
 	override JSONValue toJSON() const { return serialize(data); }
 	override string get_type() const { 
 		return "histogram.FileHistogram"; 
+	}
+	override void reset() {
+		++item_version;
 	}
 	override ulong getVersion() {
 		need_to_reload();

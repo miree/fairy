@@ -79,6 +79,14 @@ struct Session {
 		}
 
 	}
+	void reset_item(string name) {
+		check_name_helper("item ", name);
+		if ((name in items) is null) {
+			throw new Exception("no item with name \""~name~"\"");
+		} else {
+			items[name].item.reset;
+		}
+	}
 
 	string list_items(bool include_null) {
 		import std.algorithm, std.array, std.conv;

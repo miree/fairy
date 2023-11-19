@@ -64,6 +64,10 @@ public:
 	override string get_type() const pure {
 		return "waveform.Waveform";
 	}
+	override void reset() {
+		d.data[] = 0.0; 
+		++item_version;
+	}
 	override ulong getVersion() {
 		return item_version;
 	}

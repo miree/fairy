@@ -147,6 +147,15 @@ string ls(bool all = true) {
 	return fairy.session.list_items(all);
 }
 
+@UI_EXPORT("reset item",
+	["name of item to be reset"])
+@trusted
+string reset(string item_name) {
+	import fairy;
+	fairy.session.reset_item(item_name);
+	return "";
+}
+
 @UI_EXPORT("remove item",
 	["name of item to be removed"])
 @trusted

@@ -10,6 +10,7 @@ interface Item {
 	import std.json;
 	JSONValue toJSON() const ;
 	string get_type() const ;
+	void reset();
 }
 struct ItemStore {
 	Item item;
