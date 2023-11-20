@@ -147,6 +147,59 @@ string ls(bool all = true) {
 	return fairy.session.list_items(all);
 }
 
+@UI_EXPORT("fit function to data
+  example: fit a+b*x*x [\"a=40\",\"b=2\"] fitpoints.dat",
+	["fit function to datapoints in file using given start parameters"])
+@trusted
+string fit(string fun, string[] start_params, string datafilename) {
+	import expression, multifit_nlin;
+	import std.algorithm, std.conv, std.stdio, std.array;
+	auto data = File(datafilename,"r").byLine
+	                                   .map!(l=>l.split.map!(to!double))
+	                                   .map!(d=>Dp!double(d[0],d[1],d[2]))
+	                                   .array;
+	auto fitfunc = evaluate(fun);
+	start_params ~= "x=0";
+	double[] params = new double[](start_params.length);
+
+	auto func_params = fitfunc.param_index_lookup.byKey;
+	auto start_param_names = start_params.map!(pn=>pn.split('=')[0]);
+	string[] missing;
+	foreach(fp; func_params) {
+		if (!start_param_names.canFind(fp)) missing ~= fp;
+	}
+	if (missing.length > 0) throw new Exception("missing start parmeters for: " ~ missing.join(", "));
+	//writeln(params);
+	start_params.map!(sp=>sp.split('='))
+	            .each!((pv) {
+	            	if (pv[0] in fitfunc.param_index_lookup) {
+		            	const idx = fitfunc.param_index_lookup[pv[0]];
+		            	params[idx] = pv[1].to!double;
+	            	} else writeln("warning: no parameter with name "~pv[0]~" in function");
+	            });
+	//writeln(params);
+	const x_idx = fitfunc.param_index_lookup["x"];
+	//writeln(x_idx);
+	auto fitdelegate = delegate double(double x, double[] pars) {
+		pars[x_idx] = x; 
+		return fitfunc.e.eval(pars);
+	};
+	auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, data, params, false);
+	fitter.run();
+
+	writeln("fit result: (chi_red^2 = ", fitter.result_red_chi_sqr, ")");
+	start_params.map!(sp=>sp.split('='))
+	            .each!((pv) {
+	            	if (pv[0] in fitfunc.param_index_lookup) {
+		            	const idx = fitfunc.param_index_lookup[pv[0]];
+		            	if (pv[0]!="x") writeln(pv[0], " = " ,fitter.result_params[idx], " +- ", fitter.result_errors[idx]);
+		            }
+	            });
+	return "";
+}
+
+
+
 @UI_EXPORT("reset item",
 	["name of item to be reset"])
 @trusted
