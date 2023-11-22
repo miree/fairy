@@ -147,6 +147,26 @@ string ls(bool all = true) {
 	return fairy.session.list_items(all);
 }
 
+@UI_EXPORT("define a function",
+	["name of the function",
+	 "definition of the function",
+	 "function parameters"])
+@trusted
+string funct(string name, string definition, string[] parameters = null) {
+	import std.algorithm, std.conv, std.stdio, std.array;
+	import fairy, functions;
+	double[string] pars;
+	if (parameters !is null) {
+		foreach(par; parameters) {
+			auto pv = par.split('=');
+			pars[pv[0]] = pv[1].to!double;
+		}
+	}
+	pars["x"]=0.0;
+	fairy.session.add_item(name, new Function(definition, pars));
+	return "";
+}
+
 @UI_EXPORT("fit function to data
   example: fit a+b*x*x [\"a=40\",\"b=2\"] fitpoints.dat",
 	["fit function to datapoints in file using given start parameters"])

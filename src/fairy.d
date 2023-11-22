@@ -6,10 +6,12 @@ import item;
 static this() {
 	import histogram;
 	import waveform;
+	import functions;
 	add_item_factory("waveform.Waveform",       new WaveformFactory);
 	add_item_factory("histogram.FileHistogram", new FileHistogramFactory);
 	add_item_factory("histogram.Hist1",         new Hist1Factory);
 	add_item_factory("histogram.Hist2",         new Hist2Factory);
+	add_item_factory("functions.Function",      new FunctionFactory);
 }
 
 ItemFactory[string] item_factories;
