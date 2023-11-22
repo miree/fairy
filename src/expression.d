@@ -128,56 +128,61 @@ class Number : Expression {
 class Product : Expression {
 	import std.range, std.string;
 	this(ref string expression, ref int[string] parameter_index_lookup) {
-		e1 = new Number(expression, parameter_index_lookup);
-		if (expression.reached_end) return;
-		op = expression[0];
-		switch(op) {
-			case '*': case '/': 
-				expression.popFront;
-				e2 = new Product(expression, parameter_index_lookup); 
-			break;
-			case '+': case '-': break;
-			case ')': case ',': break;
-			default: throw new Exception("expect \'*\' or \'/\' found \'"~op~"\'");
+		for (;;) {
+			es ~= new Number(expression, parameter_index_lookup);
+			if (expression.reached_end) return;
+			switch(expression[0]) {
+				case '*': case '/': 
+					ops ~= expression[0];
+					expression.popFront;
+					if (expression.reached_end) return;
+				break;
+				case '+': case '-': case ')': case ',': return;
+				default: throw new Exception("expect \'*\' or \'/\' found \'"~expression[0]~"\'");
+			}
 		}
 	}
 	override double eval(const double[] params = null) const {
-		double v1 = e1.eval(params);
-		if (e2 is null) return v1;
-		double v2 = e2.eval(params);
-		if (op == '*') return v1*v2;
-		if (op == '/') return v1/v2;
-		assert(0);
+		double result = es[0].eval(params);
+		foreach(idx,op; ops) {
+			double v2 = es[idx+1].eval(params);
+			if (op == '*') result *= v2;
+			if (op == '/') result /= v2;
+		}
+		return result;
 	}
-	char op;
-	Expression e1, e2;
+	char[] ops;
+	Expression[] es;
 }
 
 class Sum : Expression {
 	import std.range, std.string;
 	this(ref string expression, ref int[string] parameter_index_lookup) {
-		e1 = new Product(expression, parameter_index_lookup);
-		if (expression.reached_end) return;
-		op = expression[0];
-		switch(op) {
-			case '+': case '-': 
-				expression.popFront;
-				e2 = new Sum(expression, parameter_index_lookup); 
-			break;
-			case ')': case ',': break;
-			default: throw new Exception("expect \'+\' or \'-\' found \'"~op~"\'");
+		for (;;) {
+			es ~= new Product(expression, parameter_index_lookup);
+			if (expression.reached_end) return;
+			switch(expression[0]) {
+				case '+': case '-': 
+					ops ~= expression[0];
+					expression.popFront;
+					if (expression.reached_end) return;
+				break;
+				case ')': case ',': return;
+				default: throw new Exception("expect \'+\' or \'-\' found \'"~expression[0]~"\'");
+			}
 		}
 	}
 	override double eval(const double[] params = null) const {
-		double v1 = e1.eval(params);
-		if (e2 is null) return v1;
-		double v2 = e2.eval(params);
-		if (op == '+') return v1+v2;
-		if (op == '-') return v1-v2;
-		assert(0);
+		double result = es[0].eval(params);
+		foreach(idx,op; ops) {
+			double v2 = es[idx+1].eval(params);
+			if (op == '+') result += v2;
+			if (op == '-') result -= v2;
+		}
+		return result;
 	}
-	char op;
-	Expression e1, e2;
+	char[] ops;
+	Expression[] es;
 }
 
 Expression parse_noparam(string expression) {
@@ -221,6 +226,8 @@ unittest {
 	testSum("1+1-1", 1.0);
 	testSum("2-(1+1)", 0.0);
 	testSum("2*(1+1)", 4.0);
+	testSum("2-1-1",0.0);
+	testSum("4/2/2",1.0);
 
 
 	void testParam(string ex, double[] params, double expected) {
@@ -249,5 +256,7 @@ unittest {
 	testParam("log(2.0)", null, log(2.0));
 	testParam("atan2(2.0,1.0)", null, atan2(2.0,1.0));
 	testParam("gauss(1,1)", null, gauss(1,1));
+
+	testParam("1+4/2/2-1-1",null,0.0);
 
 }
