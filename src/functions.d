@@ -134,13 +134,13 @@ public:
 		double ymin, ymax;
 		auto x_idx = funct.expr.param_index_lookup["x"];
 		foreach(i;0..points+1) {
-			double x = lr[0]+i*(lr[1]-lr[0])/points;
+			double x = t[0].exp(lr[0]+i*(lr[1]-lr[0])/points);
 			funct.data.parameters[x_idx] = x;
 			double y = funct.expr.e.eval(funct.data.parameters);
-			if (ymin is double.init) ymin = y;
-			if (ymax is double.init) ymax = y;
-			ymin = min(ymin,y);
-			ymax = max(ymax,y);
+			if (ymin is double.init) ymin = t[1].log(y);
+			if (ymax is double.init) ymax = t[1].log(y);
+			ymin = min(ymin,t[1].log(y));
+			ymax = max(ymax,t[1].log(y));
 		}
 		bt[0] = ymin;
 		bt[1] = ymax;
