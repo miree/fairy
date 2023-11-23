@@ -88,16 +88,30 @@ public:
 
 		import std.stdio;
 		writeln("fit with ", datapoints.length, " points");
-		
-		const x_idx = expr.param_index_lookup["x"];
-		auto fitdelegate = delegate double(double x, double[] pars) {
-			pars[x_idx] = x; 
-			return expr.e.eval(pars);
-		};
 
-		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, data.parameters, true);
+		const x_idx = expr.param_index_lookup["x"];
+		double[] all_params = data.parameters;
+		auto fitdelegate = delegate double(double x, double[] pars) {
+			foreach(i; 0..x_idx) all_params[i] = pars[i];
+			all_params[x_idx] = x;
+			foreach(i; x_idx+1 ..all_params.length) all_params[i] = pars[i-1];
+			return expr.e.eval(all_params);
+		};
+		double[] fit_params;
+		foreach(i,par; all_params) {
+			if (i != x_idx) {
+				fit_params ~= par;
+			}
+		}
+		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, fit_params, true);
 		fitter.run();
-		data.fitresult[] = fitter.result_params[];	
+		foreach(i,rpar; fitter.result_params) {
+			if (i<x_idx) {
+				data.fitresult[i] = rpar;
+			} else {
+				data.fitresult[i+1] = rpar;
+			}
+		}	
 
 	}
 
