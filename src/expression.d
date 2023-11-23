@@ -29,8 +29,8 @@ class Parameter : Expression {
 	import std.range, std.string, std.format, std.ascii, std.algorithm;
 	this(ref string expression, ref int[string] parameter_index_lookup) {
 		string name;
-		while (!expression.empty && expression[0].isAlphaNum) {
-			name ~= expression[0];
+		while (!expression.empty && expression.front.isAlphaNum) {
+			name ~= expression.front;
 			expression.popFront;
 		}
 		if ((name in parameter_index_lookup) is null) {
@@ -61,18 +61,17 @@ class Function(string name, int argc) : Expression {
 		if (expression.reached_end) throw new Exception("unexpected end");
 		expression = expression[name.length..$];
 		if (expression.reached_end) throw new Exception("unexpected end");
-		char next = expression[0];
+		const next = expression.front;
 		if (next == '(') {
 			for (int arg = 0; arg < argc; ++arg) {
 				expression.popFront;
 				args ~= new Sum(expression, parameter_index_lookup);
 				if (expression.reached_end) throw new Exception("unexpected end");
 				if (arg+1 < argc) {
-					next = expression[0];
-					if (next != ',') throw new Exception("expecting \',\'");				
+					if (expression.front != ',') throw new Exception("expecting \',\'");				
 				} 
 			}
-			if (expression[0] != ')') throw new Exception("expecting \')\'");
+			if (expression.front != ')') throw new Exception("expecting \')\'");
 			expression.popFront;
 		} else throw new Exception("expecting \'(\' after "~name);
 	}
@@ -91,12 +90,12 @@ class Number : Expression {
 	import std.range, std.string, std.format;
 	this(ref string expression, ref int[string] parameter_index_lookup) {
 		if (expression.reached_end) throw new Exception("unexpected end");
-		char next = expression[0];
+		const next = expression.front;
 		if (next == '(') {
 			expression.popFront;
 			e = new Sum(expression, parameter_index_lookup);
 			if (expression.reached_end) throw new Exception("unexpected end");
-			if (expression[0] != ')') throw new Exception("expecting \')\'");
+			if (expression.front != ')') throw new Exception("expecting \')\'");
 			expression.popFront;
 			return;
 		} 
@@ -131,14 +130,14 @@ class Product : Expression {
 		for (;;) {
 			es ~= new Number(expression, parameter_index_lookup);
 			if (expression.reached_end) return;
-			switch(expression[0]) {
+			switch(expression.front) {
 				case '*': case '/': 
-					ops ~= expression[0];
+					ops ~= expression.front;
 					expression.popFront;
 					if (expression.reached_end) return;
 				break;
 				case '+': case '-': case ')': case ',': return;
-				default: throw new Exception("expect \'*\' or \'/\' found \'"~expression[0]~"\'");
+				default: throw new Exception("expect \'*\' or \'/\' found \'"~cast(char)expression.front~"\'");
 			}
 		}
 	}
@@ -161,14 +160,14 @@ class Sum : Expression {
 		for (;;) {
 			es ~= new Product(expression, parameter_index_lookup);
 			if (expression.reached_end) return;
-			switch(expression[0]) {
+			switch(expression.front) {
 				case '+': case '-': 
-					ops ~= expression[0];
+					ops ~= expression.front;
 					expression.popFront;
 					if (expression.reached_end) return;
 				break;
 				case ')': case ',': return;
-				default: throw new Exception("expect \'+\' or \'-\' found \'"~expression[0]~"\'");
+				default: throw new Exception("expect \'+\' or \'-\' found \'"~cast(char)expression.front~"\'");
 			}
 		}
 	}
