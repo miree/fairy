@@ -167,6 +167,33 @@ string funct(string name, string definition, string[] parameters = null) {
 	return "";
 }
 
+@UI_EXPORT("fit function to histogram",
+	["name of functiton item",
+	 "name of histogram item",
+	 "left end of fit region",
+	 "right end of fit region"])
+string fit2(string function_name, string histogram_name, double left, double right) {
+	import fairy, functions;
+	auto h1_ptr = histogram_name in fairy.session.items;
+	if (h1_ptr is null) {
+		throw new Exception("no item with name " ~ histogram_name);
+	}
+	FitDataSource source = cast(FitDataSource)(h1_ptr.item);
+	if (source is null) {
+		throw new Exception("item " ~ histogram_name ~ " is not of type functions.FitDataSource");
+	}
+	auto f1_ptr = function_name in fairy.session.items;
+	if (f1_ptr is null) {
+		throw new Exception("no item with name " ~ function_name);
+	}
+	Function fun = cast(Function)(f1_ptr.item);
+	if (fun is null) {
+		throw new Exception("item " ~ function_name ~ " is not of type functions.Function");
+	}
+	fun.fit(source,[left,right]);
+	return "";
+}
+
 @UI_EXPORT("fit function to data
   example: fit a+b*x*x [\"a=40\",\"b=2\"] fitpoints.dat",
 	["fit function to datapoints in file using given start parameters"])

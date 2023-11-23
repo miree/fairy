@@ -220,8 +220,8 @@ class FileHistogramFactory : ItemFactory {
 	}
 }
 
-import graphics;
-class FileHistogram : Visual, Item {
+import graphics, functions;
+class FileHistogram : Visual, FitDataSource, Item {
 	struct Data {
 		@SERIALIZE string filename;
 	}
@@ -258,6 +258,29 @@ class FileHistogram : Visual, Item {
 			default: assert(false);
 		}
 	}
+
+	override double[3][] get_data(double[2] region) {
+		double left=region[0];
+		double right=region[1];
+		HistData hist_data = read_file(data.filename);
+		double bin_width = (hist_data.right-hist_data.left)/hist_data.data.length;
+		double[3][] result;
+		if (hist_data.dim == 1) {
+			foreach(idx, y; hist_data.data) {
+				double x = hist_data.left+idx*(hist_data.right-hist_data.left)/hist_data.data.length;
+				x += bin_width/2;
+				if (x >= left && x < right) {
+					import std.math;
+					double[3] dp = [x,y,y>1?sqrt(y):1];
+					result ~= dp;
+				}
+			}
+		} else {
+			throw new Exception("fit for 2D-histograms not implemented yet");
+		}
+		return result;
+	}
+
 private:
 	import std.datetime : abs, DateTime, hnsecs, SysTime;
 	import std.datetime : Clock, seconds;		

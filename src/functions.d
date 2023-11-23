@@ -5,7 +5,9 @@ import item;
 import std.json;
 import serializeJSON;
 
-
+interface FitDataSource {
+	double[3][] get_data(double[2] region);
+}
 
 class FunctionFactory : ItemFactory {
 	override Item create(ref JSONValue json) {
@@ -38,6 +40,7 @@ public:
 		if (missing_parameters.length > 0) throw new Exception("missing start parmeters for: " ~ missing_parameters.join(", "));
 
 		data.parameters = new double[](expr.param_index_lookup.length);
+		data.fitresult = new double[](expr.param_index_lookup.length);
 		foreach(par_name, par_value; parameters) {
 			if ((par_name in expr.param_index_lookup) is null) {
 				import std.stdio;
@@ -46,8 +49,8 @@ public:
 			}
 			const idx = expr.param_index_lookup[par_name];
 			data.parameters[idx] = par_value;
+			data.fitresult[idx] = par_value;
 		}
-		data.fitresult = data.parameters.dup;
 	}
 	this(ref JSONValue json) {
 		import std.stdio;
@@ -75,6 +78,30 @@ public:
 	{
 		return new FunctionVisualizer(this);
 	}
+
+
+	void fit(FitDataSource source, double[2] region) {
+		import multifit_nlin;
+		import std.algorithm, std.array;
+
+		auto datapoints = source.get_data(region).map!(xyd=>Dp!double(xyd[0],xyd[1],xyd[2])).array;
+
+		import std.stdio;
+		writeln("fit with ", datapoints.length, " points");
+		
+		const x_idx = expr.param_index_lookup["x"];
+		auto fitdelegate = delegate double(double x, double[] pars) {
+			pars[x_idx] = x; 
+			return expr.e.eval(pars);
+		};
+
+		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, data.parameters, true);
+		fitter.run();
+		data.fitresult[] = fitter.result_params[];	
+
+	}
+
+
 private:
 	ulong item_version = 0;
 	Data data;
@@ -110,8 +137,8 @@ public:
 		double x_old, y_old;
 		foreach(i;0..points+1) {
 			double x = t[0].exp(left+i*(right-left)/points);
-			funct.data.parameters[x_idx] = x;
-			double y = funct.expr.e.eval(funct.data.parameters);
+			funct.data.fitresult[x_idx] = x;
+			double y = funct.expr.e.eval(funct.data.fitresult);
 			if (i>0) {
 				d.line(t[0].world2canvas(t[0].log(x_old)),t[1].world2canvas(t[1].log(y_old)), 
 					   t[0].world2canvas(t[0].log(x)),    t[1].world2canvas(t[1].log(y)));
