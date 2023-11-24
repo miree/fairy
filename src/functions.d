@@ -90,7 +90,7 @@ public:
 		writeln("fit with ", datapoints.length, " points");
 
 		const x_idx = expr.param_index_lookup["x"];
-		double[] all_params = data.parameters;
+		double[] all_params = data.parameters.dup;
 		auto fitdelegate = delegate double(double x, double[] pars) {
 			foreach(i; 0..x_idx) all_params[i] = pars[i];
 			all_params[x_idx] = x;
@@ -141,25 +141,39 @@ public:
 	@trusted override void draw(BackendInterface d, in Transform[3] t)   
 	{
 		import std.algorithm;
-		d.set_color(0,0.5,0);
-		d.set_line_width(2);
-
-		const points = 100;
-		double left = t[0].min;
-		double right = t[0].max;
-		auto x_idx = funct.expr.param_index_lookup["x"];
-		double x_old, y_old;
-		foreach(i;0..points+1) {
-			double x = t[0].exp(left+i*(right-left)/points);
-			funct.data.fitresult[x_idx] = x;
-			double y = funct.expr.e.eval(funct.data.fitresult);
-			if (i>0) {
-				d.line(t[0].world2canvas(t[0].log(x_old)),t[1].world2canvas(t[1].log(y_old)), 
-					   t[0].world2canvas(t[0].log(x)),    t[1].world2canvas(t[1].log(y)));
-				d.stroke();
+		for (int n = 0; n < 2; ++n) {
+			if (n == 0) {
+				d.set_color(0,0.3,0);
+				d.set_line_width(4);				
+			} else {
+				d.set_color(0,0,0.3);
+				d.set_line_width(4);								
 			}
-			x_old = x;
-			y_old = y;
+
+			const points = 100;
+			double left = t[0].min;
+			double right = t[0].max;
+			auto x_idx = funct.expr.param_index_lookup["x"];
+			double x_old, y_old;
+			foreach(i;0..points+1) {
+				double x = t[0].exp(left+i*(right-left)/points);
+				double y;
+				if (n == 0) {
+					funct.data.parameters[x_idx] = x;
+					y = funct.expr.e.eval(funct.data.parameters);
+				} else {
+					funct.data.fitresult[x_idx] = x;
+					y = funct.expr.e.eval(funct.data.fitresult);					
+				}
+				if (i>0) {
+					d.line(t[0].world2canvas(t[0].log(x_old)),t[1].world2canvas(t[1].log(y_old)), 
+						   t[0].world2canvas(t[0].log(x)),    t[1].world2canvas(t[1].log(y)));
+				}
+				x_old = x;
+				y_old = y;
+			}
+			d.stroke();
+
 		}
 	}
 

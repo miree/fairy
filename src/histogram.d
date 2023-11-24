@@ -16,7 +16,7 @@ class Hist1Factory : ItemFactory {
 
 import graphics;
 
-class Hist1 : Visual, Item
+class Hist1 : Visual, FitDataSource, Item
 {
 public:
 	struct Data{
@@ -89,6 +89,24 @@ public:
 	{
 		return new Hist1Visualizer(old, item_version, data.bins, data.left, data.right);
 	}
+
+	override double[3][] get_data(double[2] region) {
+		double left=region[0];
+		double right=region[1];
+		double bin_width = (data.right-data.left)/data.bins.length;
+		double[3][] result;
+		foreach(idx, y; data.bins) {
+			double x = data.left+idx*(data.right-data.left)/data.bins.length;
+			x += bin_width/2;
+			if (x >= left && x < right) {
+				import std.math;
+				double[3] dp = [x,y,y>1?sqrt(y):1];
+				result ~= dp;
+			}
+		}
+		return result;
+	}
+
 private:
 	Data data;
 	ulong item_version = 0;
