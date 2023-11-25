@@ -154,8 +154,6 @@ private:
 public:
 	@trusted
 	this(string canvas_name, CanvasProperties *canvas_pointer) {
-		//import std.stdio;
-		//writeln("new minigui window with name ", canvas_name);
 		assert(canvas_pointer !is null);
 		canvas = canvas_pointer;
 		name = canvas_name;
@@ -166,13 +164,6 @@ public:
 
 		if (canvas.xpos >= 0 && canvas.ypos >= 0) {
 			simple.move(canvas.xpos-1, canvas.ypos-24);
-
-			//auto point = window.globalCoordinates();
-			//int dx = point.x-canvas.xpos;
-			//int dy = point.y-canvas.ypos;
-
-			//simple.move(canvas.xpos+dx, canvas.ypos+dy);
-
 		}
 
 		main_content = new HorizontalLayout(window);
@@ -190,30 +181,22 @@ public:
 		autorefr = new VerticalLayout(80,controls);
 			autorefresh = new Checkbox("autorefresh", autorefr); autorefresh.isChecked = canvas.autorefresh;
 			refresh     = new Button("refresh", autorefr);
-		//fitcontrol  = new VerticalLayout(controls);
 			fitlayout = new Fieldset("fit",controls);
-				//fitlabel = new TextLabel("fit",fitlayout);       
 				fitX     = new Checkbox ("X"  ,fitlayout);        fitX.isChecked = canvas.autoscale[0];
 				fitY     = new Checkbox ("Y"  ,fitlayout);        fitY.isChecked = canvas.autoscale[1];
 				fitZ     = new Checkbox ("Z"  ,fitlayout);        fitZ.isChecked = canvas.autoscale[2];
 			loglayout = new Fieldset("log",controls);
-				//loglabel = new TextLabel("log",loglayout);
 				logX     = new Checkbox ("X"  ,loglayout);        logX.isChecked = canvas.transform[0].logscale;
 				logY     = new Checkbox ("Y"  ,loglayout);        logY.isChecked = canvas.transform[1].logscale;
 				logZ     = new Checkbox ("Z"  ,loglayout);        logZ.isChecked = canvas.transform[2].logscale;
-		//gridcontrol  = new VerticalLayout(controls);
 			gridlayout = new Fieldset("grid",controls);
-				//gridlabel = new TextLabel("grid",gridlayout);
 				gridX     = new Checkbox ("X"  ,gridlayout);      gridX.isChecked = canvas.grid[0];
 				gridY     = new Checkbox ("Y"  ,gridlayout);      gridY.isChecked = canvas.grid[1];
 				gridTop   = new Checkbox ("top",gridlayout);      gridTop.isChecked = canvas.grid_ontop;
-		//numscontrol  = new VerticalLayout(controls);
 			numslayout = new Fieldset("num", controls);
-				//numslabel = new TextLabel("num",numslayout);
 				numsX     = new Checkbox ("X"  ,numslayout);      numsX.isChecked = canvas.numbers[0];
 				numsY     = new Checkbox ("Y"  ,numslayout);      numsY.isChecked = canvas.numbers[1];
 				numsTop   = new Checkbox ("top",numslayout);      numsTop.isChecked = canvas.numbers_ontop;
-		//modecontrol = new VerticalLayout(controls);
 			modeselect = new Fieldset("mode",controls);
 				radio_overlay = new Radiobox("overlay", modeselect);  if (canvas.display_mode == DisplayMode.overlay) radio_overlay.isChecked = true;
 				radio_rows    = new Radiobox("rows"   , modeselect);  if (canvas.display_mode == DisplayMode.rows)    radio_rows.isChecked = true;
@@ -305,8 +288,6 @@ class DrawArea : OpenGlWidget, BackendInterface
 	}
 
 	override void defaultEventHandler_mousemove(MouseMoveEvent event) {
-		//import std.stdio;
-		//writeln(event.clientX, " ", event.clientY);
 		painter.mouse_motion(event.clientX, event.clientY, this);
 	}
 
@@ -398,16 +379,6 @@ class DrawArea : OpenGlWidget, BackendInterface
 		//glfont.drawString(0, 0 + glfont.ascent/2, "Hello!!", Color.black);
 
 	}
-	//override Rectangle paintContent(WidgetPainter w_painter, const Rectangle bounds) {
-
-	//	widget_painter = &w_painter;
-
-	//	painter.draw_content();
-
-	//	widget_painter = null;
-	//	return bounds;
-	//}
-
 
 	override bool inverted_y_direction() {
 		return true;
@@ -540,7 +511,6 @@ class DrawArea : OpenGlWidget, BackendInterface
 	@trusted
 	override void access_bitmap_done(ulong handle) {
 		glEnable(GL_TEXTURE_2D);
-		//glGenTextures(1, &images[handle].gl_tex);
 		glBindTexture(GL_TEXTURE_2D, images[handle].gl_tex);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -590,12 +560,8 @@ class DrawArea : OpenGlWidget, BackendInterface
 	override void text_extent(string str, out double w, out double h) {
 		h = glfont.ascent;
 		w = 0.65*glfont.ascent*str.length;
-		//import std.stdio;
-		//writeln(h, " ", w);
 	}
 	override void text(double x, double y, string str) {
-		//import std.stdio;
-		//writeln("text ", str, " at ", x, " ", y);
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		glfont.drawString(cast(int)x, cast(int)y, str, Color(255*cr,255*cg,255*cb));
 	} 
