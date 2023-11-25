@@ -151,13 +151,13 @@ public:
 			}
 
 			const points = 1000;
-			double left = t[0].min;
+			double left  = t[0].min;
 			double right = t[0].max;
 			// function does not depend on x
 			if (("x" in funct.expr.param_index_lookup) is null) {
 				double y = funct.expr.e.eval(funct.data.parameters);
-				d.line(t[0].world2canvas(t[0].log(left)) , t[1].world2canvas(t[1].log(y)), 
-					   t[0].world2canvas(t[0].log(right)), t[1].world2canvas(t[1].log(y)));
+				d.line(t[0].world2canvas(left) , t[1].world2canvas(t[1].log(y)), 
+					   t[0].world2canvas(right), t[1].world2canvas(t[1].log(y)));
 				d.stroke();
 				continue;
 			}
@@ -202,8 +202,8 @@ public:
 		double ymin, ymax;
 		if (("x" in funct.expr.param_index_lookup) is null) {
 			double y = funct.expr.e.eval(funct.data.parameters);
-			bt[0] = y;
-			bt[1] = y;
+			bt[0] = t[1].log(y);
+			bt[1] = t[1].log(y);
 			return true;
 		}
 		auto x_idx = funct.expr.param_index_lookup["x"];
