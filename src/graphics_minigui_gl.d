@@ -113,36 +113,38 @@ private:
 	//Button button;
 
 	HorizontalLayout   main_content;
-		ListWidget         item_view;
+		VerticalLayout itemlist;
+			ListWidget         item_view;
 		Widget             plotwidget;
 			DrawArea           draw_area;
 			HorizontalLayout   controls;
 				VerticalLayout     autorefr;    
 					Checkbox         autorefresh;
 					Button           refresh;
-				VerticalLayout     fitlog;
-					HorizontalLayout fitlayout;
-						TextLabel    fitlabel;
+				//VerticalLayout     fitcontrol;
+					Fieldset fitlayout;
+						//TextLabel    fitlabel;
 						Checkbox     fitX;
 						Checkbox     fitY;
 						Checkbox     fitZ;
-					HorizontalLayout loglayout;
-						TextLabel    loglabel;
+					Fieldset loglayout;
+						//TextLabel    loglabel;
 						Checkbox     logX;
 						Checkbox     logY;
 						Checkbox     logZ;
-				VerticalLayout     gridnums;
-					HorizontalLayout gridlayout;
-						TextLabel      gridlabel;
+				//VerticalLayout     gridcontrol;
+					Fieldset gridlayout;
+						//TextLabel      gridlabel;
 						Checkbox       gridX;
 						Checkbox       gridY;
 						Checkbox       gridTop;
-					HorizontalLayout numslayout;
-						TextLabel      numslabel;
+				//VerticalLayout     numscontrol;
+					Fieldset numslayout;
+						//TextLabel      numslabel;
 						Checkbox       numsX;
 						Checkbox       numsY;
 						Checkbox       numsTop;
-				VerticalLayout     modecontrol;
+				//VerticalLayout     modecontrol;
 					Fieldset         modeselect;
 						Radiobox       radio_overlay;
 						Radiobox       radio_rows;
@@ -174,7 +176,8 @@ public:
 		}
 
 		main_content = new HorizontalLayout(window);
-		item_view  = new ListWidget(main_content);
+		itemlist = new VerticalLayout(200, main_content);
+			item_view  = new ListWidget(itemlist);
 		import fairy, std.algorithm, std.array;
 		foreach (itemname; fairy.session.items.byKey.array.sort) {
 			item_view.addOption(itemname);
@@ -187,30 +190,31 @@ public:
 		autorefr = new VerticalLayout(80,controls);
 			autorefresh = new Checkbox("autorefresh", autorefr); autorefresh.isChecked = canvas.autorefresh;
 			refresh     = new Button("refresh", autorefr);
-		fitlog  = new VerticalLayout(controls);
-			fitlayout = new HorizontalLayout(fitlog);
-				fitlabel = new TextLabel("fit",fitlayout);       
+		//fitcontrol  = new VerticalLayout(controls);
+			fitlayout = new Fieldset("fit",controls);
+				//fitlabel = new TextLabel("fit",fitlayout);       
 				fitX     = new Checkbox ("X"  ,fitlayout);        fitX.isChecked = canvas.autoscale[0];
 				fitY     = new Checkbox ("Y"  ,fitlayout);        fitY.isChecked = canvas.autoscale[1];
 				fitZ     = new Checkbox ("Z"  ,fitlayout);        fitZ.isChecked = canvas.autoscale[2];
-			loglayout = new HorizontalLayout(fitlog);
-				loglabel = new TextLabel("log",loglayout);
+			loglayout = new Fieldset("log",controls);
+				//loglabel = new TextLabel("log",loglayout);
 				logX     = new Checkbox ("X"  ,loglayout);        logX.isChecked = canvas.transform[0].logscale;
 				logY     = new Checkbox ("Y"  ,loglayout);        logY.isChecked = canvas.transform[1].logscale;
 				logZ     = new Checkbox ("Z"  ,loglayout);        logZ.isChecked = canvas.transform[2].logscale;
-		gridnums  = new VerticalLayout(controls);
-			gridlayout = new HorizontalLayout(gridnums);
-				gridlabel = new TextLabel("grid",gridlayout);
+		//gridcontrol  = new VerticalLayout(controls);
+			gridlayout = new Fieldset("grid",controls);
+				//gridlabel = new TextLabel("grid",gridlayout);
 				gridX     = new Checkbox ("X"  ,gridlayout);      gridX.isChecked = canvas.grid[0];
 				gridY     = new Checkbox ("Y"  ,gridlayout);      gridY.isChecked = canvas.grid[1];
 				gridTop   = new Checkbox ("top",gridlayout);      gridTop.isChecked = canvas.grid_ontop;
-			numslayout = new HorizontalLayout(gridnums);
-				numslabel = new TextLabel("num",numslayout);
+		//numscontrol  = new VerticalLayout(controls);
+			numslayout = new Fieldset("num", controls);
+				//numslabel = new TextLabel("num",numslayout);
 				numsX     = new Checkbox ("X"  ,numslayout);      numsX.isChecked = canvas.numbers[0];
 				numsY     = new Checkbox ("Y"  ,numslayout);      numsY.isChecked = canvas.numbers[1];
 				numsTop   = new Checkbox ("top",numslayout);      numsTop.isChecked = canvas.numbers_ontop;
-		modecontrol = new VerticalLayout(controls);
-			modeselect = new Fieldset("mode",modecontrol);
+		//modecontrol = new VerticalLayout(controls);
+			modeselect = new Fieldset("mode",controls);
 				radio_overlay = new Radiobox("overlay", modeselect);  if (canvas.display_mode == DisplayMode.overlay) radio_overlay.isChecked = true;
 				radio_rows    = new Radiobox("rows"   , modeselect);  if (canvas.display_mode == DisplayMode.rows)    radio_rows.isChecked = true;
 				radio_cols    = new Radiobox("columns", modeselect);  if (canvas.display_mode == DisplayMode.columns) radio_cols.isChecked = true;
@@ -416,7 +420,8 @@ class DrawArea : OpenGlWidget, BackendInterface
 
 	}   // must be called before anything else
 	override void finish() {
-
+		glFlush();
+		glFinish();
 	} // must be called after anything else
 
 	override void reset_clip() {
@@ -437,10 +442,10 @@ class DrawArea : OpenGlWidget, BackendInterface
 		glClear(GL_COLOR_BUFFER_BIT);
 	}
 	override void set_color(double r, double g, double b) {
-		glColor3f(r,g,b);
 		cr=r;
 		cg=g;
 		cb=b;
+		glColor3f(cr,cg,cb);
 	}
 	
 	// line drawing
@@ -452,6 +457,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 	}
 	override void vertical_line(double xd, double y1d, double y2d) {
 		glBegin(GL_QUADS);
+		glColor3f(cr,cg,cb);
 		glVertex2f(xd+line_width/2.0,y1d);
 		glVertex2f(xd-line_width/2.0,y1d);
 		glVertex2f(xd-line_width/2.0,y2d);
@@ -460,6 +466,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 	}
 	override void horizontal_line(double yd, double x1d, double x2d) {
 		glBegin(GL_QUADS);
+		glColor3f(cr,cg,cb);
 		glVertex2f(x1d,yd+line_width/2.0);
 		glVertex2f(x1d,yd-line_width/2.0);
 		glVertex2f(x2d,yd-line_width/2.0);
@@ -476,17 +483,13 @@ class DrawArea : OpenGlWidget, BackendInterface
 		if (lo < 1e-6) return;
 
 		glBegin(GL_QUADS);
+			glColor3f(cr,cg,cb);
 			glVertex2f(x1d+line_width*ox/2/lo, y1d+line_width*oy/2/lo);
 			glVertex2f(x2d+line_width*ox/2/lo, y2d+line_width*oy/2/lo);
 			glVertex2f(x2d-line_width*ox/2/lo, y2d-line_width*oy/2/lo);
 			glVertex2f(x1d-line_width*ox/2/lo, y1d-line_width*oy/2/lo);
 		glEnd();
 
-
-		//glBegin(GL_LINE_STRIP);
-		//glVertex2f(x1d,y1d);
-		//glVertex2f(x2d,y2d);
-		//glEnd();
 	}
 	override void rectangle(double x1d, double y1d, double x2d, double y2d) {
 		rx1=x1d;
@@ -498,6 +501,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 	override void fill() {
 		if (!rect_valid) return;
 		glBegin(GL_QUADS);
+		glColor3f(cr,cg,cb);
 		glVertex2f(rx1,ry1);
 		glVertex2f(rx1,ry2);
 		glVertex2f(rx2,ry2);
@@ -575,12 +579,6 @@ class DrawArea : OpenGlWidget, BackendInterface
 			glColor4f(1,1,1,1); glTexCoord2f(sx+sw, sy+sh); glVertex2f(dx+dw, dy+dh); 
 			glColor4f(1,1,1,1); glTexCoord2f(sx   , sy+sh); glVertex2f(dx   , dy+dh); 
 		glEnd();
-		//glBegin(GL_QUADS); 
-		//	glTexCoord2f(0,0); glVertex3f(dx   , dy   , 0);      
-		//	glTexCoord2f(1,0); glVertex3f(dx+dw, dy   , 0);      
-		//	glTexCoord2f(1,1); glVertex3f(dx+dw, dy+dh, 0);   
-		//	glTexCoord2f(0,1); glVertex3f(dx   , dy+dh, 0);   
-		//glEnd();
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glPopMatrix();
 	}
