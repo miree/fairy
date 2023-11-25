@@ -150,9 +150,18 @@ public:
 				d.set_line_width(4);								
 			}
 
-			const points = 100;
+			const points = 1000;
 			double left = t[0].min;
 			double right = t[0].max;
+			// function does not depend on x
+			if (("x" in funct.expr.param_index_lookup) is null) {
+				double y = funct.expr.e.eval(funct.data.parameters);
+				d.line(t[0].world2canvas(t[0].log(left)) , t[1].world2canvas(t[1].log(y)), 
+					   t[0].world2canvas(t[0].log(right)), t[1].world2canvas(t[1].log(y)));
+				d.stroke();
+				continue;
+			}
+			// function does depend on x
 			auto x_idx = funct.expr.param_index_lookup["x"];
 			double x_old, y_old;
 			foreach(i;0..points+1) {
@@ -178,6 +187,10 @@ public:
 	}
 
 	override double getValue(double x, double y) {
+		// function does not depend on x
+		if (("x" in funct.expr.param_index_lookup) is null) {
+			return funct.expr.e.eval(funct.data.parameters);
+		}
 		auto x_idx = funct.expr.param_index_lookup["x"];
 		funct.data.parameters[x_idx] = x;
 		return funct.expr.e.eval(funct.data.parameters);
@@ -185,8 +198,14 @@ public:
 
 	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) {
 		import std.algorithm;
-		const points = 100;
+		const points = 1000;
 		double ymin, ymax;
+		if (("x" in funct.expr.param_index_lookup) is null) {
+			double y = funct.expr.e.eval(funct.data.parameters);
+			bt[0] = y;
+			bt[1] = y;
+			return true;
+		}
 		auto x_idx = funct.expr.param_index_lookup["x"];
 		foreach(i;0..points+1) {
 			double x = t[0].exp(lr[0]+i*(lr[1]-lr[0])/points);

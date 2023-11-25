@@ -91,7 +91,7 @@ class Number : Expression {
 	this(ref string expression, ref int[string] parameter_index_lookup) {
 		if (expression.reached_end) throw new Exception("unexpected end");
 		const next = expression.front;
-		if (next == '(') {
+		if (expression.front == '(') {
 			expression.popFront;
 			e = new Sum(expression, parameter_index_lookup);
 			if (expression.reached_end) throw new Exception("unexpected end");
@@ -111,16 +111,23 @@ class Number : Expression {
 				return;
 			}
 		}
-		if ((next >= 'a' && next <= 'z') ||
-		    (next >= 'A' && next <= 'Z')) {
+		if (expression.front == '-') {
+			negative = true;
+			expression.popFront;
+			if (expression.reached_end) throw new Exception("unexpected end");
+		}
+		if ((expression.front >= 'a' && expression.front <= 'z') ||
+		    (expression.front >= 'A' && expression.front <= 'Z')) {
 			e = new Parameter(expression, parameter_index_lookup);
 		} else {
 			e = new Literal(expression, parameter_index_lookup);
 		}			
 	}
 	override double eval(const double[] params = null) const {
+		if (negative) return -e.eval(params);
 		return e.eval(params);
 	}
+	bool negative;
 	Expression e;	
 }
 
