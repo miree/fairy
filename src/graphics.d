@@ -566,7 +566,8 @@ struct CanvasPainter {
 		}		
 
 		backend.finish();
-		//backend.need_redraw();
+
+		mouse_motion(mouse_pos_x, mouse_pos_y, backend);
 
 	}
 
