@@ -862,12 +862,13 @@ class ItemView : TreeView {
 			popup_menu.append( new MenuItem( (m) => remove_all_selected(), "remove", "remove selected items"));
 			addOnButtonPress(
 				delegate bool(GdkEventButton* e, Widget w) {
-					w.onButtonPressEvent(e); 
 					if (e.button == 3)	{
 						popup_menu.popup(e.button, e.time);
 						popup_menu.showAll(); 
+						return true;
 					}
-					return true;
+					w.onButtonPressEvent(e); 
+					return false;
 				} 
 			);
 		}
