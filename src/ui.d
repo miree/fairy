@@ -139,9 +139,10 @@ string session_save(string session_name) {
 @trusted
 @UI_EXPORT("control audio DAQ",
 	["command (info, start, pause, continue, stop)",
+	 "arg is <num_cahnnels>:<trace_length>",
 	 "device name"
 	 ]) 
-string audiodaq(string command, string arg = "1", string device = "default") {
+string audiodaq(string command, string arg = "1:1024", string device = "default") {
 	import audiodaq;
 	import std.concurrency;
 	if (command == "info") {
@@ -152,14 +153,15 @@ string audiodaq(string command, string arg = "1", string device = "default") {
 		return "allowed rates: " ~ rates.to!string ~ "\nallowed channels: " ~ channels.to!string;
 	}
 	if (command == "start") {
-		int num_channels = 0;
-		if (arg == "1") num_channels = 1;
-		if (arg == "2") num_channels = 2;
+		import std.array, std.conv;
+		int num_channels = arg.split(':')[0].to!int;
+		int trace_length = arg.split(':')[1].to!int;
 		if (!num_channels) throw new Exception("invalid channel number");
+		if (!trace_length) throw new Exception("invalid trace   length");
 
 		if (audiodaq.running) throw new Exception("audiodaq already running");
 		audiodaq.running = true;
-		audiodaq.tid = spawn(&run_audiodaq, thisTid, num_channels, device);
+		audiodaq.tid = spawn(&run_audiodaq, thisTid, num_channels, trace_length, device);
 		return "started";
 	}
 	if (command == "pause") {

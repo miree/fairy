@@ -360,6 +360,16 @@ void handle_elderpt_MsgHist2dCreate(MsgHist2dCreate msg) {
 
 }
 
+// audiodaq waveforms
+import audiodaq;
+@trusted
+void handle_audiodaq_Waveform(MsgWaveformCreate msg) {
+	import item, waveform;
+	fairy.session.add_item(msg.name, cast(Waveform)msg.wave, NameCollisionPolicy.replace);
+	import std.concurrency;
+	audiodaq.tid.send(audiodaq.MsgAck());
+}
+
 
 @trusted
 // return false in case of timeout
@@ -379,6 +389,8 @@ bool iterate(uint timeout_ms) {
 			&handle_elderpt_MsgHist2dCreate
 		)) {}
 	}
+	while (receiveTimeout(dur!"msecs"(0),
+		&handle_audiodaq_Waveform)) {}
 	return got_cmd;
 }
 

@@ -1,6 +1,9 @@
 module audiodaq;
 @safe:
 
+import waveform;
+Waveform[] traces;
+
 import std.concurrency;
 Tid main_thread;
 
@@ -12,7 +15,10 @@ struct MsgPause {}
 struct MsgContinue {}
 struct MsgStop {}
 struct MsgAck {}
-
+struct MsgWaveformCreate{
+	string          name;
+	shared Waveform wave;
+}
 
 @trusted
 static ~this() {
@@ -34,13 +40,30 @@ else {
 
 	pragma(lib, "asound");
 
+
+
 	@trusted
-	void run_audiodaq(Tid main_thread_tid, int num_channels, string device_name) {
+	void run_audiodaq(Tid main_thread_tid, int num_channels, int trace_length, string device_name) {
 		import std.datetime;
 		main_thread = main_thread_tid;
 		bool paused = false;
 		bool stop = false;
+		// create fairy Wavforms and send them over to main thread
+		traces.length = num_channels;
+
+		foreach(channel; 0..num_channels) {
+			import std.conv;
+			import std.stdio;
+			string tracename = "audiodaq/"~channel.to!string;
+			traces[channel] = new Waveform(new double[trace_length], 1, 0, trace_length);
+			writeln("send waveform item");
+			main_thread.send(MsgWaveformCreate(tracename, cast(shared Waveform)traces[$-1]));
+			receive((MsgAck msg) {});
+			writeln("got ack for waveform");
+		}
 		auto pcm = new AlsaPcmRecord(num_channels, device_name);
+
+		// main loop take data samples and send trace to main thread when trigger is detected
 		for (uint i; ;++i) {
 			if (!paused) {
 				auto t = Clock.currTime;
@@ -49,6 +72,16 @@ else {
 				uint timestamp = 0;
 				uint frac_msecs = cast(uint)(timeval.tv_usec/1e3);
 				pcm.popFront;
+				foreach(ch;0..num_channels) {
+					traces[ch].d.data[i] = pcm.front[ch];
+				}
+				if (i == trace_length-1) {
+					i = 0;
+					import std.stdio;
+					foreach(ch;0..num_channels) {
+						traces[ch].overrideVersion(traces[ch].getVersion+1);
+					}
+				}
 			}
 			receiveTimeout(paused?100.msecs:Duration.zero,
 				(MsgPause    msg) { paused = true;  main_thread.send(MsgAck()); },
@@ -182,6 +215,7 @@ else {
 		}
 		bool check() {
 			if (idx >= buffer.length) {
+				//import std.stdio;
 				//writeln('.');
 				long sr = snd_pcm_readi(handle, cast(char*)(buffer), period_size);
 				if (sr < 0)

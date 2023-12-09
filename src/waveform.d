@@ -242,9 +242,15 @@ public:
 
 			//writeln("x_idx=",x_idx, "   x=",x);
 			auto seg = _data[x_idx..x_idx+_N];
-			auto minmax = _mipmap_data[0][x_idx/_N];
+			auto minmax = 
+			_mipmap_data[0][x_idx/_N];
 			draw_segment(x, x+segment_width, seg, minmax);
 			point(d,t, x,seg[0],d.get_line_width);
+			if (_N == 1 && x_idx+1 < _N*idx_r) { // special case for N==1 (no interpolation)
+				d.vertical_line(t[0].world2canvas(t[0].log(x+segment_width)), 
+					            t[1].world2canvas(t[1].log(_data[x_idx])),
+					            t[1].world2canvas(t[1].log(_data[x_idx+1])));
+			}
 			d.stroke();
 			x_idx += _N;
 			x += segment_width;
@@ -487,6 +493,12 @@ private:
 				foreach(n, ref mip; mipmap_data[$-1]) {
 					const double[] coeff = _data[n*_N..(n+1)*_N];
 					mip = minmax_polynom(coeff);
+				}
+				if (_N == 1) { // special case for non interpolated traces
+					foreach(n, ref minmax; mipmap_data[$-1][0..$-1]) {
+						minmax.min = min(minmax.min, mipmap_data[$-1][n+1].min);
+						minmax.max = max(minmax.max, mipmap_data[$-1][n+1].max);
+					}
 				}
 			} else {
 				auto parent_len = mipmap_data[idx-1].length;
