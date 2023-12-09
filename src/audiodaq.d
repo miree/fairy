@@ -55,7 +55,7 @@ else {
 			import std.conv;
 			import std.stdio;
 			string tracename = "audiodaq/"~channel.to!string;
-			traces[channel] = new Waveform(new double[trace_length], 1, 0, trace_length);
+			traces[channel] = new Waveform(new double[trace_length*2], 2, 0, trace_length);
 			writeln("send waveform item");
 			main_thread.send(MsgWaveformCreate(tracename, cast(shared Waveform)traces[$-1]));
 			receive((MsgAck msg) {});
@@ -71,9 +71,12 @@ else {
 				auto timeval = t.toTimeVal;
 				uint timestamp = 0;
 				uint frac_msecs = cast(uint)(timeval.tv_usec/1e3);
+				foreach(ch;0..num_channels) {
+					traces[ch].d.data[2*i] = pcm.front[ch];
+				}
 				pcm.popFront;
 				foreach(ch;0..num_channels) {
-					traces[ch].d.data[i] = pcm.front[ch];
+					traces[ch].d.data[2*i+1] = pcm.front[ch]-traces[ch].d.data[2*i];
 				}
 				if (i == trace_length-1) {
 					i = 0;
