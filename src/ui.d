@@ -123,20 +123,72 @@ string session_save(string session_name) {
 }
 
 
-@UI_EXPORT("print info abut alsa", 
-	["alsa device name"])
+//@UI_EXPORT("print info abut alsa", 
+//	["alsa device name"])
+//@trusted
+//string alsainfo(string alsa_device = "default") {
+//	import alsa;
+//	import std.conv;
+//	string result = "maximum number of channels " ~ alsa_get_max_channels(alsa_device).to!string;
+//	auto minmax_rates = alsa_get_minmax_rates(alsa_device);
+//	result ~= "\nminimum sampling rate " ~ minmax_rates[0].to!string;
+//	result ~= "\nmaximum sampling rate " ~ minmax_rates[1].to!string;
+
+//	return result;
+//}
 @trusted
-string alsainfo(string alsa_device = "default") {
-	import alsa;
-	import std.conv;
-	string result = "maximum number of channels " ~ alsa_get_max_channels(alsa_device).to!string;
-	auto minmax_rates = alsa_get_minmax_rates(alsa_device);
-	result ~= "\nminimum sampling rate " ~ minmax_rates[0].to!string;
-	result ~= "\nmaximum sampling rate " ~ minmax_rates[1].to!string;
+@UI_EXPORT("control audio DAQ",
+	["command (info, start, pause, continue, stop)",
+	 "device name"
+	 ]) 
+string audiodaq(string command, string arg = "1", string device = "default") {
+	import audiodaq;
+	import std.concurrency;
+	if (command == "info") {
+		import std.typecons, std.algorithm, std.conv, std.array;
+		auto daq = scoped!Alsa(device);
+		auto rates    = daq.get_allowed_rates.map!(to!string).join(", ").array;
+		auto channels = daq.get_allowed_channels.map!(to!string).join(", ").array;
+		return "allowed rates: " ~ rates.to!string ~ "\nallowed channels: " ~ channels.to!string;
+	}
+	if (command == "start") {
+		int num_channels = 0;
+		if (arg == "1") num_channels = 1;
+		if (arg == "2") num_channels = 2;
+		if (!num_channels) throw new Exception("invalid channel number");
 
-	return result;
+		if (audiodaq.running) throw new Exception("audiodaq already running");
+		audiodaq.running = true;
+		audiodaq.tid = spawn(&run_audiodaq, thisTid, num_channels, device);
+		return "started";
+	}
+	if (command == "pause") {
+		if (!audiodaq.running) throw new Exception("audiodaq is not running");
+		if (audiodaq.paused)   throw new Exception("audiodaq is already paused");
+		audiodaq.paused = true;
+		audiodaq.tid.send(MsgPause());
+		receive((MsgAck msg) {});
+		return "paused";
+	}
+	if (command == "continue") {
+		if (!audiodaq.running) throw new Exception("audiodaq is not running");
+		if (!audiodaq.paused)   throw new Exception("audiodaq is not paused");
+		audiodaq.paused = false;
+		audiodaq.tid.send(MsgContinue());
+		receive((MsgAck msg) {});
+		return "continued";
+	}
+	if (command == "stop") {
+		if (!audiodaq.running) throw new Exception("audiodaq is not running");
+		audiodaq.running = false;
+		audiodaq.tid.send(MsgStop());
+		import std.stdio;
+		writeln("sent MsgStop, wait for MsgAck");
+		receive((MsgAck msg) {});
+		return "stopped";
+	}
+	throw new Exception("unknown command for audiodaq");
 }
-
 
 
 @UI_EXPORT("list all items",
