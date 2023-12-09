@@ -244,20 +244,20 @@ public:
 			auto seg = _data[x_idx..x_idx+_N];
 			auto minmax = _mipmap_data[0][x_idx/_N];
 			draw_segment(x, x+segment_width, seg, minmax);
-			point(d,t, t[0].log(x),t[0].log(seg[0]),d.get_line_width+1);
+			point(d,t, x,seg[0],d.get_line_width);
 			d.stroke();
 			x_idx += _N;
 			x += segment_width;
 		}
 	}
 
-	void point(BackendInterface drawer, in Transform[3] t, double x, double y, double size=2.0) const {
+	void point(BackendInterface drawer, in Transform[3] t, double x, double y, double size) const {
 		double tx = t[0].world2canvas(t[0].log(x));
 		if (t[1].logscale && y <= 0) return;
 		double ty = t[1].world2canvas(t[1].log(y));
 		//drawer.line(tx-size, ty-size, tx+size, ty+size);
 		//drawer.line(tx+size, ty-size, tx-size, ty+size);
-		size/=1.5;
+		//size/=1.5;
 
 		drawer.line(tx-size, ty-size,  tx+size, ty-size);
 		drawer.line(tx-size, ty+size,  tx+size, ty+size);
