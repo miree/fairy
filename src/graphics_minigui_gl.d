@@ -118,9 +118,10 @@ private:
 		Widget             plotwidget;
 			DrawArea           draw_area;
 			HorizontalLayout   controls;
-				VerticalLayout     autorefr;    
-					Checkbox         autorefresh;
-					Button           refresh;
+				//VerticalLayout     autorefr;    
+					Fieldset refreshlayout;
+						Button           refresh;
+						Checkbox         autorefresh;
 				//VerticalLayout     fitcontrol;
 					Fieldset fitlayout;
 						//TextLabel    fitlabel;
@@ -178,9 +179,11 @@ public:
 
 		controls = new HorizontalLayout(40,plotwidget);
 
-		autorefr = new VerticalLayout(80,controls);
-			autorefresh = new Checkbox("autorefresh", autorefr); autorefresh.isChecked = canvas.autorefresh;
-			refresh     = new Button("refresh", autorefr);
+		//autorefr = new VerticalLayout(80,controls);
+			refreshlayout = new Fieldset("refresh", controls);
+
+			refresh     = new Button("now", refreshlayout);
+			autorefresh = new Checkbox("auto", refreshlayout); autorefresh.isChecked = canvas.autorefresh;
 			fitlayout = new Fieldset("fit",controls);
 				fitX     = new Checkbox ("X"  ,fitlayout);        fitX.isChecked = canvas.autoscale[0];
 				fitY     = new Checkbox ("Y"  ,fitlayout);        fitY.isChecked = canvas.autoscale[1];
@@ -203,6 +206,9 @@ public:
 				radio_cols    = new Radiobox("columns", modeselect);  if (canvas.display_mode == DisplayMode.columns) radio_cols.isChecked = true;
 
 		import ui;
+	
+		//item_view.addEventListener(EventType.click, () {ui.show(canvas_name, item_view.getSelectionString);});
+	
 		autorefresh.addEventListener(EventType.change,   () { ui.winpoll(canvas_name, autorefresh.isChecked?"true":"false"); });
 		    refresh.addEventListener(EventType.triggered,() { ui.winrefresh(canvas_name); });
 		       fitX.addEventListener(EventType.change,   () { ui.autoscale(canvas_name, 'x', fitX.isChecked?"true":"false"); });
