@@ -61,8 +61,8 @@ public:
 			writeln("Function deserialize error: ", e.msg);
 		} 
 	}
-	override JSONValue toJSON() const { return serialize(data); }
-	override string get_type() const pure {
+	override JSONValue toJSON()  { return serialize(data); }
+	override string get_type()  {
 		return "functions.Function";
 	}
 	override void reset() {

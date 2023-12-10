@@ -8,8 +8,8 @@ interface ItemFactory {
 
 interface Item {
 	import std.json;
-	JSONValue toJSON() const ;
-	string get_type() const ;
+	JSONValue toJSON() ;
+	string get_type() ;
 	void reset();
 }
 struct ItemStore {

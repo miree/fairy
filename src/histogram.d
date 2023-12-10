@@ -47,8 +47,8 @@ public:
 			writeln("XXX ", e.msg);
 		} 
 	}
-	override JSONValue toJSON() const { return serialize(data); }
-	override string get_type() const pure {
+	override JSONValue toJSON() { return serialize(data); }
+	override string get_type()  {
 		return "histogram.Hist1";
 	}
 	override void reset() {
@@ -172,8 +172,8 @@ public:
 			writeln("exception in JSON-constructor of histogram.Hist2 ", e.msg);
 		} 
 	}
-	override JSONValue toJSON() const { return serialize(data); }
-	override string get_type() const pure {
+	override JSONValue toJSON()  { return serialize(data); }
+	override string get_type()  {
 		return "histogram.Hist2";
 	}
 	override void reset() {
@@ -247,8 +247,8 @@ class FileHistogram : Visual, FitDataSource, Item {
 	this(Data d)             { data = d; }
 	this(ref JSONValue json) { data = deserialize!Data(json); }
 	// Item Interface
-	override JSONValue toJSON() const { return serialize(data); }
-	override string get_type() const { 
+	override JSONValue toJSON()  { return serialize(data); }
+	override string get_type()  { 
 		return "histogram.FileHistogram"; 
 	}
 	override void reset() {

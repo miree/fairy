@@ -365,7 +365,10 @@ import audiodaq;
 @trusted
 void handle_audiodaq_Waveform(MsgWaveformCreate msg) {
 	import item, waveform;
-	fairy.session.add_item(msg.name, cast(Waveform)msg.wave, NameCollisionPolicy.replace);
+	Waveform wf = cast(Waveform)msg.wave;
+	import std.stdio;
+	writeln("got waveform ", msg.name, " ", wf.get_type(), " N=", wf.d.N);
+	fairy.session.add_item(msg.name, wf, NameCollisionPolicy.replace);
 	import std.concurrency;
 	audiodaq.tid.send(audiodaq.MsgAck());
 }

@@ -40,6 +40,7 @@ public:
 		@SERIALIZE double[] data;
 	}
 	Data d;
+	double[] backbuffer;
 	// data array contains concatenated polynomial coefficients up to order O.
 	// each polynom is defined by N=order+1 coefficients
 	// example N=4 (order=3):
@@ -58,10 +59,11 @@ public:
 		d.N     = N;
 		d.left  = left;
 		d.right = right;	
+		backbuffer.length = d.data.length;
 	}
 	this(ref JSONValue json) { d = deserialize!Data(json); }
-	override JSONValue toJSON() const { return serialize(d); }
-	override string get_type() const pure {
+	override JSONValue toJSON()  { return serialize(d); }
+	override string get_type() {
 		return "waveform.Waveform";
 	}
 	override void reset() {
@@ -77,6 +79,11 @@ public:
 	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null)
 	{
 		return new WaveformVisualizer(item_version, d.data, d.N, d.left, d.right);
+	}
+
+	void swap_backbuffer() {
+		import std.algorithm;
+		swap(d.data, backbuffer);
 	}
 	//override void destroy() {}
 	//override ulong getVersion() {

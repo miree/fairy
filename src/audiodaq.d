@@ -49,38 +49,49 @@ else {
 		bool paused = false;
 		bool stop = false;
 		// create fairy Wavforms and send them over to main thread
+		import std.stdio;
+		writeln("run_audiodaq ", num_channels);
 		traces.length = num_channels;
 
 		foreach(channel; 0..num_channels) {
 			import std.conv;
-			import std.stdio;
 			string tracename = "audiodaq/"~channel.to!string;
 			traces[channel] = new Waveform(new double[trace_length*2], 2, 0, trace_length);
-			writeln("send waveform item");
-			main_thread.send(MsgWaveformCreate(tracename, cast(shared Waveform)traces[$-1]));
+			writeln("send waveform item ", traces[channel].get_type());
+			main_thread.send(MsgWaveformCreate(tracename, cast(shared Waveform)traces[channel]));
 			receive((MsgAck msg) {});
 			writeln("got ack for waveform");
 		}
 		auto pcm = new AlsaPcmRecord(num_channels, device_name);
 
 		// main loop take data samples and send trace to main thread when trigger is detected
-		for (uint i; ;++i) {
+		int[] previous_sample = new int[num_channels];
+		for (int i=-1; ;++i) {
 			if (!paused) {
 				auto t = Clock.currTime;
 				uint time_secs = cast(uint)t.toUnixTime;
 				auto timeval = t.toTimeVal;
 				uint timestamp = 0;
 				uint frac_msecs = cast(uint)(timeval.tv_usec/1e3);
-				foreach(ch;0..num_channels) {
-					traces[ch].d.data[2*i] = pcm.front[ch];
-				}
+
 				pcm.popFront;
+				if (i==-1) {
+					foreach(ch;0..num_channels) {
+						previous_sample[ch] = pcm.front[ch];
+					}
+					continue;
+				}
 				foreach(ch;0..num_channels) {
-					traces[ch].d.data[2*i+1] = pcm.front[ch]-traces[ch].d.data[2*i];
+					traces[ch].backbuffer[2*i]    = previous_sample[ch];
+					traces[ch].backbuffer[2*i+1]  = pcm.front[ch]-previous_sample[ch];
+					previous_sample[ch] = pcm.front[ch];
 				}
 				if (i == trace_length-1) {
-					i = 0;
+					i = -1;
 					import std.stdio;
+					foreach(ch;0..num_channels) {
+						traces[ch].swap_backbuffer();
+					}
 					foreach(ch;0..num_channels) {
 						traces[ch].overrideVersion(traces[ch].getVersion+1);
 					}
