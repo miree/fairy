@@ -28,9 +28,112 @@ static ~this() {
 	}
 }
 
+interface Filter {
+	void put(double x);
+	bool empty(); // returns true if there is a new value available on the output
+	uint N(); // return the lenght of the array that will be returned by get();
+	double[] get(); // only call if empty() is false
+}
+
+class NoFilter : Filter {
+	double[1] value;
+	override void put(double x) {
+		value[0] = x;
+	}
+	override bool empty() {
+		return false;
+	}
+	override uint N() {
+		return 1;
+	}
+	override double[] get() {
+		return value;
+	}
+}
+
+class LinearInterpolation : Filter {
+	double previous;
+	double[2] output;
+	override void put(double x) {
+		if (previous !is double.init) {
+			output[0] = previous;
+			output[1] = x-previous;
+		}
+		previous = x;
+	}
+	override bool empty() {
+		return (previous is double.init);
+	}
+	override uint N() {
+		return 2;
+	}
+	override double[] get() {
+		return output;
+	}
+}
+
+class SincInterpolation : Filter {
+	// sample height and first derivative
+	struct Sample {
+		double y;
+		double yd = 0.0;
+	}
+	double[4] coefficients;
+	void calc_coefficients(in Sample s0, in Sample s1) {
+		coefficients[0] = s0.y;
+		coefficients[1] = s0.yd;
+		coefficients[2] = -1*s1.yd + 3*s1.y - 2*s0.yd - 3*s0.y;
+		coefficients[3] =    s1.yd - 2*s1.y + 1*s0.yd + 2*s0.y;
+	}
+
+
+	import std.math, std.range;
+	// table of derivatives of sinc function
+	// optimized in a way such that polynom interpolation reproduces the sinc function more precisely
+	static immutable double[] dsinc_dx = [0.0, -1.07432, 0.587811, -0.402117, 0.303929, -0.244447, 0.204067, -0.175336, 0.153231, -0.130252, 0.106675, -0.0831741, 0.060211, -0.0384085, 0.0180193, 9.70157e-05];
+
+	Sample[dsinc_dx.length] samples; // ringbuffer of samples
+	ulong front_idx;                 // index into ringbuffer pointing to the front element of the range
+	bool is_empty = true;
+	Sample front_sample;
+	Sample previous_sample;
+
+	override void put(double y) {
+		if (is_empty) {
+			samples[] = Sample(y);
+			front_sample = samples[front_idx];
+			is_empty = false;
+		} 
+		previous_sample = front_sample;
+		front_sample = samples[front_idx];
+		samples[front_idx] = Sample(y);
+		ulong end   = front_idx;
+		ulong begin = end+1;
+		if (begin >= samples.length) begin = 0;
+
+		long xi = samples.length-1;
+		for(ulong i = begin; i != end; i = (i+1)%samples.length) {
+			samples[i].yd         -= dsinc_dx[xi] * samples[front_idx].y;
+			samples[front_idx].yd += dsinc_dx[xi] * samples[i].y;
+			--xi;
+		}
+		front_idx = begin;
+		calc_coefficients(previous_sample, front_sample);
+	}
+	bool empty() { return is_empty; }
+	uint N() {return 4;}
+	double[] get() { return coefficients; }
+}
+
 interface AudioDAQ {
 	uint[] get_allowed_rates();
 	uint[] get_allowed_channels();
+}
+
+enum InterpolationMode {
+	no,
+	linear,
+	sinc
 }
 
 version(Windows) {
@@ -43,7 +146,7 @@ else {
 
 
 	@trusted
-	void run_audiodaq(Tid main_thread_tid, int num_channels, int trace_length, string device_name) {
+	void run_audiodaq(Tid main_thread_tid, int trace_length, int num_channels, int samplingrate, InterpolationMode interpolation, string device_name) {
 		import std.datetime;
 		main_thread = main_thread_tid;
 		bool paused = false;
@@ -53,41 +156,53 @@ else {
 		writeln("run_audiodaq ", num_channels);
 		traces.length = num_channels;
 
+		auto filters = new Filter[num_channels];
+		foreach(ref filter; filters) {
+			if (interpolation == InterpolationMode.no) {
+				filter = new NoFilter;
+			} else if (interpolation == InterpolationMode.linear) {
+				filter = new LinearInterpolation;
+			} else if (interpolation == InterpolationMode.sinc) {
+				filter = new SincInterpolation;
+			} else {
+				throw new Exception("invalid interpolation filter");
+			}
+		}
+
 		foreach(channel; 0..num_channels) {
 			import std.conv;
 			string tracename = "audiodaq/"~channel.to!string;
-			traces[channel] = new Waveform(new double[trace_length*2], 2, 0, trace_length);
-			writeln("send waveform item ", traces[channel].get_type());
+			traces[channel] = new Waveform(new double[trace_length*filters[channel].N], filters[channel].N, 0, trace_length);
+			//writeln("send waveform item ", traces[channel].get_type());
 			main_thread.send(MsgWaveformCreate(tracename, cast(shared Waveform)traces[channel]));
 			receive((MsgAck msg) {});
-			writeln("got ack for waveform");
+			//writeln("got ack for waveform");
 		}
-		auto pcm = new AlsaPcmRecord(num_channels, device_name);
 
+		auto pcm = new AlsaPcmRecord(num_channels, samplingrate, device_name);
 		// main loop take data samples and send trace to main thread when trigger is detected
-		int[] previous_sample = new int[num_channels];
-		for (int i=-1; ;++i) {
+		//int[] previous_sample = new int[num_channels];
+		for (int i=0; ;) {
 			if (!paused) {
-				auto t = Clock.currTime;
-				uint time_secs = cast(uint)t.toUnixTime;
-				auto timeval = t.toTimeVal;
-				uint timestamp = 0;
-				uint frac_msecs = cast(uint)(timeval.tv_usec/1e3);
-
 				pcm.popFront;
-				if (i==-1) {
-					foreach(ch;0..num_channels) {
-						previous_sample[ch] = pcm.front[ch];
-					}
-					continue;
-				}
+				//if (i==-1) {
+				//	foreach(ch;0..num_channels) {
+				//		previous_sample[ch] = pcm.front[ch];
+				//	}
+				//	continue;
+				//}
 				foreach(ch;0..num_channels) {
-					traces[ch].backbuffer[2*i]    = previous_sample[ch];
-					traces[ch].backbuffer[2*i+1]  = pcm.front[ch]-previous_sample[ch];
-					previous_sample[ch] = pcm.front[ch];
+					filters[ch].put(pcm.front[ch]);
+					if (!filters[ch].empty) {
+						traces[ch].backbuffer[filters[ch].N*i..filters[ch].N*(i+1)] = filters[ch].get[0..filters[ch].N];
+						if (ch==num_channels-1) ++i;
+					}
+					//traces[ch].backbuffer[2*i]    = previous_sample[ch];
+					//traces[ch].backbuffer[2*i+1]  = pcm.front[ch]-previous_sample[ch];
+					//previous_sample[ch] = pcm.front[ch];
 				}
 				if (i == trace_length-1) {
-					i = -1;
+					i = 0;
 					import std.stdio;
 					foreach(ch;0..num_channels) {
 						traces[ch].swap_backbuffer();
@@ -187,10 +302,10 @@ else {
 		snd_pcm_hw_params_t *params;
 		uint channels;
 		ulong period_size;
-		int[] buffer;
+		short[] buffer;
 		ulong idx;
 
-		this(uint ch, string device_name) {
+		this(uint ch, uint rate, string device_name) {
 			channels = ch;
 			import std.string;
 			assert(snd_pcm_open(&handle, device_name.toStringz, SND_PCM_STREAM_CAPTURE, 0) >= 0);
@@ -198,13 +313,13 @@ else {
 			snd_pcm_hw_params_any(handle, params);
 			assert(snd_pcm_hw_params_set_rate_resample(handle, params, 0) == 0);
 			assert(snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED)==0);
-			assert(snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S32_LE)==0);
+			assert(snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S16_LE)==0);
 			assert(snd_pcm_hw_params_set_channels(handle, params, channels)==0);
 			uint rmin=0, rmax=1000000;
 			int dirmin=0, dirmax=0;
 		    assert(snd_pcm_hw_params_set_rate_minmax(handle, params, &rmin, &dirmin, &rmax, &dirmax) == 0);
 		    writeln("max rate = ", rmax);
-			assert(snd_pcm_hw_params_set_rate(handle, params, rmax, 0)==0);
+			assert(snd_pcm_hw_params_set_rate(handle, params, (rate==0)?rmax:rate, 0)==0);
 
 		    ulong pmin=0, pmax =1000000;
 		    assert(snd_pcm_hw_params_set_period_size_minmax(handle, params, &pmin, &dirmin, &pmax, &dirmax) == 0);
@@ -214,7 +329,7 @@ else {
 
 			assert(snd_pcm_hw_params(handle, params)>=0);
 
-			buffer = new int[channels*period_size];                 // buffer for the sound data
+			buffer = new short[channels*period_size];                 // buffer for the sound data
 			idx = buffer.length;
 		}
 		~this() {
@@ -246,7 +361,7 @@ else {
 			}
 			return true;
 		}
-		int[] front() {
+		short[] front() {
 			if (!check()) return null;
 			return buffer[idx..idx+channels];
 		}

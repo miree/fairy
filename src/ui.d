@@ -139,30 +139,54 @@ string session_save(string session_name) {
 @trusted
 @UI_EXPORT("control audio DAQ",
 	["command (info, start, pause, continue, stop)",
-	 "arg is <num_cahnnels>:<trace_length>",
-	 "device name"
+	 "number of samples in the captured trace",
+	 "number of channels",
+	 "sampling rate",
+	 "interpolation mode: (no, linear, sinc)",
+	 "device name of the audio backend"
 	 ]) 
-string audiodaq(string command, string arg = "1:1024", string device = "default") {
+string audiodaq(string command, string tracelength = "1024", string channels = "max", string rate = "max", string interpolation = "linear", string device = "default") {
 	import audiodaq;
 	import std.concurrency;
 	if (command == "info") {
 		import std.typecons, std.algorithm, std.conv, std.array;
 		auto daq = scoped!Alsa(device);
 		auto rates    = daq.get_allowed_rates.map!(to!string).join(", ").array;
-		auto channels = daq.get_allowed_channels.map!(to!string).join(", ").array;
-		return "allowed rates: " ~ rates.to!string ~ "\nallowed channels: " ~ channels.to!string;
+		auto allowed_channels = daq.get_allowed_channels.map!(to!string).join(", ").array;
+		return "allowed rates: " ~ rates.to!string ~ "\nallowed channels: " ~ allowed_channels.to!string;
 	}
 	if (command == "start") {
-		import std.array, std.conv;
-		int num_channels = arg.split(':')[0].to!int;
-		int trace_length = arg.split(':')[1].to!int;
-		if (!num_channels) throw new Exception("invalid channel number");
-		if (!trace_length) throw new Exception("invalid trace   length");
+		import std.typecons, std.algorithm, std.conv, std.array;
+
+		auto daq = scoped!Alsa(device);
+
+
+		int trace_length = tracelength.to!int;
+		if (trace_length < 1) throw new Exception("tracelength must be larger than 1");
+
+		auto allowed_channels = daq.get_allowed_channels;
+		if (allowed_channels.empty) throw new Exception("cannot detect channel count on device ", device);
+		int num_channels;
+		if (channels == "max") num_channels = daq.get_allowed_channels[$-1];
+		else                   num_channels = channels.to!int;
+		if (!num_channels) throw new Exception("channel number must be larger than 0");
+		
+		auto allowed_rates = daq.get_allowed_rates;
+		if (allowed_rates.empty) throw new Exception("cannot detect allowed sampling rates on device ", device);
+		int samplingrate;
+		if (rate == "max") samplingrate = allowed_rates[$-1];
+		else               samplingrate = rate.to!int;
+
+		audiodaq.InterpolationMode interpolation_mode;
+		if (interpolation == "no") interpolation_mode = InterpolationMode.no;
+		else if (interpolation == "linear") interpolation_mode = InterpolationMode.linear;
+		else if (interpolation == "sinc") interpolation_mode = InterpolationMode.sinc;
+		else throw new Exception("unsupported interpolation mode: "~interpolation~" . Allowed modes are no,linear,sinc");
 
 		if (audiodaq.running) throw new Exception("audiodaq already running");
 		audiodaq.running = true;
-		audiodaq.tid = spawn(&run_audiodaq, thisTid, num_channels, trace_length, device);
-		return "started";
+		audiodaq.tid = spawn(&run_audiodaq, thisTid, trace_length, num_channels, samplingrate, interpolation_mode, device);
+		return "started audiodaq device "~device~" with rate="~samplingrate.to!string~" on "~num_channels.to!string~" channels. tracelength is "~tracelength.to!string;
 	}
 	if (command == "pause") {
 		if (!audiodaq.running) throw new Exception("audiodaq is not running");
