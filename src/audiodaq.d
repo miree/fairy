@@ -201,7 +201,7 @@ else {
 					//traces[ch].backbuffer[2*i+1]  = pcm.front[ch]-previous_sample[ch];
 					//previous_sample[ch] = pcm.front[ch];
 				}
-				if (i == trace_length-1) {
+				if (i == trace_length) {
 					i = 0;
 					import std.stdio;
 					foreach(ch;0..num_channels) {
