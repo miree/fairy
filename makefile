@@ -1,4 +1,4 @@
-LD_FLAGS = -L-L/home/michael/.local/lib -L-rpath=/home/michael/.local/lib
+LD_FLAGS = -L-L/home/michael/local/lib -L-rpath=/home/michael/local/lib
 
 
 fairy: src/*.d

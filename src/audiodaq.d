@@ -16,8 +16,10 @@ struct MsgContinue {}
 struct MsgStop {}
 struct MsgAck {}
 struct MsgWaveformCreate{
-	string          name;
-	shared Waveform wave;
+	string   name;
+	shared(Waveform.Data) wave;
+	shared(double[])      backbuf;
+	shared(ulong[])       itemversion;
 }
 
 @trusted
@@ -172,9 +174,11 @@ else {
 		foreach(channel; 0..num_channels) {
 			import std.conv;
 			string tracename = "audiodaq/"~channel.to!string;
-			traces[channel] = new Waveform(new double[trace_length*filters[channel].N], filters[channel].N, 0, trace_length);
+			auto itemversion = new shared(ulong[])(1);
+			itemversion[0] = 0;
+			traces[channel] = new Waveform(new shared(double[])(trace_length*filters[channel].N), filters[channel].N, 0, trace_length, itemversion);
 			//writeln("send waveform item ", traces[channel].get_type());
-			main_thread.send(MsgWaveformCreate(tracename, cast(shared Waveform)traces[channel]));
+			main_thread.send(MsgWaveformCreate(tracename, traces[channel].d, traces[channel].backbuffer, itemversion));
 			receive((MsgAck msg) {});
 			//writeln("got ack for waveform");
 		}
@@ -245,9 +249,6 @@ else {
 
 
 		override uint[] get_allowed_rates() {
-			snd_pcm_hw_params_t *params;
-			snd_pcm_hw_params_malloc(&params); 
-			scope(exit) snd_pcm_hw_params_free(params);		
 			snd_pcm_hw_params_any(handle, params);
 			assert(snd_pcm_hw_params_set_rate_resample(handle, params, 0) == 0);
 			assert(snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED) == 0);
@@ -268,9 +269,6 @@ else {
 		}
 
 		override uint[] get_allowed_channels() {
-			snd_pcm_hw_params_t *params;
-			snd_pcm_hw_params_malloc(&params);
-			scope(exit) snd_pcm_hw_params_free(params);		
 			uint[] result = []; 
 			snd_pcm_hw_params_any(handle, params);
 			assert(snd_pcm_hw_params_set_rate_resample(handle, params, 0) == 0);
@@ -308,26 +306,45 @@ else {
 		this(uint ch, uint rate, string device_name) {
 			channels = ch;
 			import std.string;
-			assert(snd_pcm_open(&handle, device_name.toStringz, SND_PCM_STREAM_CAPTURE, 0) >= 0);
+			if (!(snd_pcm_open(&handle, device_name.toStringz, SND_PCM_STREAM_CAPTURE, 0) >= 0)) {
+				throw new Exception("alsa error snd_pcm_open");
+			}
 			snd_pcm_hw_params_malloc(&params); 
 			snd_pcm_hw_params_any(handle, params);
-			assert(snd_pcm_hw_params_set_rate_resample(handle, params, 0) == 0);
-			assert(snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED)==0);
-			assert(snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S16_LE)==0);
-			assert(snd_pcm_hw_params_set_channels(handle, params, channels)==0);
+			if (!(snd_pcm_hw_params_set_rate_resample(handle, params, 0) == 0)) {
+				throw new Exception("alsa error snd_pcm_hw_params_set_rate_resample");
+			}
+			if (!(snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED)==0)) {
+				throw new Exception("alsa error snd_pcm_hw_params_set_access");
+			}
+			if (!(snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S16_LE)==0)) {
+				throw new Exception("alsa error snd_pcm_hw_params_set_format");
+			}
+			if (!(snd_pcm_hw_params_set_channels(handle, params, channels)==0)) {
+				throw new Exception("alsa error snd_pcm_hw_params_set_channels");
+			}
 			uint rmin=0, rmax=1000000;
 			int dirmin=0, dirmax=0;
-		    assert(snd_pcm_hw_params_set_rate_minmax(handle, params, &rmin, &dirmin, &rmax, &dirmax) == 0);
+		    if (!(snd_pcm_hw_params_set_rate_minmax(handle, params, &rmin, &dirmin, &rmax, &dirmax) == 0)) {
+		    	throw new Exception("alsa error snd_pcm_hw_params_set_rate_minmax");
+		    }
 		    writeln("max rate = ", rmax);
-			assert(snd_pcm_hw_params_set_rate(handle, params, (rate==0)?rmax:rate, 0)==0);
+			if (!(snd_pcm_hw_params_set_rate(handle, params, (rate==0)?rmax:rate, 0)==0)) {
+				throw new Exception("alsa error snd_pcm_hw_params_set_rate");
+			}
 
-		    ulong pmin=0, pmax =1000000;
-		    assert(snd_pcm_hw_params_set_period_size_minmax(handle, params, &pmin, &dirmin, &pmax, &dirmax) == 0);
+		    ulong pmin=0, pmax =4096;
+		    if (!(snd_pcm_hw_params_set_period_size_minmax(handle, params, &pmin, &dirmin, &pmax, &dirmax) == 0)) {
+		    	throw new Exception("alsa error snd_pcm_hw_params_set_period_size_minmax");
+		    }
 			period_size = pmax;
 			writeln("period_size = ", period_size);
 			snd_pcm_hw_params_set_period_size(handle, params, period_size, 0);
+			writeln("period_size = ", period_size);
 
-			assert(snd_pcm_hw_params(handle, params)>=0);
+			if (!(snd_pcm_hw_params(handle, params)>=0)) {
+				throw new Exception("alsa error snd_pcm_hw_params");
+			}
 
 			buffer = new short[channels*period_size];                 // buffer for the sound data
 			idx = buffer.length;
@@ -346,6 +363,7 @@ else {
 			if (idx >= buffer.length) {
 				//import std.stdio;
 				//writeln('.');
+
 				long sr = snd_pcm_readi(handle, cast(char*)(buffer), period_size);
 				if (sr < 0)
 				{

@@ -423,7 +423,7 @@ string fill2(string name, double position_x, double position_y, double amount = 
 	 "number of sample points"])
 string wave(string name) {
 	import fairy, waveform;
-	double[] waveform_data = [
+	shared(double[]) waveform_data = [
 		0,1,
 		0,1,
 		0,1,

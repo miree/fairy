@@ -32,6 +32,7 @@ class WaveformFactory : ItemFactory {
 import graphics;
 class Waveform : Visual, Item
 {
+import core.atomic;
 public:
 	struct Data {
 		@SERIALIZE int      N;
@@ -39,8 +40,8 @@ public:
 		@SERIALIZE double   right;
 		@SERIALIZE double[] data;
 	}
-	Data d;
-	double[] backbuffer;
+	shared(Data) d;
+	shared(double[]) backbuffer;
 	// data array contains concatenated polynomial coefficients up to order O.
 	// each polynom is defined by N=order+1 coefficients
 	// example N=4 (order=3):
@@ -52,36 +53,51 @@ public:
 	//   y0(x-x0)=a0+b0*x
 	//   y1(x-x1)=a1+b1*x
 	// ...
-	this (Data data) {	d = data; 	}
-	this(double[] data, uint N, double left, double right) {
+	this (shared(Data) data, shared(double[]) backbuf, shared(ulong[]) itemvers = new shared(ulong[])(1)) {	
+		d = data; 	
+		backbuffer = backbuf;
+		itemversion = itemvers;
+		assert(itemversion.length==1);
+	}
+	this(shared(double[]) data, uint N, double left, double right, shared(ulong[]) itemvers = new shared(ulong[])(1)) {
 		assert(data.length%N == 0);
 		d.data  = data;
 		d.N     = N;
 		d.left  = left;
 		d.right = right;	
 		backbuffer.length = d.data.length;
+		itemversion = itemvers;
+		assert(itemversion.length==1);
 	}
-	this(ref JSONValue json) { d = deserialize!Data(json); }
+	this(ref JSONValue json) { 
+		d = deserialize!(shared(Data))(json); 
+		backbuffer.length = d.data.length;
+		itemversion.length = 1;
+		itemversion[0] = 0;
+	}
 	override JSONValue toJSON()  { return serialize(d); }
 	override string get_type() {
 		return "waveform.Waveform";
 	}
 	override void reset() {
 		d.data[] = 0.0; 
-		++item_version;
+		backbuffer[] = 0.0;
+		atomicOp!"+="(itemversion[0], 1);
 	}
 	override ulong getVersion() {
-		return item_version;
+		return atomicLoad(itemversion[0]);
 	}
 	override void overrideVersion(ulong new_version) {
-		item_version = new_version;
+		atomicStore(itemversion[0], new_version);
 	}
 	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null)
 	{
-		return new WaveformVisualizer(item_version, d.data, d.N, d.left, d.right);
+		return new WaveformVisualizer(atomicLoad(itemversion[0]), d.data.idup, atomicLoad(d.N), atomicLoad(d.left), atomicLoad(d.right));
 	}
 
 	void swap_backbuffer() {
+		//import std.stdio;
+		//writeln("swap");
 		import std.algorithm;
 		swap(d.data, backbuffer);
 	}
@@ -90,7 +106,7 @@ public:
 	//	return _version;
 	//}
 private:
-	ulong item_version = 0;
+	shared(ulong[]) itemversion;
 }
 
 
@@ -100,11 +116,12 @@ class WaveformVisualizer : Visualizer
 {
 public:
 
-	this(ulong itemversion, double[] data, uint N, double left, double right)
+	this(ulong itemversion, immutable(double[]) data, uint N, double left, double right)
 	{
+		import core.atomic;
 		ulong dim;
 		super(itemversion, dim=1);
-		_data        = data.idup;
+		_data        = data;
 		_N           = N;
 		_left        = left;
 		_right       = right;
