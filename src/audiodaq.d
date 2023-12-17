@@ -178,32 +178,22 @@ else {
 			itemversion[0] = 0;
 			traces[channel] = new Waveform(new shared(double[])(trace_length*filters[channel].N), filters[channel].N, 0, trace_length, itemversion);
 			//writeln("send waveform item ", traces[channel].get_type());
-			main_thread.send(MsgWaveformCreate(tracename, traces[channel].d, traces[channel].backbuffer, itemversion));
+			main_thread.send(MsgWaveformCreate(tracename, traces[channel].d, traces[channel].backbuffer, traces[channel].itemversion));
 			receive((MsgAck msg) {});
 			//writeln("got ack for waveform");
 		}
 
-		auto pcm = new AlsaPcmRecord(num_channels, samplingrate, device_name);
+		auto pcm = AlsaPcmRecord(num_channels, samplingrate, device_name);
 		// main loop take data samples and send trace to main thread when trigger is detected
-		//int[] previous_sample = new int[num_channels];
 		for (int i=0; ;) {
 			if (!paused) {
 				pcm.popFront;
-				//if (i==-1) {
-				//	foreach(ch;0..num_channels) {
-				//		previous_sample[ch] = pcm.front[ch];
-				//	}
-				//	continue;
-				//}
 				foreach(ch;0..num_channels) {
 					filters[ch].put(pcm.front[ch]);
 					if (!filters[ch].empty) {
 						traces[ch].backbuffer[filters[ch].N*i..filters[ch].N*(i+1)] = filters[ch].get[0..filters[ch].N];
 						if (ch==num_channels-1) ++i;
 					}
-					//traces[ch].backbuffer[2*i]    = previous_sample[ch];
-					//traces[ch].backbuffer[2*i+1]  = pcm.front[ch]-previous_sample[ch];
-					//previous_sample[ch] = pcm.front[ch];
 				}
 				if (i == trace_length) {
 					i = 0;
@@ -228,71 +218,71 @@ else {
 
 	import alsa_import;
 
+	//@trusted
+	//class Alsa : AudioDAQ {
+
+	//	snd_pcm_t* handle;
+	//	snd_pcm_hw_params_t *params;
+
+	//	this(string devname) {
+	//		import std.string;
+	//		assert(snd_pcm_open(&handle, devname.toStringz, SND_PCM_STREAM_CAPTURE, 0) >= 0);
+	//		assert(snd_pcm_hw_params_malloc(&params) >= 0); 
+
+	//	}
+	//	~this() {
+	//		import std.stdio;
+	//		snd_pcm_hw_free(handle);
+	//		snd_pcm_close(handle);
+	//		snd_pcm_hw_params_free(params);
+	//	}
+
+
+	//	override uint[] get_allowed_rates() {
+	//		snd_pcm_hw_params_any(handle, params);
+	//		assert(snd_pcm_hw_params_set_rate_resample(handle, params, 0) == 0);
+	//		assert(snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED) == 0);
+	//		assert(snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S32_LE) == 0);
+
+	//		uint[] result;
+	//		uint fmin = 0;
+	//		uint fmax = 10000000;
+	//		int dirmin=0;
+	//		int dirmax=0;
+	//		assert(snd_pcm_hw_params_set_rate_minmax(handle, params, &fmin, &dirmin, &fmax, &dirmax) == 0);
+	//		foreach(f; [44100,48000,96000,192000,352000]) {
+	//			if (f<= fmax && f >= fmin) {
+	//				result ~= f;
+	//			}
+	//		}
+	//		return result;
+	//	}
+
+	//	override uint[] get_allowed_channels() {
+	//		uint[] result = []; 
+	//		snd_pcm_hw_params_any(handle, params);
+	//		assert(snd_pcm_hw_params_set_rate_resample(handle, params, 0) == 0);
+	//		assert(snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED) == 0);
+	//		assert(snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S32_LE) == 0);
+	//		uint fmin = 0;
+	//		uint fmax = 10000000;
+	//		int dirmin=0;
+	//		int dirmax=0;
+	//		assert(snd_pcm_hw_params_set_rate_minmax(handle, params, &fmin, &dirmin, &fmax, &dirmax) == 0);
+	//		foreach(ch; 1..3) {
+	//			if (snd_pcm_hw_params_test_channels(handle, params, ch) == 0) {
+	//				result ~= ch;
+	//			}
+	//		}
+	//		return result;
+	//	}
+
+
+	//}
+
+
 	@trusted
-	class Alsa : AudioDAQ {
-
-		snd_pcm_t* handle;
-		snd_pcm_hw_params_t *params;
-
-		this(string devname) {
-			import std.string;
-			assert(snd_pcm_open(&handle, devname.toStringz, SND_PCM_STREAM_CAPTURE, 0) >= 0);
-			assert(snd_pcm_hw_params_malloc(&params) >= 0); 
-
-		}
-		~this() {
-			import std.stdio;
-			snd_pcm_hw_free(handle);
-			snd_pcm_close(handle);
-			snd_pcm_hw_params_free(params);
-		}
-
-
-		override uint[] get_allowed_rates() {
-			snd_pcm_hw_params_any(handle, params);
-			assert(snd_pcm_hw_params_set_rate_resample(handle, params, 0) == 0);
-			assert(snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED) == 0);
-			assert(snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S32_LE) == 0);
-
-			uint[] result;
-			uint fmin = 0;
-			uint fmax = 10000000;
-			int dirmin=0;
-			int dirmax=0;
-			assert(snd_pcm_hw_params_set_rate_minmax(handle, params, &fmin, &dirmin, &fmax, &dirmax) == 0);
-			foreach(f; [44100,48000,96000,192000,352000]) {
-				if (f<= fmax && f >= fmin) {
-					result ~= f;
-				}
-			}
-			return result;
-		}
-
-		override uint[] get_allowed_channels() {
-			uint[] result = []; 
-			snd_pcm_hw_params_any(handle, params);
-			assert(snd_pcm_hw_params_set_rate_resample(handle, params, 0) == 0);
-			assert(snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED) == 0);
-			assert(snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S32_LE) == 0);
-			uint fmin = 0;
-			uint fmax = 10000000;
-			int dirmin=0;
-			int dirmax=0;
-			assert(snd_pcm_hw_params_set_rate_minmax(handle, params, &fmin, &dirmin, &fmax, &dirmax) == 0);
-			foreach(ch; 1..3) {
-				if (snd_pcm_hw_params_test_channels(handle, params, ch) == 0) {
-					result ~= ch;
-				}
-			}
-			return result;
-		}
-
-
-	}
-
-
-	@trusted
-	class AlsaPcmRecord {
+	struct AlsaPcmRecord {
 		//import alsa.pcm;
 		import alsa_import;
 		import std.stdio;
@@ -361,10 +351,8 @@ else {
 		}
 		bool check() {
 			if (idx >= buffer.length) {
-				//import std.stdio;
-				//writeln('.');
-
-				long sr = snd_pcm_readi(handle, cast(char*)(buffer), period_size);
+				import std.stdio;
+				long sr = snd_pcm_readi(handle, cast(char*)(buffer.ptr), period_size);
 				if (sr < 0)
 				{
 					core.stdc.stdio.stderr.writeln("error in readi, recover");

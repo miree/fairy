@@ -42,6 +42,7 @@ public:
 	}
 	shared(Data) d;
 	shared(double[]) backbuffer;
+	shared(ulong[]) itemversion;
 	// data array contains concatenated polynomial coefficients up to order O.
 	// each polynom is defined by N=order+1 coefficients
 	// example N=4 (order=3):
@@ -96,17 +97,9 @@ public:
 	}
 
 	void swap_backbuffer() {
-		//import std.stdio;
-		//writeln("swap");
 		import std.algorithm;
 		swap(d.data, backbuffer);
 	}
-	//override void destroy() {}
-	//override ulong getVersion() {
-	//	return _version;
-	//}
-private:
-	shared(ulong[]) itemversion;
 }
 
 

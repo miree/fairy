@@ -149,33 +149,36 @@ string audiodaq(string command, string tracelength = "1024", string channels = "
 	import audiodaq;
 	import std.concurrency;
 	if (command == "info") {
-		import std.typecons, std.algorithm, std.conv, std.array;
-		auto daq = scoped!Alsa(device);
-		auto rates    = daq.get_allowed_rates.map!(to!string).join(", ").array;
-		auto allowed_channels = daq.get_allowed_channels.map!(to!string).join(", ").array;
-		return "allowed rates: " ~ rates.to!string ~ "\nallowed channels: " ~ allowed_channels.to!string;
+		//import std.typecons, std.algorithm, std.conv, std.array;
+		//auto daq = scoped!Alsa(device);
+		//auto rates    = daq.get_allowed_rates.map!(to!string).join(", ").array;
+		//auto allowed_channels = daq.get_allowed_channels.map!(to!string).join(", ").array;
+		//return "allowed rates: " ~ rates.to!string ~ "\nallowed channels: " ~ allowed_channels.to!string;
+		return "";
 	}
 	if (command == "start") {
 		import std.typecons, std.algorithm, std.conv, std.array;
 
-		auto daq = scoped!Alsa(device);
+		//auto daq = scoped!Alsa(device);
 
 
 		int trace_length = tracelength.to!int;
 		if (trace_length < 1) throw new Exception("tracelength must be larger than 1");
 
-		auto allowed_channels = daq.get_allowed_channels;
-		if (allowed_channels.empty) throw new Exception("cannot detect channel count on device ", device);
+		//auto allowed_channels = daq.get_allowed_channels;
+		//if (allowed_channels.empty) throw new Exception("cannot detect channel count on device ", device);
 		int num_channels;
-		if (channels == "max") num_channels = daq.get_allowed_channels[$-1];
-		else                   num_channels = channels.to!int;
+		//if (channels == "max") num_channels = daq.get_allowed_channels[$-1];
+		//else  
+		                 num_channels = channels.to!int;
 		if (!num_channels) throw new Exception("channel number must be larger than 0");
 		
-		auto allowed_rates = daq.get_allowed_rates;
-		if (allowed_rates.empty) throw new Exception("cannot detect allowed sampling rates on device ", device);
+		//auto allowed_rates = daq.get_allowed_rates;
+		//if (allowed_rates.empty) throw new Exception("cannot detect allowed sampling rates on device ", device);
 		int samplingrate;
-		if (rate == "max") samplingrate = allowed_rates[$-1];
-		else               samplingrate = rate.to!int;
+		//if (rate == "max") samplingrate = allowed_rates[$-1];
+		//else               
+			samplingrate = rate.to!int;
 
 		audiodaq.InterpolationMode interpolation_mode;
 		if (interpolation == "no") interpolation_mode = InterpolationMode.no;
