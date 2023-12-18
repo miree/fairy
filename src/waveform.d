@@ -39,10 +39,13 @@ public:
 		@SERIALIZE double   left;
 		@SERIALIZE double   right;
 		@SERIALIZE double[] data;
+		
+
+		ulong[]  itemversion;
+		long[] data_start_idx;
+		double[] dx;
 	}
 	shared(Data) d;
-	shared(double[]) backbuffer;
-	shared(ulong[]) itemversion;
 	// data array contains concatenated polynomial coefficients up to order O.
 	// each polynom is defined by N=order+1 coefficients
 	// example N=4 (order=3):
@@ -54,27 +57,31 @@ public:
 	//   y0(x-x0)=a0+b0*x
 	//   y1(x-x1)=a1+b1*x
 	// ...
-	this (shared(Data) data, shared(double[]) backbuf, shared(ulong[]) itemvers = new shared(ulong[])(1)) {	
+	this (shared(Data) data) {	
 		d = data; 	
-		backbuffer = backbuf;
-		itemversion = itemvers;
-		assert(itemversion.length==1);
+		assert(d.itemversion.length==1);
 	}
-	this(shared(double[]) data, uint N, double left, double right, shared(ulong[]) itemvers = new shared(ulong[])(1)) {
+	this(shared(double[]) data, uint N, double left, double right) {
 		assert(data.length%N == 0);
 		d.data  = data;
 		d.N     = N;
 		d.left  = left;
 		d.right = right;	
-		backbuffer.length = d.data.length;
-		itemversion = itemvers;
-		assert(itemversion.length==1);
+		d.itemversion.length = 1;
+		d.itemversion[0] = 0;
+		d.data_start_idx.length = 1;
+		d.data_start_idx[0] = -1;
+		d.dx.length = 1;
+		d.dx[0] = -1;
 	}
 	this(ref JSONValue json) { 
 		d = deserialize!(shared(Data))(json); 
-		backbuffer.length = d.data.length;
-		itemversion.length = 1;
-		itemversion[0] = 0;
+		d.itemversion.length = 1;
+		d.itemversion[0] = 0;
+		d.data_start_idx.length = 1;
+		d.data_start_idx[0] = -1;
+		d.dx.length = 1;
+		d.dx[0] = -1;
 	}
 	override JSONValue toJSON()  { return serialize(d); }
 	override string get_type() {
@@ -82,23 +89,30 @@ public:
 	}
 	override void reset() {
 		d.data[] = 0.0; 
-		backbuffer[] = 0.0;
-		atomicOp!"+="(itemversion[0], 1);
+		atomicOp!"+="(d.itemversion[0], 1);
 	}
 	override ulong getVersion() {
-		return atomicLoad(itemversion[0]);
+		return atomicLoad(d.itemversion[0]);
 	}
 	override void overrideVersion(ulong new_version) {
-		atomicStore(itemversion[0], new_version);
+		atomicStore(d.itemversion[0], new_version);
 	}
+	WaveformVisualizer visualizer;
 	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null)
 	{
-		return new WaveformVisualizer(atomicLoad(itemversion[0]), d.data.idup, atomicLoad(d.N), atomicLoad(d.left), atomicLoad(d.right));
-	}
-
-	void swap_backbuffer() {
-		import std.algorithm;
-		swap(d.data, backbuffer);
+		if (visualizer !is null && visualizer.getVersion >= d.itemversion[0]) return visualizer;
+		//d.data_start_idx[0] = 0;
+		import std.range, std.array, std.algorithm, std.stdio;
+		//writeln("make new visualizer with itemversion ", d.itemversion[0], " [", d.data_start_idx[0], "..$] ~ [0..", d.data_start_idx[0], "]");
+		//swap(d.visubuffer, d.data);
+		ulong startidx = d.data_start_idx[0]>=0?d.data_start_idx[0]:0;
+		auto tracedata = new double[d.data.length];
+		tracedata[0..d.data.length-startidx*d.N] = d.data[startidx*d.N..$];
+		tracedata[d.data.length-startidx*d.N..$] = d.data[0..startidx*d.N];
+		visualizer = new WaveformVisualizer(atomicLoad(d.itemversion[0]), tracedata, atomicLoad(d.N), d.left+d.dx[0], d.right+d.dx[0]);
+		//writeln("setting start idx to -1 to bring audiodaq in ready state");
+		d.data_start_idx[0] = -1;
+		return visualizer;
 	}
 }
 
@@ -109,12 +123,12 @@ class WaveformVisualizer : Visualizer
 {
 public:
 
-	this(ulong itemversion, immutable(double[]) data, uint N, double left, double right)
+	this(ulong itemversion, double[] data, uint N, double left, double right)
 	{
 		import core.atomic;
 		ulong dim;
 		super(itemversion, dim=1);
-		_data        = data;
+		_data        = data.idup;
 		_N           = N;
 		_left        = left;
 		_right       = right;
