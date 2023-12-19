@@ -266,14 +266,17 @@ else {
 
 
 	@trusted
-	void run_audiodaq(Tid main_thread_tid, int trace_length, int num_channels, int samplingrate, InterpolationMode interpolation, string device_name) {
+	void run_audiodaq(Tid main_thread_tid, int trace_length, int num_channels, int samplingrate, int trigger_level, int trigger_slope, double trigger_position, InterpolationMode interpolation, string device_name) {
+		if (trigger_slope > 1 || trigger_slope < -1) throw new Exception("audiodaq trigger_slope must be -1, 0, or 1");
+		if (trigger_position < 0.0 || trigger_position > 1.0) throw new Exception("audiodaq trigger_position must be >= 0 and <= 1");
+
 		import std.datetime;
 		main_thread = main_thread_tid;
 		bool paused = false;
 		bool stop = false;
 		// create fairy Wavforms and send them over to main thread
 		import std.stdio;
-		writeln("run_audiodaq ", num_channels);
+		//writeln("run_audiodaq ", num_channels);
 		traces.length = num_channels;
 
 		auto filters = new Filter[num_channels];
@@ -294,7 +297,8 @@ else {
 			string tracename = "audiodaq/"~channel.to!string;
 			auto itemversion = new shared(ulong[])(1);
 			itemversion[0] = 0;
-			traces[channel] = new Waveform(new shared(double[])(trace_length*filters[channel].N), filters[channel].N, 0, trace_length);
+			int pretrigger_tracelength= cast(int)(trace_length*trigger_position);
+			traces[channel] = new Waveform(new shared(double[])(trace_length*filters[channel].N), filters[channel].N, -pretrigger_tracelength, trace_length-pretrigger_tracelength);
 			//writeln("send waveform item ", traces[channel].get_type());
 			main_thread.send(MsgWaveformCreate(tracename, traces[channel].d));
 			receive((MsgAck msg) {});
@@ -303,12 +307,12 @@ else {
 		try {
 			auto pcm = AlsaPcmRecord(num_channels, samplingrate, device_name);
 
-			enum t_state { ready, triggered, wait };
+			enum t_state { ready, triggered, wait }
 			t_state state = t_state.wait;
 			//bool triggered = false;
 			//bool disarmed = false;
 			uint trace_end = trace_length*2;
-			uint pre_trigger_data = trace_length/2+1;
+			uint pre_trigger_data = cast(uint)(trace_length*(1.0-trigger_position))+1;
 			uint pre_trigger_count = 0;
 			double trigger_dx;
 			import std.stdio;
@@ -344,8 +348,8 @@ else {
 							if (++i >= trace_length) i = 0; // increment sample index 
 							if (pre_trigger_count < pre_trigger_data) {
 								++pre_trigger_count;
-							} else if (filters[0].trigger(0.0, 1, trigger_dx)) { // test only for trigger if enough pre trigger data are recorded
-								trace_end = i + trace_length/2;
+							} else if (filters[0].trigger(trigger_level, trigger_slope, trigger_dx)) { // test only for trigger if enough pre trigger data are recorded
+								trace_end = i + cast(int)(trace_length*(1.0-trigger_position));
 								if (trace_end >= trace_length) trace_end -= trace_length;
 								//writeln("ready -> triggered at i=",i, " trace_end=",trace_end);
 								state = t_state.triggered;
@@ -381,7 +385,7 @@ else {
 				if (stop) break;
 			}
 			import std.stdio;
-			writeln("run_audiodaq returns");
+			//writeln("run_audiodaq returns");
 
 		} catch (Exception e) {
 			writeln("error running audiodaq: ", e.msg);
@@ -500,7 +504,7 @@ else {
 				closeall();
 		    	throw new Exception("alsa error snd_pcm_hw_params_set_rate_minmax");
 		    }
-		    writeln("max rate = ", rmax);
+		    //writeln("max rate = ", rmax);
 			if (!(snd_pcm_hw_params_set_rate(handle, params, (rate==0)?rmax:rate, 0)==0)) {
 				closeall();
 				throw new Exception("alsa error snd_pcm_hw_params_set_rate");
@@ -512,9 +516,9 @@ else {
 		    	throw new Exception("alsa error snd_pcm_hw_params_set_period_size_minmax");
 		    }
 			period_size = pmax;
-			writeln("period_size = ", period_size);
+			//writeln("period_size = ", period_size);
 			snd_pcm_hw_params_set_period_size(handle, params, period_size, 0);
-			writeln("period_size = ", period_size);
+			//writeln("period_size = ", period_size);
 
 			if (!(snd_pcm_hw_params(handle, params)>=0)) {
 				closeall();

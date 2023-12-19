@@ -90,7 +90,7 @@ class GtkGui : Gui {
 				// this prevents the application 
 				//  from terminating if no GUI is pesent
 				app.hold(); 
-				immutable ulong refresh_period_ms = 100;
+				immutable ulong refresh_period_ms = 20;
 				refresh_timeout = new Timeout(refresh_period_ms, delegate bool() 
 				{
 					if(!fairy.running) application.quit();

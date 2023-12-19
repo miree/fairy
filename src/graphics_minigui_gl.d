@@ -68,7 +68,7 @@ class MiniGuiGL : Gui {
 			add_window(name, canvas);
 		}
 
-		auto timer = new Timer(10, delegate void (){
+		auto timer = new Timer(20, delegate void (){
 
 			foreach(window; MainWindow.main_windows) {
 				import ui;

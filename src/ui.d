@@ -139,13 +139,16 @@ string session_save(string session_name) {
 @trusted
 @UI_EXPORT("control audio DAQ",
 	["command (info, start, pause, continue, stop)",
-	 "number of samples in the captured trace",
-	 "number of channels",
-	 "sampling rate",
-	 "interpolation mode: (no, linear, sinc)",
+	 "trigger level (default=0)",
+	 "trigger slope (rising, falling, either)",
+	 "trigger position as fraction of trace length: must be >= 0.0 and <= 1.0 (default 0.5)",
+	 "number of samples in the captured trace (default=1024)",
+	 "number of channels (default=max)",
+	 "sampling rate (default=max)",
+	 "interpolation mode: (no, linear, sinc=default)",
 	 "device name of the audio backend"
 	 ]) 
-string audiodaq(string command, string tracelength = "1024", string channels = "max", string rate = "max", string interpolation = "linear", string device = "default") {
+string audiodaq(string command, string trigger_level = "0", string trigger_slope = "rising", double trigger_position = 0.5,  string tracelength = "1024", string channels = "max", string rate = "max", string interpolation = "linear", string device = "default") {
 	import audiodaq;
 	import std.concurrency;
 	if (command == "info") {
@@ -158,6 +161,13 @@ string audiodaq(string command, string tracelength = "1024", string channels = "
 	}
 	if (command == "start") {
 		import std.typecons, std.algorithm, std.conv, std.array;
+
+		int trig_level = trigger_level.to!int;
+		int trig_slope = 0;
+		if (trigger_slope == "rising") trig_slope = 1;
+		else if (trigger_slope == "falling") trig_slope = -1;
+		else if (trigger_slope == "either") trig_slope = 0;
+		else throw new Exception("trigger_slope must be one of: rising, falling, either");
 
 		//auto daq = scoped!Alsa(device);
 
@@ -188,7 +198,7 @@ string audiodaq(string command, string tracelength = "1024", string channels = "
 
 		if (audiodaq.running) throw new Exception("audiodaq already running");
 		audiodaq.running = true;
-		audiodaq.tid = spawn(&run_audiodaq, thisTid, trace_length, num_channels, samplingrate, interpolation_mode, device);
+		audiodaq.tid = spawn(&run_audiodaq, thisTid, trace_length, num_channels, samplingrate, trig_level, trig_slope, trigger_position, interpolation_mode, device);
 		return "started audiodaq device "~device~" with rate="~samplingrate.to!string~" on "~num_channels.to!string~" channels. tracelength is "~tracelength.to!string;
 	}
 	if (command == "pause") {
@@ -212,7 +222,7 @@ string audiodaq(string command, string tracelength = "1024", string channels = "
 		audiodaq.running = false;
 		audiodaq.tid.send(MsgStop());
 		import std.stdio;
-		writeln("sent MsgStop, wait for MsgAck");
+		//writeln("sent MsgStop, wait for MsgAck");
 		receive((MsgAck msg) {});
 		return "stopped";
 	}
