@@ -30,6 +30,109 @@ static ~this() {
 }
 
 interface Filter {
+	double apply(double y);
+}
+double apply_filters(double y, Filter[] filter_chain) {
+	double result = y;
+	foreach(filter; filter_chain) {
+		result = filter.apply(result);
+	}
+	return result;
+}
+class Identity : Filter {
+	override double apply(double x) {
+		return x;
+	}
+}
+class HighPass : Filter {
+	double tau;
+	this (double TAU) {
+		tau = TAU;
+	}
+	double integral = 0.0;
+	override double apply(double x) {
+		double output = x-integral;
+		integral += output/tau;
+		return output;
+	}
+}
+class InverseHighPass : Filter {
+	double tau;
+	this (double TAU) {
+		tau = TAU;
+	}
+	double integral = 0.0;
+	override double apply(double x) {
+		double output = x+integral;
+		integral += x/tau;
+		return output;
+	}
+}
+class LowPass : Filter {
+	double tau;
+	this (double TAU) {
+		tau = TAU;
+	}
+	double integral = 0.0;
+	override double apply(double x) {
+		double dI = (x-integral)/tau;
+		integral += dI;
+		return integral;
+	}
+}
+class InverseLowPass : Filter {
+	double tau;
+	this (double TAU) {
+		tau = TAU;
+	}
+	double integral = 0.0;
+	override double apply(double i) {
+		double dI = i - integral;
+		double x = dI*tau + integral;
+		integral += dI;
+		return x;
+	}
+}
+
+class WindowIntegral : Filter {
+	double[] buffer;
+	int idx = 0;
+	double integral;
+	this (int width) {
+		buffer = new double[width];
+	}
+	override double apply(double x) {
+		if (buffer[0] is double.init) {
+			buffer[] = x;
+			integral = x*buffer.length;
+		}
+		integral += buffer[idx];
+		if (++idx == buffer.length) idx = 0;
+		integral -= buffer[idx];
+		buffer[idx] = x;
+		return integral/buffer.length;
+	}
+}
+
+class DelayedDifference : Filter {
+	double[] buffer;
+	int idx = 0;
+	this (int delay) {
+		buffer = new double[delay];
+	}
+	override double apply(double x) {
+		if (buffer[0] is double.init) {
+			buffer[] = x;
+		}
+		double result = x-buffer[idx];
+		buffer[idx] = x;
+		if (++idx == buffer.length) idx = 0;
+		return result;
+	}
+}
+
+
+interface Interpolate {
 	void put(double x);
 	bool empty(); // returns true if there is a new value available on the output
 	uint N(); // return the lenght of the array that will be returned by get();
@@ -39,7 +142,7 @@ interface Filter {
 	double[] get(); // only call if empty() is false
 }
 
-class NoFilter : Filter {
+class NoInterpolation : Interpolate {
 	double[1] value;
 	double[1] previous;
 	override void put(double x) {
@@ -64,7 +167,7 @@ class NoFilter : Filter {
 	}
 }
 
-class LinearInterpolation : Filter {
+class LinearInterpolation : Interpolate {
 	double previous;
 	double[2] output;
 	override void put(double x) {
@@ -98,7 +201,7 @@ class LinearInterpolation : Filter {
 	}
 }
 
-class SincInterpolation : Filter {
+class SincInterpolation : Interpolate  {
 	// sample height and first derivative
 	struct Sample {
 		double y;
@@ -245,6 +348,9 @@ class SincInterpolation : Filter {
 	double[] get() { return coefficients; }
 }
 
+
+
+
 interface AudioDAQ {
 	uint[] get_allowed_rates();
 	uint[] get_allowed_channels();
@@ -266,45 +372,102 @@ else {
 
 
 	@trusted
-	void run_audiodaq(Tid main_thread_tid, int trace_length, int num_channels, int samplingrate, int trigger_level, int trigger_slope, double trigger_position, InterpolationMode interpolation, string device_name) {
-		if (trigger_slope > 1 || trigger_slope < -1) throw new Exception("audiodaq trigger_slope must be -1, 0, or 1");
-		if (trigger_position < 0.0 || trigger_position > 1.0) throw new Exception("audiodaq trigger_position must be >= 0 and <= 1");
-
-		import std.datetime;
-		main_thread = main_thread_tid;
-		bool paused = false;
-		bool stop = false;
-		// create fairy Wavforms and send them over to main thread
-		import std.stdio;
-		//writeln("run_audiodaq ", num_channels);
-		traces.length = num_channels;
-
-		auto filters = new Filter[num_channels];
-		foreach(ref filter; filters) {
-			if (interpolation == InterpolationMode.no) {
-				filter = new NoFilter;
-			} else if (interpolation == InterpolationMode.linear) {
-				filter = new LinearInterpolation;
-			} else if (interpolation == InterpolationMode.sinc) {
-				filter = new SincInterpolation;
-			} else {
-				throw new Exception("invalid interpolation filter");
-			}
-		}
-
-		foreach(channel; 0..num_channels) {
-			import std.conv;
-			string tracename = "audiodaq/"~channel.to!string;
-			auto itemversion = new shared(ulong[])(1);
-			itemversion[0] = 0;
-			int pretrigger_tracelength= cast(int)(trace_length*trigger_position);
-			traces[channel] = new Waveform(new shared(double[])(trace_length*filters[channel].N), filters[channel].N, -pretrigger_tracelength, trace_length-pretrigger_tracelength);
-			//writeln("send waveform item ", traces[channel].get_type());
-			main_thread.send(MsgWaveformCreate(tracename, traces[channel].d));
-			receive((MsgAck msg) {});
-			//writeln("got ack for waveform");
-		}
+	void run_audiodaq(Tid main_thread_tid, int trace_length, int num_channels, int samplingrate, int trigger_level, int trigger_slope, double trigger_position, immutable(string[]) filter_list, InterpolationMode interpolation, string device_name) {
 		try {
+			if (trigger_slope > 1 || trigger_slope < -1) throw new Exception("audiodaq trigger_slope must be -1, 0, or 1");
+			if (trigger_position < 0.0 || trigger_position > 1.0) throw new Exception("audiodaq trigger_position must be >= 0 and <= 1");
+
+			import std.datetime;
+			main_thread = main_thread_tid;
+			bool paused = false;
+			bool stop = false;
+			// create fairy Wavforms and send them over to main thread
+			import std.stdio;
+			//writeln("run_audiodaq ", num_channels);
+			traces.length = num_channels;
+
+			auto filters = new Filter[][](num_channels);
+			foreach(filtername; filter_list) {
+				import std.string, std.conv, std.array;
+				auto args = filtername.split('(')[1].stripRight(")").split(',').array;
+				auto name = filtername.split('(')[0];
+				if (name.startsWith("highpass")) {
+					if (args.length != 2) throw new Exception("expecting: highpass(<channel>,<tau>)");
+					int channel = args[0].to!int;
+					double tau = args[1].to!double;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for highpass");
+					filters[channel] ~= new HighPass(tau);
+				}
+				if (name.startsWith("inversehighpass")) {
+					if (args.length != 2) throw new Exception("expecting: inversehighpass(<channel>,<tau>)");
+					int channel = args[0].to!int;
+					double tau = args[1].to!double;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for inversehighpass");
+					filters[channel] ~= new InverseHighPass(tau);
+				}
+				if (name.startsWith("lowpass")) {
+					if (args.length != 2) throw new Exception("expecting: lowpass(<channel>,<tau>)");
+					int channel = args[0].to!int;
+					double tau = args[1].to!double;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for lowpass");
+					filters[channel] ~= new LowPass(tau);
+				}
+				if (name.startsWith("inverselowpass")) {
+					if (args.length != 2) throw new Exception("expecting: inverselowpass(<channel>,<tau>)");
+					int channel = args[0].to!int;
+					double tau = args[1].to!double;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for inverselowpass");
+					filters[channel] ~= new InverseLowPass(tau);
+				}
+				if (name.startsWith("windowintegral")) {
+					if (args.length != 2) throw new Exception("expecting: windowintegral(<channel>,<width>)");
+					int channel = args[0].to!int;
+					int width = args[1].to!int;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for windowintegral");
+					filters[channel] ~= new WindowIntegral(width);
+				}
+				if (name.startsWith("delayeddifference")) {
+					if (args.length != 2) throw new Exception("expecting: delayeddifference(<channel>,<delay>)");
+					int channel = args[0].to!int;
+					int delay = args[1].to!int;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for delayeddifference");
+					filters[channel] ~= new DelayedDifference(delay);
+				}
+
+				if (name.startsWith("identity")) {
+					if (args.length != 1) throw new Exception("expecting: identity(<channel>)");
+					int channel = args[0].to!int;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for identity");
+					filters[channel] ~= new Identity;
+					
+				} 
+			}
+			auto interpolations = new Interpolate[num_channels];
+			foreach(ref interp; interpolations) {
+				if (interpolation == InterpolationMode.no) {
+					interp = new NoInterpolation;
+				} else if (interpolation == InterpolationMode.linear) {
+					interp = new LinearInterpolation;
+				} else if (interpolation == InterpolationMode.sinc) {
+					interp = new SincInterpolation;
+				} else {
+					throw new Exception("invalid interpolation");
+				}
+			}
+
+			foreach(channel; 0..num_channels) {
+				import std.conv;
+				string tracename = "audiodaq/"~channel.to!string;
+				auto itemversion = new shared(ulong[])(1);
+				itemversion[0] = 0;
+				int pretrigger_tracelength= cast(int)(trace_length*trigger_position);
+				traces[channel] = new Waveform(new shared(double[])(trace_length*interpolations[channel].N), interpolations[channel].N, -pretrigger_tracelength, trace_length-pretrigger_tracelength);
+				//writeln("send waveform item ", traces[channel].get_type());
+				main_thread.send(MsgWaveformCreate(tracename, traces[channel].d));
+				receive((MsgAck msg) {});
+				//writeln("got ack for waveform");
+			}
+
 			auto pcm = AlsaPcmRecord(num_channels, samplingrate, device_name);
 
 			enum t_state { ready, triggered, wait }
@@ -321,7 +484,10 @@ else {
 				if (!paused) {
 					pcm.popFront; // keep taking samples from hardware
 					foreach(ch;0..num_channels) {
-						filters[ch].put(pcm.front[ch]);
+						import std.random;
+						//double value = pcm.front[ch];
+						double value = 10000*((i/100)%2-0.5)+uniform(-100,100);
+						interpolations[ch].put(value.apply_filters(filters[ch]));
 					}
 					final switch(state) {
 						case t_state.wait: {
@@ -340,15 +506,15 @@ else {
 						case t_state.ready:
 							//writeln("ready");
 							foreach(ch;0..num_channels) {
-								if (!filters[ch].empty) {
+								if (!interpolations[ch].empty) {
 									//writeln("ready writing data i=",i);
-									traces[ch].d.data[filters[ch].N*i..filters[ch].N*(i+1)] = filters[ch].get[0..filters[ch].N];
+									traces[ch].d.data[interpolations[ch].N*i..interpolations[ch].N*(i+1)] = interpolations[ch].get[0..interpolations[ch].N];
 								}
 							}
 							if (++i >= trace_length) i = 0; // increment sample index 
 							if (pre_trigger_count < pre_trigger_data) {
 								++pre_trigger_count;
-							} else if (filters[0].trigger(trigger_level, trigger_slope, trigger_dx)) { // test only for trigger if enough pre trigger data are recorded
+							} else if (interpolations[0].trigger(trigger_level, trigger_slope, trigger_dx)) { // test only for trigger if enough pre trigger data are recorded
 								trace_end = i + cast(int)(trace_length*(1.0-trigger_position));
 								if (trace_end >= trace_length) trace_end -= trace_length;
 								//writeln("ready -> triggered at i=",i, " trace_end=",trace_end);
@@ -358,9 +524,9 @@ else {
 						case t_state.triggered:
 							//writeln("triggered");
 							foreach(ch;0..num_channels) {
-								if (!filters[ch].empty) {
+								if (!interpolations[ch].empty) {
 									//writeln("triggered writing data i=",i, " trace_end=",trace_end);
-									traces[ch].d.data[filters[ch].N*i..filters[ch].N*(i+1)] = filters[ch].get[0..filters[ch].N];
+									traces[ch].d.data[interpolations[ch].N*i..interpolations[ch].N*(i+1)] = interpolations[ch].get[0..interpolations[ch].N];
 								}
 							}
 							if (++i >= trace_length) i = 0; // increment sample index 
@@ -388,9 +554,10 @@ else {
 			//writeln("run_audiodaq returns");
 
 		} catch (Exception e) {
+			import std.stdio;
 			writeln("error running audiodaq: ", e.msg);
 			main_thread.send(MsgError());
-			stop = true;
+			//stop = true;
 			paused = false;
 			running = false;
 		}

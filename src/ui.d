@@ -145,10 +145,11 @@ string session_save(string session_name) {
 	 "number of samples in the captured trace (default=1024)",
 	 "number of channels (default=max)",
 	 "sampling rate (default=max)",
+	 "list of filters (default=[])",
 	 "interpolation mode: (no, linear, sinc=default)",
 	 "device name of the audio backend"
 	 ]) 
-string audiodaq(string command, string trigger_level = "0", string trigger_slope = "rising", double trigger_position = 0.5,  string tracelength = "1024", string channels = "max", string rate = "max", string interpolation = "linear", string device = "default") {
+string audiodaq(string command, string trigger_level = "0", string trigger_slope = "rising", double trigger_position = 0.5,  string tracelength = "1024", string channels = "max", string rate = "max", string[] filter_list = [], string interpolation = "linear", string device = "default") {
 	import audiodaq;
 	import std.concurrency;
 	if (command == "info") {
@@ -198,7 +199,7 @@ string audiodaq(string command, string trigger_level = "0", string trigger_slope
 
 		if (audiodaq.running) throw new Exception("audiodaq already running");
 		audiodaq.running = true;
-		audiodaq.tid = spawn(&run_audiodaq, thisTid, trace_length, num_channels, samplingrate, trig_level, trig_slope, trigger_position, interpolation_mode, device);
+		audiodaq.tid = spawn(&run_audiodaq, thisTid, trace_length, num_channels, samplingrate, trig_level, trig_slope, trigger_position, filter_list.idup, interpolation_mode, device);
 		return "started audiodaq device "~device~" with rate="~samplingrate.to!string~" on "~num_channels.to!string~" channels. tracelength is "~tracelength.to!string;
 	}
 	if (command == "pause") {
