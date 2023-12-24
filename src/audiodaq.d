@@ -44,6 +44,15 @@ class Identity : Filter {
 		return x;
 	}
 }
+class Offset : Filter {
+	double offset;
+	this (double OFFSET) {
+		offset = OFFSET;
+	}
+	override double apply(double x) {
+		return x+offset;
+	}
+}
 class HighPass : Filter {
 	double tau;
 	this (double TAU) {
@@ -391,6 +400,13 @@ else {
 				import std.string, std.conv, std.array;
 				auto args = filtername.split('(')[1].stripRight(")").split(',').array;
 				auto name = filtername.split('(')[0];
+				if (name.startsWith("offset")) {
+					if (args.length != 2) throw new Exception("expecting: offset(<channel>,<offset>)");
+					int channel = args[0].to!int;
+					double offset = args[1].to!double;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for offset");
+					filters[channel] ~= new Offset(offset);
+				}
 				if (name.startsWith("highpass")) {
 					if (args.length != 2) throw new Exception("expecting: highpass(<channel>,<tau>)");
 					int channel = args[0].to!int;
