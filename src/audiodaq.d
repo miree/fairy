@@ -53,6 +53,36 @@ class Offset : Filter {
 		return x+offset;
 	}
 }
+class Oscillator : Filter {
+	double frequency;
+	double damping;
+	double dy = 0.0;
+	double y  = 0.0;
+	this (double FREQ, double DAMP) {
+		frequency = FREQ;
+		damping = DAMP;
+	}
+	override double apply(double x) {
+		y += dy;
+		dy += (x-y)*frequency;
+		dy -= dy*damping; 
+		return y;
+	}
+}
+class PoleZeroHighPass : Filter {
+	double tau;
+	double fraction;
+	this (double TAU, double FRACTION) {
+		tau = TAU;
+		fraction = FRACTION;
+	}
+	double integral = 0.0;
+	override double apply(double x) {
+		double output = x-integral;
+		integral += output/tau;
+		return output+fraction*x;
+	}
+}
 class HighPass : Filter {
 	double tau;
 	this (double TAU) {
@@ -140,6 +170,18 @@ class DelayedDifference : Filter {
 	}
 }
 
+class SincResample : SincInterpolation , Filter {
+	double pos;
+	this(double resample_position) {
+		pos = resample_position;
+	}
+	override double apply(double x) {
+		put(x);
+		if (empty) return x;
+		else return eval(pos);
+	}
+}
+
 
 interface Interpolate {
 	void put(double x);
@@ -210,7 +252,7 @@ class LinearInterpolation : Interpolate {
 	}
 }
 
-class SincInterpolation : Interpolate  {
+class SincInterpolation : Interpolate {
 	// sample height and first derivative
 	struct Sample {
 		double y;
@@ -232,6 +274,7 @@ class SincInterpolation : Interpolate  {
 		double d = coefficients[3];
 		return a+(b+(c+d*x)*x)*x;
 	}
+
 
 	import std.math, std.range;
 	// table of derivatives of sinc function
@@ -407,6 +450,29 @@ else {
 					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for offset");
 					filters[channel] ~= new Offset(offset);
 				}
+				if (name.startsWith("sincresample")) {
+					if (args.length != 2) throw new Exception("expecting: sincresample(<channel>,<resample_pos>)");
+					int channel = args[0].to!int;
+					double pos = args[1].to!double;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for sincresample");
+					filters[channel] ~= new SincResample(pos);
+				}
+				if (name.startsWith("polezerohighpass")) {
+					if (args.length != 3) throw new Exception("expecting: polezerohighpass(<channel>,<tau>,<fraction>)");
+					int channel = args[0].to!int;
+					double tau = args[1].to!double;
+					double fraction = args[2].to!double;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for polezerohighpass");
+					filters[channel] ~= new PoleZeroHighPass(tau,fraction);
+				}
+				if (name.startsWith("oscillate")) {
+					if (args.length != 3) throw new Exception("expecting: oscillate(<channel>,<freq>,<damp>)");
+					int channel = args[0].to!int;
+					double freq = args[1].to!double;
+					double damp = args[2].to!double;
+					if (channel < 0 || channel >= filters.length) throw new Exception("invalid channel "~args[0]~" for oscillate");
+					filters[channel] ~= new Oscillator(freq,damp);
+				}
 				if (name.startsWith("highpass")) {
 					if (args.length != 2) throw new Exception("expecting: highpass(<channel>,<tau>)");
 					int channel = args[0].to!int;
@@ -495,14 +561,22 @@ else {
 			uint pre_trigger_count = 0;
 			double trigger_dx;
 			import std.stdio;
+			uint pulse_counter = 10;
+			uint pulse_height = 0;
 			// main loop take data samples and send trace to main thread when trigger is detected
 			for (int i=0; ;) {
 				if (!paused) {
 					pcm.popFront; // keep taking samples from hardware
+					import std.random;
+					if (pulse_counter>0) --pulse_counter;
+					else {
+						pulse_height += uniform(1,10000);
+						pulse_counter = uniform(1,500);
+					}
 					foreach(ch;0..num_channels) {
-						import std.random;
 						//double value = pcm.front[ch];
 						double value = 10000*((i/100)%2-0.5)+uniform(-100,100);
+						//double value = pulse_height;
 						interpolations[ch].put(value.apply_filters(filters[ch]));
 					}
 					final switch(state) {
