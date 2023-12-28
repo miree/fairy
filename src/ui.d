@@ -357,6 +357,17 @@ string rm(string name) {
 	return "";
 }
 
+@UI_EXPORT("add 1D-histogram that refers to a file on disk",
+	["name of histogram",
+	 "value",
+	 "y, z, or z"])
+string value(string name, double x, char dimension = 'x') {
+	import fairy, value;
+	fairy.session.add_item(name, new Value(x, 0));
+	return "";
+}
+
+
 
 @UI_EXPORT("add histogram that refers to a file on disk",
 	["filename to load the data from"])

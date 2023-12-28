@@ -7,11 +7,13 @@ static this() {
 	import histogram;
 	import waveform;
 	import functions;
+	import value;
 	add_item_factory("waveform.Waveform",       new WaveformFactory);
 	add_item_factory("histogram.FileHistogram", new FileHistogramFactory);
 	add_item_factory("histogram.Hist1",         new Hist1Factory);
 	add_item_factory("histogram.Hist2",         new Hist2Factory);
 	add_item_factory("functions.Function",      new FunctionFactory);
+	add_item_factory("value.Value",             new ValueFactory);
 }
 
 ItemFactory[string] item_factories;

@@ -125,7 +125,7 @@ private:
 
 
 
-class FunctionVisualizer : Visualizer 
+class FunctionVisualizer : Visualizer
 {
 	Function funct;
 public:
@@ -138,6 +138,7 @@ public:
 		super(func.item_version, dim=1);
 	}
 	import graphics, transform;
+
 	@trusted override void draw(BackendInterface d, in Transform[3] t)   
 	{
 		import std.algorithm;

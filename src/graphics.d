@@ -66,6 +66,12 @@ interface Visual {
 	void overrideVersion(ulong);
 }
 
+// for all Visualizers that can be manipulated in the GUI
+interface Interactive {
+	bool mouse_motion_idle(double x, double y, in Transform[3] t); // return true if redwaw is needed
+}
+
+
 class Visualizer
 {
 import transform;

@@ -574,8 +574,8 @@ else {
 						pulse_counter = uniform(1,500);
 					}
 					foreach(ch;0..num_channels) {
-						//double value = pcm.front[ch];
-						double value = 10000*((i/100)%2-0.5)+uniform(-100,100);
+						double value = pcm.front[ch];
+						//double value = 10000*((i/100)%2-0.5)+uniform(-100,100);
 						//double value = pulse_height;
 						interpolations[ch].put(value.apply_filters(filters[ch]));
 					}
