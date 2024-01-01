@@ -29,8 +29,9 @@ class WaveformFactory : ItemFactory {
 }
 
 
-import graphics;
-class Waveform : Visual, Item
+import graphics, functions;
+
+class Waveform : Visual, FitDataSource, Item
 {
 import core.atomic;
 public:
@@ -114,6 +115,26 @@ public:
 		d.data_start_idx[0] = -1;
 		return visualizer;
 	}
+
+
+	override double[3][] get_data(double[2] region) {
+		double left=region[0];
+		double right=region[1];
+		double bin_width = (d.right-d.left)/d.data.length;
+		double[3][] result;
+		foreach(idx;0..d.data.length/d.N) {
+		//foreach(idx, y; d.data.array.stride(d.N)) {
+			double x = d.left+idx*(d.right-d.left)/(d.data.length/d.N);
+			if (x >= left && x < right) {
+				import std.math;
+				double[3] dp = [x, d.data[idx*d.N], 1];
+				result ~= dp;
+			}
+		}
+		return result;
+	}
+
+
 }
 
 
