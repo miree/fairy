@@ -52,9 +52,23 @@ double gauss(double x, double s) {
 	double x_s = x/s;
 	return exp(-0.5*x_s*x_s)/sqrt(2*PI)/s;
 }
+double step(double x) {
+	if (x>=0) return 1.0;
+	return 0.0;
+}
+double window(double x, double w) {
+	if (x<0) x = -x;
+	if (x>=w/2) return 0;
+	return 1;
+}
+double triangle(double x, double w) {
+	if (x<0) x = -x;
+	if (x>=w) return 0;
+	return 1.0-x/w;
+}
 
-enum UnaryFunctionNames = ["sin","cos","tan","asin","acos","atan","exp","log"];
-enum BinaryFunctionNames = ["atan2","gauss"];
+enum UnaryFunctionNames = ["sin","cos","tan","asin","acos","atan","exp","log","step"];
+enum BinaryFunctionNames = ["atan2","gauss","window","triangle"];
 class Function(string name, int argc) : Expression {
 	import std.range, std.math;
 	this(ref string expression, ref int[string] parameter_index_lookup) {
