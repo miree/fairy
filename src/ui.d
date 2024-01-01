@@ -139,7 +139,7 @@ string session_save(string session_name) {
 @trusted
 @UI_EXPORT("control audio DAQ",
 	["command (info, start, pause, continue, stop)",
-	 "trigger level (default=0)",
+	 "trigger level (default=auto)",
 	 "trigger slope (rising, falling, either)",
 	 "trigger position as fraction of trace length: must be >= 0.0 and <= 1.0 (default 0.5)",
 	 "number of samples in the captured trace (default=1024)",
@@ -163,7 +163,8 @@ string audiodaq(string command, string trigger_level = "0", string trigger_slope
 	if (command == "start") {
 		import std.typecons, std.algorithm, std.conv, std.array;
 
-		int trig_level = trigger_level.to!int;
+		double trig_level;
+		if (trigger_level != "auto") trig_level = trigger_level.to!double;
 		int trig_slope = 0;
 		if (trigger_slope == "rising") trig_slope = 1;
 		else if (trigger_slope == "falling") trig_slope = -1;

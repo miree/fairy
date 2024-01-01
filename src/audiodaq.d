@@ -177,6 +177,8 @@ class SincResample : SincInterpolation , Filter {
 	}
 	override double apply(double x) {
 		put(x);
+		pos += 0.011;
+		if (pos > 1) pos -= 1; 
 		if (empty) return x;
 		else return eval(pos);
 	}
@@ -190,6 +192,7 @@ interface Interpolate {
 	bool trigger(double level, int slope, out double dx); // slope = 1 trigger on rising edge
 	                                                      // slope = -1 triggers on falling edge
 	                                                      // slope = 0 triggers on either edge
+	                                                      // level = nan => level is set to average of waveform
 	double[] get(); // only call if empty() is false
 }
 
@@ -278,8 +281,23 @@ class SincInterpolation : Interpolate {
 
 	import std.math, std.range;
 	// table of derivatives of sinc function
-	// optimized in a way such that polynom interpolation reproduces the sinc function more precisely
-	static immutable double[] dsinc_dx = [0.0, -1.07432, 0.587811, -0.402117, 0.303929, -0.244447, 0.204067, -0.175336, 0.153231, -0.130252, 0.106675, -0.0831741, 0.060211, -0.0384085, 0.0180193, 9.70157e-05];
+	// optimized in a way such that 3rd order polynomial interpolation reproduces the sinc function more precisely
+	static immutable double[] dsinc_dx = [0.0, 
+	                                     -1.07432, 
+	                                      0.587811, 
+	                                     -0.402117, 
+	                                      0.303929, 
+	                                     -0.244447, 
+	                                      0.204067, 
+	                                     -0.175336, 
+	                                      0.153231, 
+	                                     -0.130252, 
+	                                      0.106675, 
+	                                     -0.0831741, 
+	                                      0.060211, 
+	                                     -0.0384085, 
+	                                      0.0180193, 
+	                                     9.70157e-05];
 
 	Sample[dsinc_dx.length] samples; // ringbuffer of samples
 	ulong front_idx;                 // index into ringbuffer pointing to the front element of the range
@@ -424,11 +442,12 @@ else {
 
 
 	@trusted
-	void run_audiodaq(Tid main_thread_tid, int trace_length, int num_channels, int samplingrate, int trigger_level, int trigger_slope, double trigger_position, immutable(string[]) filter_list, InterpolationMode interpolation, string device_name) {
+	void run_audiodaq(Tid main_thread_tid, int trace_length, int num_channels, int samplingrate, double trigger_level, int trigger_slope, double trigger_position, immutable(string[]) filter_list, InterpolationMode interpolation, string device_name) {
 		try {
 			if (trigger_slope > 1 || trigger_slope < -1) throw new Exception("audiodaq trigger_slope must be -1, 0, or 1");
 			if (trigger_position < 0.0 || trigger_position > 1.0) throw new Exception("audiodaq trigger_position must be >= 0 and <= 1");
 
+			bool auto_trigger_level = (trigger_level is double.init);
 			import std.datetime;
 			main_thread = main_thread_tid;
 			bool paused = false;
@@ -562,7 +581,7 @@ else {
 			double trigger_dx;
 			import std.stdio;
 			uint pulse_counter = 10;
-			uint pulse_height = 0;
+			double pulse_height = 0;
 			// main loop take data samples and send trace to main thread when trigger is detected
 			for (int i=0; ;) {
 				if (!paused) {
@@ -570,14 +589,23 @@ else {
 					import std.random;
 					if (pulse_counter>0) --pulse_counter;
 					else {
-						pulse_height += uniform(1,10000);
-						pulse_counter = uniform(1,500);
+						pulse_height += 300;//uniform(1,1000);
+						pulse_counter = 300;//uniform(1,500);
 					}
 					foreach(ch;0..num_channels) {
-						double value = pcm.front[ch];
+						//double value = pcm.front[ch];
 						//double value = 10000*((i/100)%2-0.5)+uniform(-100,100);
-						//double value = pulse_height;
-						interpolations[ch].put(value.apply_filters(filters[ch]));
+						double value = pulse_height;//+uniform(-100,100);
+						double filtered_value = value.apply_filters(filters[ch]);
+						interpolations[ch].put(filtered_value);
+						if (auto_trigger_level && ch == 0) {
+							if (trigger_level is double.init) {
+								trigger_level = filtered_value;
+							} else {
+								double epsilon = 0.0001;
+								trigger_level = trigger_level*(1.0-epsilon)+filtered_value*epsilon;
+							}
+						}
 					}
 					final switch(state) {
 						case t_state.wait: {
@@ -605,6 +633,8 @@ else {
 							if (pre_trigger_count < pre_trigger_data) {
 								++pre_trigger_count;
 							} else if (interpolations[0].trigger(trigger_level, trigger_slope, trigger_dx)) { // test only for trigger if enough pre trigger data are recorded
+								//import std.stdio;
+								//writeln(trigger_level);
 								trace_end = i + cast(int)(trace_length*(1.0-trigger_position));
 								if (trace_end >= trace_length) trace_end -= trace_length;
 								//writeln("ready -> triggered at i=",i, " trace_end=",trace_end);
