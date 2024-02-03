@@ -138,6 +138,124 @@ public:
 }
 
 
+
+class FileWaveformFactory : ItemFactory {
+	override Item create(ref JSONValue json) {
+		import std.stdio;
+		return new FileWaveform(json);
+	}
+}
+
+
+import graphics, functions;
+class FileWaveform : Visual, Item {
+	struct Data {
+		@SERIALIZE string filename;
+	}
+	Data data;
+	this(Data d)             { data = d; }
+	this(ref JSONValue json) { data = deserialize!Data(json); }
+	// Item Interface
+	override JSONValue toJSON()  { return serialize(data); }
+	override string get_type()  { 
+		return "histogram.FileWaveform"; 
+	}
+	override void reset() {
+		++item_version;
+	}
+	override ulong getVersion() {
+		need_to_reload();
+		return item_version;
+	}
+	override void overrideVersion(ulong new_version) {
+		item_version = new_version;
+	}
+
+	// Visual Interface
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null)
+	{
+		//import std.stdio;
+		//writeln("create_visualizer");
+		// reading content from file
+		double left=0, right=10;
+		int N=-1;
+		double[] waveform_data;
+		ulong max_width = 0;
+		import std.array, std.algorithm, std.conv;
+		foreach(line; readText!string(data.filename).split("\n"))	{
+			if (line.startsWith("#")) { // # left right
+				import std.format;
+				line.dup.formattedRead("# %s %s", left, right);
+			} else {
+				if (line.empty) break;
+				auto numbers = line.split(' ');
+				int Nnew = cast(int)numbers.count;
+				if (N > 0 && N != Nnew) {
+					throw new Exception("loading waveform from file " ~ data.filename ~ " failed: inconsistent line length");
+				}
+				N = Nnew;
+				auto appended =  numbers.map!(n=>n.to!double).array;
+				//import std.stdio;
+				//writeln("N=", N, "  appended ", appended);
+				waveform_data ~= appended;
+			}
+		}
+		//import std.stdio;
+		//writeln(item_version, " ", N, " " , left, " ", right);
+		return new WaveformVisualizer(item_version, waveform_data, N, left, right);
+	}
+
+	//override double[3][] get_data(double[2] region) {
+	//	//double left=region[0];
+	//	//double right=region[1];
+	//	//HistData hist_data = read_file(data.filename);
+	//	//double bin_width = (hist_data.right-hist_data.left)/hist_data.data.length;
+	//	//double[3][] result;
+	//	//if (hist_data.dim == 1) {
+	//	//	foreach(idx, y; hist_data.data) {
+	//	//		double x = hist_data.left+idx*(hist_data.right-hist_data.left)/hist_data.data.length;
+	//	//		x += bin_width/2;
+	//	//		if (x >= left && x < right) {
+	//	//			import std.math;
+	//	//			double[3] dp = [x,y,y>1?sqrt(y):1];
+	//	//			result ~= dp;
+	//	//		}
+	//	//	}
+	//	//} else {
+	//	//	throw new Exception("fit for 2D-histograms not implemented yet");
+	//	//}
+	//	//return result;
+	//	return null;
+	//}
+
+private:
+	import std.datetime : abs, DateTime, hnsecs, SysTime;
+	import std.datetime : Clock, seconds;		
+	import std.file;
+
+	ulong item_version = 0;
+	SysTime _time_of_last_update;
+
+	bool need_to_reload() {
+		bool need_update = false;
+		import std.stdio;
+		// test different conditions that make reload necessary
+		SysTime time_last_file_modification = timeLastModified(data.filename);
+		SysTime time_of_last_update = _time_of_last_update;
+		if (time_of_last_update == SysTime.init ) need_update = true;
+		if (time_of_last_update < time_last_file_modification) need_update = true;
+		_time_of_last_update = time_last_file_modification;
+
+		if (need_update) ++item_version;
+		return need_update;
+	}	
+
+
+}
+
+
+
+
 //////////////////////////////////////////////////
 // Visualizer for 1D Histograms
 class WaveformVisualizer : Visualizer 

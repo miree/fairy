@@ -400,7 +400,7 @@ struct CanvasPainter {
 				items_with_visualizer ~= itemname;
 			} catch (Exception e) { // cannot get visualizer
 				import std.stdio;
-				writeln("cannot create visualizer for item " ~ itemname);
+				writeln("cannot create visualizer for item " ~ itemname ~ ": " ~ e.msg);
 			}
 		}
 		canvas.itemnames = items_with_visualizer;

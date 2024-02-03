@@ -378,6 +378,14 @@ string filehistogram(string filename) {
 	return "";
 }
 
+@UI_EXPORT("add waveform that refers to a file on disk",
+	["filename to load the data from"])
+string filewaveform(string filename) {
+	import fairy, waveform;
+	fairy.session.add_item(filename, new FileWaveform(FileWaveform.Data(filename)));
+	return "";
+}
+
 @UI_EXPORT("add 1D-histogram that refers to a file on disk",
 	["name of histogram",
 	 "number of bins",
