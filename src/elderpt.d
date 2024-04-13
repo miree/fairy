@@ -579,7 +579,23 @@ struct MsgStop {}
 struct MsgAck {}
 //struct MsgStopAck {} // sent in response to MsgStop
 //struct MsgEventsPerSecond {long events;}
-void run_elderpt(Tid main_thread_tid, string config_filename) {
+void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filename) {
+	import mbsapi_import;
+	auto mbs_channel = f_evt_control();
+	if (mbs_filename !is null) {
+		import std.stdio;
+		import std.string;
+		char *file_header;
+		if (f_evt_get_open(GETEVT__FILE,
+			           cast(char*)mbs_filename.dup.toStringz, 
+			           mbs_channel,
+			           &file_header,
+			           1,0) != GETEVT__SUCCESS) {
+			writeln("failed to open file ", mbs_filename);
+			return;
+		}
+		writeln("opening file ", mbs_filename);
+	}
 
 	elder_histograms_2D_count = 0;
 	elder_histograms_1D_count = 0;

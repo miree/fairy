@@ -1,4 +1,4 @@
-LD_FLAGS = -L-L/home/michael/.local/lib -L-rpath=/home/michael/.local/lib
+LD_FLAGS = -L-L/home/michael/local/lib -L-rpath=/home/michael/local/lib
 
 
 fairy: src/*.d
@@ -8,7 +8,7 @@ allegro5: src/*.d
 	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 $(LD_FLAGS)
 
 elderpt: src/*.d
-	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 -version=elderpt $(LD_FLAGS)
+	dmd -Isrc -i src/app.d src/mbsapi/*.c -of=fairy -version=allegro5 -version=elderpt $(LD_FLAGS)
 
 gtk3: src/*.d
 	ldc -Isrc -i src/app.d -of=fairy --d-version=gtk3 --d-version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-3

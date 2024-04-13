@@ -822,13 +822,13 @@ version (elderpt) {
 	["start pause continue stop",
 	 "elderpt configuration file"])
 @trusted
-string elderpt(string command, string config_file = "analysis.config") {
+string elderpt(string command, string config_file = "analysis.config", string mbs_file = null) {
 	import elderpt;
 	import std.concurrency;
 	if (command == "start") {
 		if (elderpt.running) throw new Exception("elderpt already running");
 		elderpt.running = true;
-		elderpt.tid = spawn(&run_elderpt, thisTid, config_file);
+		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, mbs_file);
 	}
 	if (command == "pause") {
 		if (!elderpt.running) throw new Exception("elderpt is not running");
