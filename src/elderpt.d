@@ -581,9 +581,9 @@ struct MsgAck {}
 //struct MsgEventsPerSecond {long events;}
 void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filename) {
 	import mbsapi_import;
+	import std.stdio;
 	auto mbs_channel = f_evt_control();
 	if (mbs_filename !is null) {
-		import std.stdio;
 		import std.string;
 		char *file_header;
 		if (f_evt_get_open(GETEVT__FILE,
@@ -631,6 +631,59 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 			uint timestamp = 0;
 			uint frac_msecs = cast(uint)(timeval.tv_usec/1e3);
 			elder_pt_event_clear(evt, i, 1, 1, time_secs, frac_msecs, timestamp);
+
+			if (mbs_filename !is null) { // fill with event with data from file
+				int *i_event_header;
+				int *i_buffer_header;
+				int result = f_evt_get_event(mbs_channel, &i_event_header, &i_buffer_header);
+				if (result != GETEVT__SUCCESS) {
+					writeln("end of file");
+					break;
+				}
+				auto event_header = cast(sMbsEventHeader*) i_event_header;
+				auto buffer_header = cast(sMbsBufferHeader*) i_buffer_header;
+
+				int event_data_length   = (event_header.iWords);
+				int event_type_low      = (event_header.iType&0x0000FFFF);
+				int event_type_high     = (event_header.iType>>16);
+				int event_trigger       = (event_header.iTrigger>>16);
+				int event_count         = (event_header.iEventNumber);
+				int event_size          = (event_header.iWords-2)/2;
+				int buffer_sec          = buffer_header.iTimeSpecSec;
+				int buffer_msecs        = buffer_header.iTimeSpecNanoSec/1000000;
+				elder_pt_event_clear(evt, i, event_type_low, event_trigger, buffer_sec, buffer_msecs, timestamp);
+				const(uint*)  event_ptr = cast(const(uint*))event_header;
+				//write(i, ": trig=",event_trigger, " subevents: ");
+				if (event_size >= 8) {
+					int MBStrigger = (event_header.iTrigger>>16);
+
+					int index = 4; // index of the first subevent header. 
+					while ((index+3) < event_size) // the MBS subevent header has 3 32-bit-words 
+					{
+						sMbsSubeventHeader *subevent_header = cast(sMbsSubeventHeader*)(&event_ptr[index]);
+
+						int subevent_length = ( subevent_header.iWords - 2 ) / 2 + 3;
+						int data_length     = subevent_length - 3;
+
+						const uint *subev_data_ptr = &event_ptr[index+3];
+						int length   = subevent_header.iWords;
+						int type1    = ((subevent_header.iType>>16)&0x00FF); 
+						int type2    = ((subevent_header.iType>>24)&0x00FF);
+						int procid   = (subevent_header.iSubeventID&0x0000FFFF);
+						int subcrate = ((subevent_header.iSubeventID>>16)&0x00FF); 
+						int control  = ((subevent_header.iSubeventID>>24)&0x00FF);  
+						elder_pt_event_add_subevent(evt,procid,type1,type2,control,subcrate,length,subev_data_ptr);
+						//writeln("len=", length, " type1=", type1, " type2", type2, " procid=", procid, " subcrate=", subcrate, " control=", control);
+						//foreach(idx, w; subev_data_ptr[0..length]) {
+						//	if (idx%8 == 0) writeln;
+						//	writef("%08x ", w);
+						//}
+						//writeln;
+				        index += subevent_length;       
+					}
+				}
+
+			}
 			elder_pt_controller_clear(ctrl);
 			elder_pt_controller_unpack(ctrl, iface, evt);
 			elder_pt_controller_process(ctrl, iface);
