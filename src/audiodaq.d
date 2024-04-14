@@ -834,11 +834,11 @@ else {
 				long sr = snd_pcm_readi(handle, cast(char*)(buffer.ptr), period_size);
 				if (sr < 0)
 				{
-					core.stdc.stdio.stderr.writeln("error in readi, recover");
+					//core.stdc.stdio.stderr.writeln("error in readi, recover");
 					sr = snd_pcm_recover(handle, cast(int)sr, 0);
 					if (sr < 0)
 					{
-						core.stdc.stdio.stderr.writeln("recovery failed");
+						//core.stdc.stdio.stderr.writeln("recovery failed");
 						return false;
 					}
 				}
