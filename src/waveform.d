@@ -511,8 +511,8 @@ public:
 			return result;
 		}
 		import std.range;
-		immutable int N = 10;
-		auto minmax_candidates = iota(10+1).map!(x=>x/N).map!(x=>eval_polynom(x,coeff));
+		immutable double N = coeff.length;
+		auto minmax_candidates = iota(coeff.length+1).map!(x=>x/N).map!(x=>eval_polynom(x,coeff));
 		return MinMax(minmax_candidates.minElement, minmax_candidates.maxElement);
 	}
 	double eval_polynom(double x, const double[] coeff) const pure {
