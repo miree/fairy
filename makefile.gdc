@@ -1,12 +1,35 @@
 VPATH=src
-OBJECTS=app.o  asciirender.o  cmdline.o  fairy.o  graphics.o  serializeJSON.o  transform.o  ui.o
+CFLAGS = `pkg-config alsa gtk4 gsl --cflags`
+LDFLAGS = `pkg-config alsa gtk4 gsl --libs`
 
-fairy: $(OBJECTS)
-	gdc -o fairy $(OBJECTS)
+%.i: %.c
+	gcc $(CFLAGS) -E $< > $@
 
-allegro5: $(OBJECTS)
-	gdc -o fairy $(OBJECTS) -lallegro_ttf -lallegro_font -lallegro -lallegro_primitives -lallegro_color
+# 	src/elderpt.d              \
 
-%.o: %.d
-	gdc -Isrc -c $< -fversion=allegro5 
+fairy: \
+	src/alsa.d                 \
+	src/alsa_import.i          \
+	src/app.d                  \
+	src/asciirender.d          \
+	src/audiodaq.d             \
+	src/cmdline.d              \
+	src/expression.d           \
+	src/fairy.d                \
+	src/functions.d            \
+	src/graphics.d             \
+	src/graphcis_gtk4_native.d \
+	src/gtk4_import.i          \
+	src/histogram.d            \
+	src/item.d                 \
+	src/multifit_nlin.d        \
+	src/multifit_nlin_import.i \
+	src/serializeJSON.d        \
+	src/transform.d            \
+	src/ui.d                   \
+	src/value.d                \
+	src/waveform.d             
+	gdc -Isrc $(CFLAGS) -Wl,--gc-sections -fversion=gtk4_native -o $@ $+ $(LDFLAGS)
 
+clean:
+	rm -f *.i *.o newco 

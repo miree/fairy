@@ -1,3 +1,4 @@
+#include "gdc_importc.h"
 #include <alsa/global.h>
 #include <stdio.h>
 #include <alsa/input.h>

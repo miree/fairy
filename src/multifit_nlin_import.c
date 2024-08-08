@@ -1,3 +1,4 @@
+#include "gdc_importc.h"
 #include <gsl/gsl_multifit.h>
 #include <gsl/gsl_multifit_nlinear.h>
 #include <gsl/gsl_multifit_nlin.h>
