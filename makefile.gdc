@@ -7,29 +7,36 @@ LDFLAGS = `pkg-config alsa gtk4 gsl --libs`
 
 # 	src/elderpt.d              \
 
-fairy: \
-	src/alsa.d                 \
-	src/alsa_import.i          \
-	src/app.d                  \
-	src/asciirender.d          \
-	src/audiodaq.d             \
-	src/cmdline.d              \
-	src/expression.d           \
-	src/fairy.d                \
-	src/functions.d            \
-	src/graphics.d             \
-	src/graphcis_gtk4_native.d \
-	src/gtk4_import.i          \
-	src/histogram.d            \
-	src/item.d                 \
-	src/multifit_nlin.d        \
-	src/multifit_nlin_import.i \
-	src/serializeJSON.d        \
-	src/transform.d            \
-	src/ui.d                   \
-	src/value.d                \
-	src/waveform.d             
-	gdc -Isrc $(CFLAGS) -Wl,--gc-sections -fversion=gtk4_native -o $@ $+ $(LDFLAGS)
+OBJECTS=\
+	alsa.o                 \
+	app.o                  \
+	asciirender.o          \
+	audiodaq.o             \
+	cmdline.o              \
+	expression.o           \
+	fairy.o                \
+	functions.o            \
+	graphics.o             \
+	graphics_gtk4_native.o \
+	gtk4_import.o          \
+	histogram.o            \
+	item.o                 \
+	multifit_nlin.o        \
+	serializeJSON.o        \
+	transform.o            \
+	ui.o                   \
+	value.o                \
+	waveform.o             
+
+%.o: %.d
+	make -C include
+	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -c $<
+
+fairy: $(OBJECTS)
+	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -o $@ $+ $(LDFLAGS) 
+
+includes: 
+	make -C include
 
 clean:
-	rm -f *.i *.o newco 
+	rm -f src/*.i *.i *.o newco 
