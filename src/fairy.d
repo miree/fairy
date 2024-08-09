@@ -297,6 +297,10 @@ void loop(string[] args) {
 				import graphics_gtk;
 				main_gui = new GtkGui;
 			}
+			else version(gtk4_native) {
+				import graphics_gtk4_native;
+				main_gui = new Gtk4NativeGui;
+			}
 			else version(minigui) {
 				import graphics_minigui;
 				main_gui = new MiniGui;

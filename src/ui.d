@@ -515,7 +515,7 @@ string quit() {
 	return "";
 }
 
-@UI_EXPORT("enable gui sysbem")
+@UI_EXPORT("enable gui system")
 @trusted
 string gui() {
 	import fairy;
