@@ -1,0 +1,42 @@
+VPATH=src
+GTKLIBS = -L-lgtkd-4 -L-lgtk-4 -L-lharfbuzz -L-lpangocairo-1.0 -L-lpango-1.0 -L-lgdk_pixbuf-2.0 -L-lcairo-gobject -L-lcairo -L-lvulkan -L-lgraphene-1.0 -L-lgio-2.0 -L-lglib-2.0 -L-lgobject-2.0
+LD_FLAGS = $(GTKLIBS) -L-lasound -L-lgsl -L-L/home/michael/local/lib -L-rpath=/home/michael/local/lib
+CFLAGS = -I/usr/include/d/gtkd-4
+
+%.i: %.c
+	gcc $(CFLAGS) -E $< > $@
+
+# 	src/elderpt.d              \
+
+OBJECTS=\
+	alsa.o                 \
+	app.o                  \
+	asciirender.o          \
+	audiodaq.o             \
+	cmdline.o              \
+	expression.o           \
+	fairy.o                \
+	functions.o            \
+	graphics.o             \
+	graphics_gtk.o         \
+	histogram.o            \
+	item.o                 \
+	multifit_nlin.o        \
+	serializeJSON.o        \
+	transform.o            \
+	ui.o                   \
+	value.o                \
+	waveform.o             
+
+%.o: %.d
+	make -C include
+	dmd -Iinclude -Isrc $(CFLAGS) -version=gtk4 -c $<
+
+fairy: $(OBJECTS)
+	dmd $(CFLAGS) -version=gtk4 -of=$@ $+ $(LD_FLAGS) 
+
+includes: 
+	make -C include
+
+clean:
+	rm -f src/*.i *.i *.o newco 
