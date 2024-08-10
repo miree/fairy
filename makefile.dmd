@@ -29,7 +29,7 @@ OBJECTS=\
 	waveform.o             
 
 %.o: %.d
-	make -C include
+# 	make -C include
 	dmd -Iinclude -Isrc $(CFLAGS) -version=gtk4 -c $<
 
 fairy: $(OBJECTS)

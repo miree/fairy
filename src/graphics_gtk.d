@@ -1175,13 +1175,23 @@ class PlotWidget : Box {
 	CheckButton check_autorefresh;
 	Button      button_refresh;
 	Label       autoscale_label;
+	Box         fit_log_labels;
+	Box         fit_log_checks_x;
+	Box         fit_log_checks_y;
+	Box         fit_log_checks_z;
 	CheckButton check_autoscale_x, check_autoscale_y, check_autoscale_z;
 	Label       log_label;
 	CheckButton check_log_x, check_log_y, check_log_z;
+	Box         grid_nums_label;
+	Box         grid_nums_checks_x;
+	Box         grid_nums_checks_y;
+	Box         grid_nums_checks_top;
 	Label       grid_label;
 	CheckButton check_grid_x, check_grid_y, check_grid_top;
 	Label       nums_label;
 	CheckButton check_nums_x, check_nums_y, check_nums_top;
+	Box         colorbar_overlay;
+	Box         row_col_radios;
 	CheckButton check_colorbar;
 	CheckOrRadioButton radio_overlay, radio_rowmajor, radio_colmajor; // grouped to form a gtk3 RadioButton
 	SpinButton  spin_n_columns;
@@ -1351,19 +1361,19 @@ class PlotWidget : Box {
 		controls.append(button_refresh);
 
 		//controls.append(new Separator(GtkOrientation.VERTICAL));
-		auto fit_log_labels = new Box(GtkOrientation.VERTICAL, 0);
+		fit_log_labels = new Box(GtkOrientation.VERTICAL, 0);
 		fit_log_labels.append(autoscale_label);
 		fit_log_labels.append(log_label);
 
-		auto fit_log_checks_x = new Box(GtkOrientation.VERTICAL, 0);
+		fit_log_checks_x = new Box(GtkOrientation.VERTICAL, 0);
 		fit_log_checks_x.append(check_autoscale_x);
 		fit_log_checks_x.append(check_log_x);
 
-		auto fit_log_checks_y = new Box(GtkOrientation.VERTICAL, 0);
+		fit_log_checks_y = new Box(GtkOrientation.VERTICAL, 0);
 		fit_log_checks_y.append(check_autoscale_y);
 		fit_log_checks_y.append(check_log_y);
 
-		auto fit_log_checks_z = new Box(GtkOrientation.VERTICAL, 0);
+		fit_log_checks_z = new Box(GtkOrientation.VERTICAL, 0);
 		fit_log_checks_z.append(check_autoscale_z);
 		fit_log_checks_z.append(check_log_z);
 
@@ -1374,19 +1384,19 @@ class PlotWidget : Box {
 
 		controls.append(new Separator(GtkOrientation.VERTICAL));
 
-		auto grid_nums_label = new Box(GtkOrientation.VERTICAL, 0);
+		grid_nums_label = new Box(GtkOrientation.VERTICAL, 0);
 		grid_nums_label.append(grid_label);
 		grid_nums_label.append(nums_label);
 
-		auto grid_nums_checks_x = new Box(GtkOrientation.VERTICAL, 0);
+		grid_nums_checks_x = new Box(GtkOrientation.VERTICAL, 0);
 		grid_nums_checks_x.append(check_grid_x);
 		grid_nums_checks_x.append(check_nums_x);
 
-		auto grid_nums_checks_y = new Box(GtkOrientation.VERTICAL, 0);
+		grid_nums_checks_y = new Box(GtkOrientation.VERTICAL, 0);
 		grid_nums_checks_y.append(check_grid_y);
 		grid_nums_checks_y.append(check_nums_y);
 
-		auto grid_nums_checks_top = new Box(GtkOrientation.VERTICAL, 0);
+		grid_nums_checks_top = new Box(GtkOrientation.VERTICAL, 0);
 		grid_nums_checks_top.append(check_grid_top);
 		grid_nums_checks_top.append(check_nums_top);
 
@@ -1395,13 +1405,13 @@ class PlotWidget : Box {
 		controls.append(grid_nums_checks_y);
 		controls.append(grid_nums_checks_top);
 
-		auto colorbar_overlay = new Box(GtkOrientation.VERTICAL, 0);
+		colorbar_overlay = new Box(GtkOrientation.VERTICAL, 0);
 		colorbar_overlay.append(check_colorbar);
 		colorbar_overlay.append(radio_overlay);
 		controls.append(colorbar_overlay);
 		controls.append(new Separator(GtkOrientation.VERTICAL));
 		controls.append(spin_n_columns);
-		auto row_col_radios = new Box(GtkOrientation.VERTICAL, 0);
+		row_col_radios = new Box(GtkOrientation.VERTICAL, 0);
 		row_col_radios.append(radio_rowmajor);
 		row_col_radios.append(radio_colmajor);
 		controls.append(row_col_radios);
