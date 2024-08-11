@@ -1,5 +1,5 @@
 VPATH=src
-CFLAGS = `pkg-config alsa gtk4 gsl --cflags`
+CFLAGS = `pkg-config alsa gtk4 gsl --cflags` -g -O0
 LDFLAGS = `pkg-config alsa gtk4 gsl --libs`
 
 %.i: %.c
