@@ -38,6 +38,8 @@ class Gtk4NativeGui : Gui {
 	static gboolean 
 	timeout_callback(gpointer user_data) 
 	{
+		auto self = cast(Gtk4NativeGui)user_data;
+
 		import fairy;
 		if(!fairy.running) g_application_quit(gapplication);
 
@@ -46,10 +48,10 @@ class Gtk4NativeGui : Gui {
 			stdout.write("fairy> ");
 			stdout.flush();
 		}
-		//foreach(name, window; main_windows) {
-		//	import ui;
-		//	if (window.canvas.autorefresh) winrefresh(window.name);
-		//}
+		foreach(name, window; self.main_windows) {
+			import ui;
+			if (window.canvas.autorefresh) winrefresh(window.name);
+		}
 		return true; // continue
 
 	}
@@ -115,13 +117,15 @@ private:
 	GtkWindow*        window;
 	GtkApplication*   application;
 	CanvasProperties* canvas;
-	this (string name, CanvasProperties* canvas_properties, GtkApplication* app)
+	string name; 
+	this (string window_name, CanvasProperties* canvas_properties, GtkApplication* app)
 	{
+		name = window_name;
 		application = app;
 		window      = cast(GtkWindow*)gtk_application_window_new(app);
 		canvas      = canvas_properties;
 
-		gtk_window_set_title(window, "Drawing Area");
+		gtk_window_set_title(window, name.toStringz);
 		gtk_window_present(window);
 	}
 }
