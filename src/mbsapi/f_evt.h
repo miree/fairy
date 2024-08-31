@@ -86,7 +86,7 @@ typedef struct
    INTS4    l_lmdswap;
    s_taghe  *ps_taghe;
    s_tag    *ps_tag;
-   sLmdControl *pLmd;
+   struct sLmdControl *pLmd;
    void     (*cb_polling)(void);    /* function to call when polling for timeout */
 } s_evt_channel;
 
