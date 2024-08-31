@@ -2,10 +2,25 @@ VPATH=src
 CFLAGS = `pkg-config alsa gtk4 gsl --cflags` -g -O0
 LDFLAGS = `pkg-config alsa gtk4 gsl --libs`
 
+all: fairy
+
 %.i: %.c
 	gcc $(CFLAGS) -E $< > $@
 
 # 	src/elderpt.d              \
+
+PREPROCESSED=\
+	src/allegro5_import.i       \
+	src/alsa_import.i           \
+	src/mbsapi_import.i         \
+	src/multifit_nlin_import.i 
+
+# special case for gtk_import because there are also function bodies and not only declarations
+src/gtk4_import.i: src/gtk4_import.h
+	gcc $(CFLAGS) -E $< > $@
+
+gtk4_import.o: src/gtk4_import.c
+	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -c $<
 
 OBJECTS=\
 	alsa.o                 \
@@ -32,7 +47,7 @@ OBJECTS=\
 	make -C include
 	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -c $<
 
-fairy: $(OBJECTS)
+fairy: src/gtk4_import.i $(PREPROCESSED) $(OBJECTS)
 	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -o $@ $+ $(LDFLAGS) 
 
 includes: 

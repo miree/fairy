@@ -1,4 +1,4 @@
-LD_FLAGS = -L-L/home/michael/local/lib -L-rpath=/home/michael/local/lib
+LD_FLAGS =  -L-L/home/michael/local/lib -L-rpath=/home/michael/local/lib -L-L/home/michael/.local/lib -L-rpath=/home/michael/.local/lib
 
 
 fairy: src/*.d
@@ -14,7 +14,7 @@ gtk3: src/*.d
 	ldc -Isrc -i src/app.d src/mbsapi/*.c -of=fairy --d-version=gtk3 --d-version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-3
 
 gtk4: src/*.d
-	dmd -Isrc -i src/app.d src/mbsapi/*.c  -of=fairy -version=gtk4 -version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-4
+	dmd -Isrc -i src/app.d src/mbsapi/*.c  -of=fairy -version=gtk4 -version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-4 -I/src/mbsapi
 
 minigui: src/*.d
 	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui -version=elderpt  $(LD_FLAGS)
@@ -26,7 +26,10 @@ ldc-allegro5: src/*.d
 	ldc -O -release -Isrc -i src/app.d -of=fairy --d-version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color -L-lasound
 
 gdc:
-	make -j -f makefile.gdc
+	make -f makefile.gdc -j8
+
+gdc-clean:
+	make -f makefile.gdc clean
 
 gdc-allegro5:
 	make allegro5 -j -f makefile.gdc
@@ -43,4 +46,4 @@ test-graphics:
 	dmd -g -cov -Isrc -i -unittest -main -run src/graphics.d      && tail -n 1 src-graphics.lst
 
 clean:
-	rm -f fairy *.o
+	rm -f fairy *.o src/*.i

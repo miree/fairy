@@ -1,13 +1,15 @@
-#include "gdc_importc.h"
+// #include "gdc_importc.h"
 
-#include <gtk/gtk.h>
-#include <gdk/gdk.h>
+// #include <gtk/gtk.h>
+// #include <gdk/gdk.h>
 
-enum GdkButton {
-	PRIMARY   = GDK_BUTTON_PRIMARY,
-	MIDDLE    = GDK_BUTTON_MIDDLE,
-	SECONDARY = GDK_BUTTON_SECONDARY,
-};
+// enum GdkButton {
+// 	PRIMARY   = GDK_BUTTON_PRIMARY,
+// 	MIDDLE    = GDK_BUTTON_MIDDLE,
+// 	SECONDARY = GDK_BUTTON_SECONDARY,
+// };
+
+#include "gtk4_import.h"
 
 void g_signal_connect_d(void* widget, const char* signal_name, void* callback, gpointer user_data)
 {
