@@ -69,6 +69,9 @@ class Gtk4NativeGui : Gui {
 	override void remove_item(string name) {
 	}
 	override void add_item(string name) {
+		//foreach(window; main_windows) {
+		//	window.item_view.addItem(name, null);
+		//}
 	}
 	override void update_from_canvas(string name) {
 	}
@@ -114,7 +117,6 @@ private:
 	GtkApplication*   application;
 	CanvasProperties* canvas;
 
-	string[] item_list;
 	MyItemView item_view;
 
 	string name; 
@@ -125,7 +127,7 @@ private:
 		window      = cast(GtkWindow*)gtk_application_window_new(app);
 		canvas      = canvas_properties;
 
-		item_view  = MyItemView(item_list);
+		item_view  = MyItemView(this);
 
 
 		gtk_window_set_title(window, name.toStringz);
@@ -136,39 +138,54 @@ private:
 
 
 struct MyItemView {
-  GtkStringList* string_list;
-  GtkTreeListModel* treelistmodel;
-  GtkSelectionModel* selection_model;
-  GtkListItemFactory *signal_list_item_factory;
-  GtkColumnViewColumn* col1;
-  GtkColumnView* col_view;
-  GtkScrolledWindow *scrolled_window;
+	GtkStringList* string_list;
+	GtkTreeListModel* treelistmodel;
+	GtkSelectionModel* selection_model;
+	GtkListItemFactory *signal_list_item_factory;
+	GtkColumnViewColumn* col1;
+	GtkColumnView* col_view;
+	GtkScrolledWindow *scrolled_window;
 
-  this(ref string[] item_list) {
+	MainWindow *main_window;
 
-	  string_list = gtk_string_list_new(null); // this implements GListModel
-	  gtk_string_list_append(string_list, "item1");
-	  gtk_string_list_append(string_list, "item2");
-	  gboolean passthrough;
-	  gboolean autoexpand;
-	  treelistmodel = cast(GtkTreeListModel*)gtk_tree_list_model_new(cast(GListModel*)string_list,
-	    passthrough=false, 
-	    autoexpand=false,
-	    &treelist_listmodel_create,cast(void*)&this,null);
-	  selection_model = cast(GtkSelectionModel*)gtk_multi_selection_new(cast(GListModel*)treelistmodel);
-	  signal_list_item_factory = gtk_signal_list_item_factory_new();
-	  g_signal_connect(signal_list_item_factory, "setup", &signal_list_item_factory_setup, cast(void*)&this);
-	  g_signal_connect(signal_list_item_factory, "bind", &signal_list_item_factory_bind, cast(void*)&this);
-	  g_signal_connect(signal_list_item_factory, "unbind", &signal_list_item_factory_unbind, cast(void*)&this);
-	  g_signal_connect(signal_list_item_factory, "teardown", &signal_list_item_factory_teardown, cast(void*)&this);
-	  col1 = cast(GtkColumnViewColumn*)gtk_column_view_column_new("1111", signal_list_item_factory);
-	  col_view = cast(GtkColumnView*)gtk_column_view_new(selection_model);
-	  gtk_column_view_append_column(col_view, col1);
-	  scrolled_window = cast(GtkScrolledWindow*)gtk_scrolled_window_new();
-	  gtk_scrolled_window_set_child(scrolled_window, cast(GtkWidget*)col_view);
-	  gtk_widget_set_size_request (cast(GtkWidget*)scrolled_window, 300, 300);
-  }
+	this(ref MainWindow window) {
+		main_window = &window;
+		string_list = gtk_string_list_new(null); // this implements GListModel
+		
+		// sync with session
+		import fairy;
+		string previous_part0;
+		import std.array, std.algorithm;
+		foreach (itemname; session.items.byKey.array.sort) {
+			import std.array;
+			string part0 = itemname.split('/')[0];
+			if (part0 != previous_part0) {
+				gtk_string_list_append(string_list, part0.toStringz);
+			}
+			previous_part0 = part0;
+		}
 
+		//gtk_string_list_append(string_list, "item1");
+		//gtk_string_list_append(string_list, "item2");
+		gboolean passthrough;
+		gboolean autoexpand;
+		treelistmodel = cast(GtkTreeListModel*)gtk_tree_list_model_new(cast(GListModel*)string_list,
+		                                                               passthrough=false, 
+		                                                               autoexpand=false,
+		                                                               &treelist_listmodel_create,cast(void*)&this,null);
+		selection_model = cast(GtkSelectionModel*)gtk_multi_selection_new(cast(GListModel*)treelistmodel);
+		signal_list_item_factory = gtk_signal_list_item_factory_new();
+		g_signal_connect(signal_list_item_factory, "setup", &signal_list_item_factory_setup, cast(void*)&this);
+		g_signal_connect(signal_list_item_factory, "bind", &signal_list_item_factory_bind, cast(void*)&this);
+		g_signal_connect(signal_list_item_factory, "unbind", &signal_list_item_factory_unbind, cast(void*)&this);
+		g_signal_connect(signal_list_item_factory, "teardown", &signal_list_item_factory_teardown, cast(void*)&this);
+		col1 = cast(GtkColumnViewColumn*)gtk_column_view_column_new("Items", signal_list_item_factory);
+		col_view = cast(GtkColumnView*)gtk_column_view_new(selection_model);
+		gtk_column_view_append_column(col_view, col1);
+		scrolled_window = cast(GtkScrolledWindow*)gtk_scrolled_window_new();
+		gtk_scrolled_window_set_child(scrolled_window, cast(GtkWidget*)col_view);
+		gtk_widget_set_size_request (cast(GtkWidget*)scrolled_window, 100, 100);
+	}
 
 	static extern(C) GListModel* treelist_listmodel_create(void* item, void* user_data) 
 	{
@@ -241,14 +258,14 @@ struct MyItemView {
 		import std.stdio;
 		import std.conv;
 		auto item = cast(GtkListItem*)object;
-		//writeln("unbind "~gtk_list_item_get_position(item).to!string);
+		writeln("unbind "~gtk_list_item_get_position(item).to!string);
 	}
 
 	extern(C) static void signal_list_item_factory_teardown(GtkSignalListItemFactory* self, GObject* object, gpointer user_data) 
 	{
 		MyItemView* itemview = cast(MyItemView*)user_data;
 		import std.stdio;
-		//writeln("teardown");
+		writeln("teardown");
 	}
 
 }
