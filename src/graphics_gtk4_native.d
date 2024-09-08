@@ -69,9 +69,11 @@ class Gtk4NativeGui : Gui {
 	override void remove_item(string name) {
 	}
 	override void add_item(string name) {
-		//foreach(window; main_windows) {
-		//	window.item_view.addItem(name, null);
-		//}
+		foreach(window; main_windows) {
+			import std.stdio;
+			writeln("MainWindow.add_item(",name,")");
+			window.item_view.addItem(name, null);
+		}
 	}
 	override void update_from_canvas(string name) {
 	}
@@ -138,6 +140,59 @@ private:
 
 
 struct MyItemView {
+	struct Tree
+	{
+		string fullname;
+		Tree[string] children;
+		Tree* find_helper(Tree* node, string[] parts) {
+			import std.stdio;
+			writeln("find_helper ", fullname, "   ", parts);
+			if (parts.length == 0) return node;
+			auto child = parts[0] in node.children;
+			if (child is null) return null;
+			writeln(" recurse down into child ", child.fullname);
+			return find_helper(child, parts[1..$]);
+		}
+		Tree* find_node(string fullname) {
+			import std.stdio;
+			import std.array;
+			auto parts = fullname.split('/');
+			writeln("find ", fullname, "  in node ", this.fullname);
+			if (parts[0] != this.fullname) return null;
+			return find_helper(&this, parts[1..$]);
+		}
+		void print(int depth = 0) {
+			import std.array, std.algorithm;
+			if (children.length == 0) return;
+			foreach(child_name; children.byKey.array.sort) {
+				import std.stdio;
+				foreach(i;0..depth) write("   ");
+				writeln(child_name, "    ", children[child_name].fullname);
+				children[child_name].print(depth+1);
+			}
+		}
+		void add_helper(string[] parts) {
+			if (parts.length == 0) return;
+			if ((parts[0] in children) is null) 
+				children[parts[0]] = Tree(fullname~'/'~parts[0]);
+			if (parts.length == 1) return;
+			children[parts[0]].add_helper(parts[1..$]);
+		}
+		void add(string fullname) {
+			import std.stdio;
+			writeln("Tree.add(", fullname, ")");
+			import std.algorithm, std.range;
+			add_helper(fullname.split('/'));
+		}
+	}
+	auto root_node = new Tree("fairy");
+
+	import fairy, item;
+	void addItem(string fullname, Item item) {
+		root_node.add(fullname);
+	}
+
+
 	GtkStringList* string_list;
 	GtkTreeListModel* treelistmodel;
 	GtkSelectionModel* selection_model;
@@ -154,15 +209,17 @@ struct MyItemView {
 		
 		// sync with session
 		import fairy;
-		string previous_part0;
-		import std.array, std.algorithm;
-		foreach (itemname; session.items.byKey.array.sort) {
-			import std.array;
-			string part0 = itemname.split('/')[0];
-			if (part0 != previous_part0) {
-				gtk_string_list_append(string_list, part0.toStringz);
-			}
-			previous_part0 = part0;
+		import std.stdio, std.array, std.algorithm;
+		foreach (item_name; session.items.byKey) {
+			import std.stdio;
+			writeln("MainWindow this root_node.add(", item_name, ")");
+			root_node.add(item_name);
+		}
+		writeln("=========== print root node ==========");
+		root_node.print();
+		writeln("=========== print root node ==========");
+		foreach (child_name; root_node.children.byKey.array.sort) {
+			gtk_string_list_append(string_list, root_node.children[child_name].fullname.toStringz);
 		}
 
 		//gtk_string_list_append(string_list, "item1");
@@ -172,13 +229,15 @@ struct MyItemView {
 		treelistmodel = cast(GtkTreeListModel*)gtk_tree_list_model_new(cast(GListModel*)string_list,
 		                                                               passthrough=false, 
 		                                                               autoexpand=false,
-		                                                               &treelist_listmodel_create,cast(void*)&this,null);
+		                                                               &treelist_listmodel_create,
+		                                                               cast(void*)root_node,
+		                                                               null);
 		selection_model = cast(GtkSelectionModel*)gtk_multi_selection_new(cast(GListModel*)treelistmodel);
 		signal_list_item_factory = gtk_signal_list_item_factory_new();
-		g_signal_connect(signal_list_item_factory, "setup", &signal_list_item_factory_setup, cast(void*)&this);
-		g_signal_connect(signal_list_item_factory, "bind", &signal_list_item_factory_bind, cast(void*)&this);
-		g_signal_connect(signal_list_item_factory, "unbind", &signal_list_item_factory_unbind, cast(void*)&this);
-		g_signal_connect(signal_list_item_factory, "teardown", &signal_list_item_factory_teardown, cast(void*)&this);
+		g_signal_connect(signal_list_item_factory, "setup",    &signal_list_item_factory_setup,    cast(void*)root_node);
+		g_signal_connect(signal_list_item_factory, "bind",     &signal_list_item_factory_bind,     cast(void*)root_node);
+		g_signal_connect(signal_list_item_factory, "unbind",   &signal_list_item_factory_unbind,   cast(void*)root_node);
+		g_signal_connect(signal_list_item_factory, "teardown", &signal_list_item_factory_teardown, cast(void*)root_node);
 		col1 = cast(GtkColumnViewColumn*)gtk_column_view_column_new("Items", signal_list_item_factory);
 		col_view = cast(GtkColumnView*)gtk_column_view_new(selection_model);
 		gtk_column_view_append_column(col_view, col1);
@@ -189,29 +248,45 @@ struct MyItemView {
 
 	static extern(C) GListModel* treelist_listmodel_create(void* item, void* user_data) 
 	{
-		MyItemView* itemview = cast(MyItemView*)user_data;
+		Tree* root_node = cast(Tree*)user_data;
+		//MyItemView* itemview = cast(MyItemView*)user_data;
 		import std.stdio, std.conv;
 		auto str_obj = cast(GtkStringObject*)(item);
 		auto str = gtk_string_object_get_string(str_obj).to!string;
 		import core.stdc.string;
 		GtkStringList* string_list = gtk_string_list_new(null); // this implements GListModel
 
-		if (str == "item1") {
-			gtk_string_list_append(string_list, "item1_a");
-			gtk_string_list_append(string_list, "item1_b");
-			gtk_string_list_append(string_list, "item1_c");
-		} else if (str == "item2") {
-			gtk_string_list_append(string_list, "item2_x");
-			gtk_string_list_append(string_list, "item2_y");
-			gtk_string_list_append(string_list, "item2_z");
-		} else if (str == "item1_a") {
-			char[100] buf;
-			import core.stdc.stdio;
-			foreach(i;0..1000) {
-				snprintf(buf.ptr,100,"item1_%d",i);
-				gtk_string_list_append(string_list, buf.ptr);
+		import std.stdio, std.array, std.algorithm, std.string;
+		writeln("listmodel_create trying to find node ", str);
+		//writeln("========= print tree" );
+		//root_node.print();
+		//writeln("========= print tree done" );
+		auto node = root_node.find_node(str);
+		if (node is null) {
+			writeln("error: found null");
+		} else {
+			writeln("found child node ", (*node).fullname, " with children ", (*node).children.byKey.array.sort);
+			foreach(child_name; (*node).children.byKey.array.sort) {
+				gtk_string_list_append(string_list, node.children[child_name].fullname.toStringz);
 			}
 		}
+
+		//if (str == "item1") {
+		//	gtk_string_list_append(string_list, "item1_a");
+		//	gtk_string_list_append(string_list, "item1_b");
+		//	gtk_string_list_append(string_list, "item1_c");
+		//} else if (str == "item2") {
+		//	gtk_string_list_append(string_list, "item2_x");
+		//	gtk_string_list_append(string_list, "item2_y");
+		//	gtk_string_list_append(string_list, "item2_z");
+		//} else if (str == "item1_a") {
+		//	char[100] buf;
+		//	import core.stdc.stdio;
+		//	foreach(i;0..1000) {
+		//		snprintf(buf.ptr,100,"item1_%d",i);
+		//		gtk_string_list_append(string_list, buf.ptr);
+		//	}
+		//}
 		return cast(GListModel*)string_list;
 	}
 
@@ -247,7 +322,8 @@ struct MyItemView {
 		const char* str = gtk_string_object_get_string(cast(GtkStringObject*)str_obj);
 		char[64] buf;
 		import core.stdc.stdio;
-		snprintf(buf.ptr,64,"%s -> %d", str, gtk_list_item_get_position(list_item));
+		import std.array, std.string;
+		snprintf(buf.ptr,64,"%s -> %d", str.to!string.split('/')[$-1].toStringz, gtk_list_item_get_position(list_item));
 		gtk_label_set_text(label, buf.ptr);
 		gtk_tree_expander_set_list_row(cast(GtkTreeExpander*)expander, tree_list_row);
 	}
