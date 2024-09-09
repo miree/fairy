@@ -65,6 +65,13 @@ class Gtk4NativeGui : Gui {
 	override void redraw_window(string name) {
 	}
 	override void save_window(string name) { // copy window properties to canvas
+		auto window = name in main_windows;
+		if (window !is null) {
+			int width, height;
+			gtk_window_get_default_size(window.window, 
+			                            &window.canvas.width, 
+			                            &window.canvas.height);
+		}
 	}
 	override void remove_item(string name) {
 	}
@@ -133,6 +140,7 @@ private:
 
 
 		window      = cast(GtkWindow*)gtk_application_window_new(app);
+		gtk_window_set_default_size(window, canvas.width, canvas.height);
 		frame       = cast(GtkFrame*)gtk_frame_new(null);
 		paned       = cast(GtkPaned*)gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
 		item_view  = MyItemView(this);
@@ -144,7 +152,7 @@ private:
 		gtk_paned_set_start_child(paned, cast(GtkWidget*)item_view.scrolled_window);
 		gtk_paned_set_resize_start_child(paned, false);
 		gtk_paned_set_shrink_start_child(paned, true);
-		gtk_paned_set_end_child(paned, cast(GtkWidget*)plot_widget.label);
+		gtk_paned_set_end_child(paned, cast(GtkWidget*)plot_widget.main_box);
 		gtk_paned_set_resize_end_child(paned, true);
 		gtk_paned_set_shrink_end_child(paned, false);
 
@@ -345,9 +353,46 @@ struct MyItemView {
 }
 
 struct MyPlotWidget {
-	GtkLabel *label;
+	GtkBox *main_box;
+	GtkScrolledWindow* controls_scrolled_window;
+	GtkDrawingArea *drawing_area;
+	GtkSeparator *separator;
+	GtkBox *controls_box;
+	GtkLabel *dummy;
+
+	extern(C) 
+	static void drawFunc(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
+		GtkAllocation size;
+		auto plot_widget = cast(MyPlotWidget*)userData;
+		//plot_widget.getAllocation(size);
+		//plot_widget.painter.resize(size.width,size.height);
+		//plot_widget.painter.canvas.width = size.width;
+		//plot_widget.painter.canvas.height = size.height;
+		//plot_widget.cr = cr;
+		//plot_widget.painter.draw_content();
+	}
+
+
 	this(string name) {
+
+		main_box = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+		controls_box = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		controls_scrolled_window = cast(GtkScrolledWindow*)gtk_scrolled_window_new();
+		gtk_scrolled_window_set_propagate_natural_width(controls_scrolled_window, true);
+		gtk_scrolled_window_set_propagate_natural_height(controls_scrolled_window, true);
+		gtk_scrolled_window_set_child(controls_scrolled_window, cast(GtkWidget*)controls_box);
+
+
+		dummy = cast(GtkLabel*)gtk_label_new("dummy");
+		gtk_box_append(controls_box, cast(GtkWidget*)dummy);
 		import std.string;
-		label = cast(GtkLabel*)gtk_label_new(name.toStringz);
+		drawing_area = cast(GtkDrawingArea*)gtk_drawing_area_new();
+		gtk_widget_set_hexpand(cast(GtkWidget*)drawing_area, true);
+		gtk_widget_set_vexpand(cast(GtkWidget*)drawing_area, true);
+		gtk_box_append(main_box, cast(GtkWidget*)drawing_area);
+		gtk_widget_set_size_request(cast(GtkWidget*)drawing_area, 100, 50);
+		separator = cast(GtkSeparator*)gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+		gtk_box_append(main_box, cast(GtkWidget*)separator);
+		gtk_box_append(main_box, cast(GtkWidget*)controls_scrolled_window);
 	}
 }
