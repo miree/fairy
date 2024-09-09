@@ -215,9 +215,9 @@ struct MyItemView {
 			writeln("MainWindow this root_node.add(", item_name, ")");
 			root_node.add(item_name);
 		}
-		writeln("=========== print root node ==========");
-		root_node.print();
-		writeln("=========== print root node ==========");
+		//writeln("=========== print root node ==========");
+		//root_node.print();
+		//writeln("=========== print root node ==========");
 		foreach (child_name; root_node.children.byKey.array.sort) {
 			gtk_string_list_append(string_list, root_node.children[child_name].fullname.toStringz);
 		}
@@ -265,7 +265,7 @@ struct MyItemView {
 		if (node is null) {
 			writeln("error: found null");
 		} else {
-			writeln("found child node ", (*node).fullname, " with children ", (*node).children.byKey.array.sort);
+			//writeln("found child node ", (*node).fullname, " with children ", (*node).children.byKey.array.sort);
 			foreach(child_name; (*node).children.byKey.array.sort) {
 				gtk_string_list_append(string_list, node.children[child_name].fullname.toStringz);
 			}
@@ -293,7 +293,7 @@ struct MyItemView {
 
 	extern(C) static void signal_list_item_factory_setup(GtkSignalListItemFactory* self, GObject* object, gpointer user_data) 
 	{
-		MyItemView* itemview = cast(MyItemView*)user_data;
+		Tree* root_node = cast(Tree*)user_data;
 		import std.stdio;
 		//writeln("setup");
 		auto expander = gtk_tree_expander_new();
@@ -309,7 +309,7 @@ struct MyItemView {
 
 	extern(C) static void signal_list_item_factory_bind(GtkSignalListItemFactory* self, GObject* object, gpointer user_data) 
 	{
-		MyItemView* itemview = cast(MyItemView*)user_data;
+		Tree* root_node = cast(Tree*)user_data;
 		import std.conv;
 		auto list_item = cast(GtkListItem*)object;
 		auto expander = cast(GtkTreeExpander*)gtk_list_item_get_child(list_item);
@@ -323,6 +323,8 @@ struct MyItemView {
 		char[64] buf;
 		import core.stdc.stdio;
 		import std.array, std.string;
+		if (root_node.find_node(str.to!string).children.length) gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, false);
+		else gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, true);
 		snprintf(buf.ptr,64,"%s -> %d", str.to!string.split('/')[$-1].toStringz, gtk_list_item_get_position(list_item));
 		gtk_label_set_text(label, buf.ptr);
 		gtk_tree_expander_set_list_row(cast(GtkTreeExpander*)expander, tree_list_row);
@@ -330,7 +332,7 @@ struct MyItemView {
 
 	extern(C) static void signal_list_item_factory_unbind(GtkSignalListItemFactory* self, GObject* object, gpointer user_data) 
 	{
-		MyItemView* itemview = cast(MyItemView*)user_data;
+		Tree* root_node = cast(Tree*)user_data;
 		import std.stdio;
 		import std.conv;
 		auto item = cast(GtkListItem*)object;
