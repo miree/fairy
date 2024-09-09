@@ -115,25 +115,43 @@ struct MainWindow
 import graphics;
 
 private:
-	GtkWindow*        window;
 	GtkApplication*   application;
 	CanvasProperties* canvas;
 
+	GtkWindow* window;
+	GtkFrame* frame;
+	GtkPaned* paned;
 	MyItemView item_view;
+	MyPlotWidget plot_widget;
 
 	string name; 
 	this (string window_name, CanvasProperties* canvas_properties, GtkApplication* app)
 	{
 		name = window_name;
 		application = app;
-		window      = cast(GtkWindow*)gtk_application_window_new(app);
 		canvas      = canvas_properties;
 
+
+		window      = cast(GtkWindow*)gtk_application_window_new(app);
+		frame       = cast(GtkFrame*)gtk_frame_new(null);
+		paned       = cast(GtkPaned*)gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
 		item_view  = MyItemView(this);
+		plot_widget = MyPlotWidget("plot_widget");
+
+		gtk_frame_set_child (cast(GtkFrame*)frame, cast(GtkWidget*)paned);
+
+		gtk_paned_set_position(paned, 200);
+		gtk_paned_set_start_child(paned, cast(GtkWidget*)item_view.scrolled_window);
+		gtk_paned_set_resize_start_child(paned, false);
+		gtk_paned_set_shrink_start_child(paned, true);
+		gtk_paned_set_end_child(paned, cast(GtkWidget*)plot_widget.label);
+		gtk_paned_set_resize_end_child(paned, true);
+		gtk_paned_set_shrink_end_child(paned, false);
 
 
 		gtk_window_set_title(window, name.toStringz);
-		gtk_window_set_child(window, cast(GtkWidget*)item_view.scrolled_window);
+		//gtk_window_set_child(window, cast(GtkWidget*)item_view.scrolled_window);
+		gtk_window_set_child(window, cast(GtkWidget*)frame);
 		gtk_window_present(window);
 	}
 }
@@ -248,45 +266,23 @@ struct MyItemView {
 
 	static extern(C) GListModel* treelist_listmodel_create(void* item, void* user_data) 
 	{
+		// need access to root_node (stored as user_data)
 		Tree* root_node = cast(Tree*)user_data;
-		//MyItemView* itemview = cast(MyItemView*)user_data;
-		import std.stdio, std.conv;
-		auto str_obj = cast(GtkStringObject*)(item);
-		auto str = gtk_string_object_get_string(str_obj).to!string;
-		import core.stdc.string;
-		GtkStringList* string_list = gtk_string_list_new(null); // this implements GListModel
 
-		import std.stdio, std.array, std.algorithm, std.string;
-		writeln("listmodel_create trying to find node ", str);
-		//writeln("========= print tree" );
-		//root_node.print();
-		//writeln("========= print tree done" );
+		// extract fullname (stored as string_object inside of item)
+		auto str_obj = cast(GtkStringObject*)(item);
+		import std.conv;
+		auto str = gtk_string_object_get_string(str_obj).to!string;
+
+		// prepare the new string_list
+		GtkStringList* string_list = gtk_string_list_new(null); // this implements GListModel
 		auto node = root_node.find_node(str);
-		if (node is null) {
-			writeln("error: found null");
-		} else {
-			//writeln("found child node ", (*node).fullname, " with children ", (*node).children.byKey.array.sort);
+		if (node !is null) {
+			import std.array, std.algorithm;
 			foreach(child_name; (*node).children.byKey.array.sort) {
 				gtk_string_list_append(string_list, node.children[child_name].fullname.toStringz);
 			}
 		}
-
-		//if (str == "item1") {
-		//	gtk_string_list_append(string_list, "item1_a");
-		//	gtk_string_list_append(string_list, "item1_b");
-		//	gtk_string_list_append(string_list, "item1_c");
-		//} else if (str == "item2") {
-		//	gtk_string_list_append(string_list, "item2_x");
-		//	gtk_string_list_append(string_list, "item2_y");
-		//	gtk_string_list_append(string_list, "item2_z");
-		//} else if (str == "item1_a") {
-		//	char[100] buf;
-		//	import core.stdc.stdio;
-		//	foreach(i;0..1000) {
-		//		snprintf(buf.ptr,100,"item1_%d",i);
-		//		gtk_string_list_append(string_list, buf.ptr);
-		//	}
-		//}
 		return cast(GListModel*)string_list;
 	}
 
@@ -346,4 +342,12 @@ struct MyItemView {
 		writeln("teardown");
 	}
 
+}
+
+struct MyPlotWidget {
+	GtkLabel *label;
+	this(string name) {
+		import std.string;
+		label = cast(GtkLabel*)gtk_label_new(name.toStringz);
+	}
 }
