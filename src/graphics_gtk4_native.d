@@ -352,16 +352,242 @@ struct MyItemView {
 
 }
 
+
+struct MyPlotWidget {
+	GtkBox* main_box;
+	GtkScrolledWindow* controls_scrolled_window;
+	GtkDrawingArea *drawing_area;
+		GtkEventControllerMotion* motion_controller;
+		GtkEventControllerScroll* scroll_controller;
+		GtkGestureClick* left_click;
+		GtkGestureClick* mid_click;
+		GtkGestureClick* right_click;
+	GtkSeparator* separator;
+	GtkBox* controls_box;
+	GtkLabel* dummy;
+	GtkDrawingArea* mouse_pos;
+
+
+	CanvasProperties* canvas; 
+	CairoBackend cairo_backend;
+
+	extern(C)
+	static void mousePosDrawFunc(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
+		//import std.stdio;
+		//writeln("mousePosDrawFunc");
+		CairoBackend backend = (cast(CairoBackend)userData);
+		GtkAllocation size;
+		gtk_widget_get_allocation(cast(GtkWidget*)backend.drawing_area, &size);
+		cairo_set_source_rgba(cr, 0,0,0,1);
+
+		cairo_set_font_size(cr, 14);
+		static char[256] buffer;
+		import core.stdc.stdio;
+
+		snprintf(buffer.ptr, buffer.length, "x = %f", backend.mouse_pos[0]);
+		cairo_move_to(cr, 20,20);
+		cairo_show_text(cr, buffer.ptr);
+		cairo_stroke(cr);			
+
+		snprintf(buffer.ptr, buffer.length, "y = %f", backend.mouse_pos[1]);
+		cairo_move_to(cr, 140,20);
+		cairo_show_text(cr, buffer.ptr);
+		cairo_stroke(cr);			
+
+		snprintf(buffer.ptr, buffer.length, "z = %f", backend.mouse_pos[2]);
+		cairo_move_to(cr, 260,20);
+		cairo_show_text(cr, buffer.ptr);
+		cairo_stroke(cr);			
+
+		if (backend.mouse_value !is double.init) {
+			snprintf(buffer.ptr, buffer.length, "%f", backend.mouse_value);
+			cairo_move_to(cr, 20,40);
+			cairo_show_text(cr, buffer.ptr);
+			cairo_stroke(cr);			
+		}
+
+		if (backend.mouse_itemname !is null) {
+			import std.string;
+			snprintf(buffer.ptr, buffer.length, "%s", backend.mouse_itemname.ptr);
+			cairo_move_to(cr, 140,40);
+			cairo_show_text(cr, buffer.ptr);
+			cairo_stroke(cr);			
+		}
+	}
+
+	extern(C) 
+	static void drawFunc(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
+		CairoBackend backend = (cast(CairoBackend)userData);
+		GtkAllocation size;
+		gtk_widget_get_allocation(cast(GtkWidget*)backend.drawing_area, &size);
+		//gtk_widget_get_allocation(cast(GtkWidget*)drawingArea, &size);
+
+		backend.set_cr(cr, size.width, size.height);
+		backend.canvas.width = size.width;
+		backend.canvas.height = size.height;
+		backend.painter.draw_content();
+	}
+	extern(C) 
+	static void destroyNotify(void *data) {
+	}
+
+	// mouse motion
+	extern(C)
+	static void drawing_area_motion_callback(GtkEventControllerMotion* self,
+	                                         gdouble x, gdouble y, gpointer user_data) {
+		bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
+		bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
+		CairoBackend cairo_backend = cast(CairoBackend)user_data;
+		cairo_backend.painter.mouse_motion(x,y,cairo_backend,ctrl,shift);
+	}
+
+	// mouse wheel
+	extern(C)
+	static void drawing_area_scroll_callback(GtkEventControllerScroll* self,
+	                                         gdouble dx, gdouble dy, gpointer user_data) {
+		bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
+		bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
+		CairoBackend cairo_backend = cast(CairoBackend)user_data;
+		cairo_backend.painter.scroll(dx,dy,ctrl,shift);
+	}
+
+
+
+	this(string name, CanvasProperties *canvas_properties) {
+		drawing_area = cast(GtkDrawingArea*)gtk_drawing_area_new();
+		mouse_pos    = cast(GtkDrawingArea*)gtk_drawing_area_new();
+
+		canvas        = canvas_properties;
+		cairo_backend = new CairoBackend(drawing_area, canvas, mouse_pos);
+
+		main_box = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+		controls_box = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		controls_scrolled_window = cast(GtkScrolledWindow*)gtk_scrolled_window_new();
+		gtk_scrolled_window_set_propagate_natural_width(controls_scrolled_window, true);
+		gtk_scrolled_window_set_propagate_natural_height(controls_scrolled_window, true);
+		gtk_scrolled_window_set_child(controls_scrolled_window, cast(GtkWidget*)controls_box);
+
+
+		dummy = cast(GtkLabel*)gtk_label_new("dummy");
+		gtk_box_append(controls_box, cast(GtkWidget*)dummy);
+		gtk_widget_set_size_request(cast(GtkWidget*)mouse_pos, 700, 40);
+		gtk_drawing_area_set_draw_func(mouse_pos, &mousePosDrawFunc, cast(void*)cairo_backend, null);
+		gtk_box_append(controls_box, cast(GtkWidget*)mouse_pos);
+		import std.string;
+		gtk_widget_set_hexpand(cast(GtkWidget*)drawing_area, true);
+		gtk_widget_set_vexpand(cast(GtkWidget*)drawing_area, true);
+		gtk_box_append(main_box, cast(GtkWidget*)drawing_area);
+		gtk_widget_set_size_request(cast(GtkWidget*)drawing_area, 100, 50);
+		gtk_drawing_area_set_draw_func(drawing_area, &drawFunc, cast(void*)cairo_backend, &destroyNotify);
+		separator = cast(GtkSeparator*)gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+		gtk_box_append(main_box, cast(GtkWidget*)separator);
+		gtk_box_append(main_box, cast(GtkWidget*)controls_scrolled_window);
+
+
+		// attach motion controller to drawing_area widget
+		motion_controller = cast(GtkEventControllerMotion*) gtk_event_controller_motion_new();
+		g_signal_connect(motion_controller, "motion", &drawing_area_motion_callback, cast(void*)cairo_backend);
+		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)motion_controller);
+
+		// attach scroll controller to drawing_area widget
+		scroll_controller = cast(GtkEventControllerScroll*) gtk_event_controller_scroll_new(GTK_EVENT_CONTROLLER_SCROLL_VERTICAL | GTK_EVENT_CONTROLLER_SCROLL_HORIZONTAL);
+		g_signal_connect(scroll_controller, "scroll", &drawing_area_scroll_callback, cast(void*)cairo_backend);
+		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)scroll_controller);
+
+
+		// left mouse button
+		extern(C) static void drawing_area_left_click_callback(GtkGestureClick* self, int nPress,
+		                                              gdouble x, gdouble y, gpointer user_data) {
+			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
+			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
+			CairoBackend cairo_backend = cast(CairoBackend)user_data;
+			cairo_backend.painter.left_button_pressed(nPress,x,y,ctrl,shift);
+		}
+		extern(C) static void drawing_area_left_release_callback(GtkGestureClick* self, int nPress,
+		                                              gdouble x, gdouble y, gpointer user_data) {
+			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
+			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
+			CairoBackend cairo_backend = cast(CairoBackend)user_data;
+			cairo_backend.painter.left_button_released(nPress,x,y,ctrl,shift);
+		}
+		left_click = cast(GtkGestureClick*)gtk_gesture_click_new();
+		gtk_gesture_single_set_button(cast(GtkGestureSingle*)left_click, 1);
+		g_signal_connect(left_click, "pressed", &drawing_area_left_click_callback, cast(void*)cairo_backend);
+		g_signal_connect(left_click, "released", &drawing_area_left_release_callback, cast(void*)cairo_backend);
+		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)left_click);
+
+		// middle mouse button
+		extern(C) static void drawing_area_mid_click_callback(GtkGestureClick* self, int nPress,
+		                                              gdouble x, gdouble y, gpointer user_data) {
+			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
+			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
+			CairoBackend cairo_backend = cast(CairoBackend)user_data;
+			cairo_backend.painter.mid_button_pressed(nPress,x,y,cairo_backend,ctrl,shift);
+		}
+		extern(C) static void drawing_area_mid_release_callback(GtkGestureClick* self, int nPress,
+		                                              gdouble x, gdouble y, gpointer user_data) {
+			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
+			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
+			CairoBackend cairo_backend = cast(CairoBackend)user_data;
+			cairo_backend.painter.mid_button_released(nPress,x,y,ctrl,shift);
+		}
+		mid_click = cast(GtkGestureClick*)gtk_gesture_click_new();
+		gtk_gesture_single_set_button(cast(GtkGestureSingle*)mid_click, 2);
+		g_signal_connect(mid_click, "pressed", &drawing_area_mid_click_callback, cast(void*)cairo_backend);
+		g_signal_connect(mid_click, "released", &drawing_area_mid_release_callback, cast(void*)cairo_backend);
+		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)mid_click);
+
+		// right mouse button
+		extern(C) static void drawing_area_right_click_callback(GtkGestureClick* self, int nPress,
+		                                              gdouble x, gdouble y, gpointer user_data) {
+			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
+			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
+			CairoBackend cairo_backend = cast(CairoBackend)user_data;
+			GtkAllocation size;
+			gtk_widget_get_allocation(cast(GtkWidget*)cairo_backend.drawing_area, &size);
+			cairo_backend.painter.canvas.width  = size.width;
+			cairo_backend.painter.canvas.height = size.height;
+			cairo_backend.painter.right_button_pressed(nPress,x,y,ctrl,shift);
+		}
+		extern(C) static void drawing_area_right_release_callback(GtkGestureClick* self, int nPress,
+		                                              gdouble x, gdouble y, gpointer user_data) {
+			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
+			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
+			CairoBackend cairo_backend = cast(CairoBackend)user_data;
+			cairo_backend.painter.right_button_released(nPress,x,y,ctrl,shift);
+		}
+		right_click = cast(GtkGestureClick*)gtk_gesture_click_new();
+		gtk_gesture_single_set_button(cast(GtkGestureSingle*)right_click, 3);
+		g_signal_connect(right_click, "pressed", &drawing_area_right_click_callback, cast(void*)cairo_backend);
+		g_signal_connect(right_click, "released", &drawing_area_right_release_callback, cast(void*)cairo_backend);
+		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)right_click);
+
+	}
+}
+
+
+
+
+
+
+
+
 class CairoBackend : BackendInterface
 {
 	GtkDrawingArea *drawing_area;
 	CanvasProperties *canvas;
+	GtkDrawingArea *mouse_pos_drawing_area;
 	CanvasPainter painter;
-	this (GtkDrawingArea *area, CanvasProperties *canvas_properties) {
+	this (GtkDrawingArea *area, CanvasProperties *canvas_properties, GtkDrawingArea* mpda) {
 		drawing_area = area;
 		canvas       = canvas_properties;
+		mouse_pos_drawing_area = mpda;
 		painter      = CanvasPainter(canvas, this);
 	}
+
+	double[3] mouse_pos;
+	double    mouse_value;
+	string    mouse_itemname;
 
 	cairo_t* cr;
 	int width, height;
@@ -490,14 +716,32 @@ class CairoBackend : BackendInterface
 	}
 
 	override void need_redraw() {
-		import std.stdio;
+		//import std.stdio;
+		//writeln("need_redraw");
 		gtk_widget_queue_draw(cast(GtkWidget*)drawing_area);
 	}
 
 	override void show_mouse_pos(double x, double y, double z) {
+		//import std.stdio;
+		//writeln("show_mouse_pos ", x, " ", y, " ", z);
+		mouse_pos[0] = x;
+		mouse_pos[1] = y;
+		mouse_pos[2] = z;
+
+		gtk_widget_queue_draw(cast(GtkWidget*)mouse_pos_drawing_area);
+		//with(painter) if (translating_ongoing   |
+		//                  scaling_ongoing       |
+		//                  z_translating_ongoing |
+		//                  z_scaling_ongoing) return;
+		//import core.stdc.stdio;
+		//static char[256] buffer;
+		//snprintf(buffer.ptr, buffer.length, "x = %lf y = %lf", x,y);
+		//gtk_label_set_text(mouse_pos, buffer.ptr);
 		//updateMousePosLabel(x,y);
 	}
 	override void show_value(double value, string itemname) {
+		mouse_itemname = itemname;
+		mouse_value = value;
 		//updateValue(value, itemname);
 	}
 	override void set_text_size(int s) {
@@ -522,171 +766,4 @@ class CairoBackend : BackendInterface
 		cairo_show_text(cr, strz);
 	}
 
-}
-
-struct MyPlotWidget {
-	GtkBox* main_box;
-	GtkScrolledWindow* controls_scrolled_window;
-	GtkDrawingArea *drawing_area;
-		GtkEventControllerMotion* motion_controller;
-		GtkEventControllerScroll* scroll_controller;
-		GtkGestureClick* left_click;
-		GtkGestureClick* mid_click;
-		GtkGestureClick* right_click;
-	GtkSeparator* separator;
-	GtkBox* controls_box;
-	GtkLabel* dummy;
-
-
-	CanvasProperties* canvas; 
-	CairoBackend cairo_backend;
-
-	extern(C) 
-	static void drawFunc(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
-		CairoBackend backend = (cast(CairoBackend)userData);
-
-		GtkAllocation size;
-		gtk_widget_get_allocation(cast(GtkWidget*)backend.drawing_area, &size);
-		//gtk_widget_get_allocation(cast(GtkWidget*)drawingArea, &size);
-
-
-		backend.set_cr(cr, size.width, size.height);
-		backend.canvas.width = size.width;
-		backend.canvas.height = size.height;
-		backend.painter.draw_content();
-	}
-	extern(C) 
-	static void destroyNotify(void *data) {
-	}
-
-	// mouse motion
-	extern(C)
-	static void drawing_area_motion_callback(GtkEventControllerMotion* self,
-	                                         gdouble x, gdouble y, gpointer user_data) {
-		bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
-		bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
-		CairoBackend cairo_backend = cast(CairoBackend)user_data;
-		cairo_backend.painter.mouse_motion(x,y,cairo_backend,ctrl,shift);
-	}
-
-	// mouse wheel
-	extern(C)
-	static void drawing_area_scroll_callback(GtkEventControllerScroll* self,
-	                                         gdouble dx, gdouble dy, gpointer user_data) {
-		bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
-		bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
-		CairoBackend cairo_backend = cast(CairoBackend)user_data;
-		cairo_backend.painter.scroll(dx,dy,ctrl,shift);
-	}
-
-
-
-	this(string name, CanvasProperties *canvas_properties) {
-		drawing_area = cast(GtkDrawingArea*)gtk_drawing_area_new();
-
-		canvas        = canvas_properties;
-		cairo_backend = new CairoBackend(drawing_area, canvas);
-
-		main_box = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-		controls_box = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-		controls_scrolled_window = cast(GtkScrolledWindow*)gtk_scrolled_window_new();
-		gtk_scrolled_window_set_propagate_natural_width(controls_scrolled_window, true);
-		gtk_scrolled_window_set_propagate_natural_height(controls_scrolled_window, true);
-		gtk_scrolled_window_set_child(controls_scrolled_window, cast(GtkWidget*)controls_box);
-
-
-		dummy = cast(GtkLabel*)gtk_label_new("dummy");
-		gtk_box_append(controls_box, cast(GtkWidget*)dummy);
-		import std.string;
-		gtk_widget_set_hexpand(cast(GtkWidget*)drawing_area, true);
-		gtk_widget_set_vexpand(cast(GtkWidget*)drawing_area, true);
-		gtk_box_append(main_box, cast(GtkWidget*)drawing_area);
-		gtk_widget_set_size_request(cast(GtkWidget*)drawing_area, 100, 50);
-		gtk_drawing_area_set_draw_func(drawing_area, &drawFunc, cast(void*)cairo_backend, &destroyNotify);
-		separator = cast(GtkSeparator*)gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-		gtk_box_append(main_box, cast(GtkWidget*)separator);
-		gtk_box_append(main_box, cast(GtkWidget*)controls_scrolled_window);
-
-
-		// attach motion controller to drawing_area widget
-		motion_controller = cast(GtkEventControllerMotion*) gtk_event_controller_motion_new();
-		g_signal_connect(motion_controller, "motion", &drawing_area_motion_callback, cast(void*)cairo_backend);
-		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)motion_controller);
-
-		// attach scroll controller to drawing_area widget
-		scroll_controller = cast(GtkEventControllerScroll*) gtk_event_controller_scroll_new(GTK_EVENT_CONTROLLER_SCROLL_VERTICAL | GTK_EVENT_CONTROLLER_SCROLL_HORIZONTAL);
-		g_signal_connect(scroll_controller, "scroll", &drawing_area_scroll_callback, cast(void*)cairo_backend);
-		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)scroll_controller);
-
-
-		// left mouse button
-		extern(C) static void drawing_area_left_click_callback(GtkGestureClick* self, int nPress,
-		                                              gdouble x, gdouble y, gpointer user_data) {
-			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
-			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
-			CairoBackend cairo_backend = cast(CairoBackend)user_data;
-			cairo_backend.painter.left_button_pressed(nPress,x,y,ctrl,shift);
-		}
-		extern(C) static void drawing_area_left_release_callback(GtkGestureClick* self, int nPress,
-		                                              gdouble x, gdouble y, gpointer user_data) {
-			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
-			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
-			CairoBackend cairo_backend = cast(CairoBackend)user_data;
-			cairo_backend.painter.left_button_released(nPress,x,y,ctrl,shift);
-		}
-		left_click = cast(GtkGestureClick*)gtk_gesture_click_new();
-		gtk_gesture_single_set_button(cast(GtkGestureSingle*)left_click, 1);
-		g_signal_connect(left_click, "pressed", &drawing_area_left_click_callback, cast(void*)cairo_backend);
-		g_signal_connect(left_click, "released", &drawing_area_left_release_callback, cast(void*)cairo_backend);
-		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)left_click);
-
-		// middle mouse button
-		extern(C) static void drawing_area_mid_click_callback(GtkGestureClick* self, int nPress,
-		                                              gdouble x, gdouble y, gpointer user_data) {
-			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
-			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
-			CairoBackend cairo_backend = cast(CairoBackend)user_data;
-			cairo_backend.painter.mid_button_pressed(nPress,x,y,cairo_backend,ctrl,shift);
-		}
-		extern(C) static void drawing_area_mid_release_callback(GtkGestureClick* self, int nPress,
-		                                              gdouble x, gdouble y, gpointer user_data) {
-			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
-			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
-			CairoBackend cairo_backend = cast(CairoBackend)user_data;
-			cairo_backend.painter.mid_button_released(nPress,x,y,ctrl,shift);
-		}
-		mid_click = cast(GtkGestureClick*)gtk_gesture_click_new();
-		gtk_gesture_single_set_button(cast(GtkGestureSingle*)mid_click, 2);
-		g_signal_connect(mid_click, "pressed", &drawing_area_mid_click_callback, cast(void*)cairo_backend);
-		g_signal_connect(mid_click, "released", &drawing_area_mid_release_callback, cast(void*)cairo_backend);
-		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)mid_click);
-
-		// right mouse button
-		extern(C) static void drawing_area_right_click_callback(GtkGestureClick* self, int nPress,
-		                                              gdouble x, gdouble y, gpointer user_data) {
-			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
-			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
-			CairoBackend cairo_backend = cast(CairoBackend)user_data;
-			GtkAllocation size;
-			gtk_widget_get_allocation(cast(GtkWidget*)cairo_backend.drawing_area, &size);
-			cairo_backend.painter.canvas.width  = size.width;
-			cairo_backend.painter.canvas.height = size.height;
-			cairo_backend.painter.right_button_pressed(nPress,x,y,ctrl,shift);
-		}
-		extern(C) static void drawing_area_right_release_callback(GtkGestureClick* self, int nPress,
-		                                              gdouble x, gdouble y, gpointer user_data) {
-			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
-			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
-			CairoBackend cairo_backend = cast(CairoBackend)user_data;
-			cairo_backend.painter.right_button_released(nPress,x,y,ctrl,shift);
-		}
-		right_click = cast(GtkGestureClick*)gtk_gesture_click_new();
-		gtk_gesture_single_set_button(cast(GtkGestureSingle*)right_click, 3);
-		g_signal_connect(right_click, "pressed", &drawing_area_right_click_callback, cast(void*)cairo_backend);
-		g_signal_connect(right_click, "released", &drawing_area_right_release_callback, cast(void*)cairo_backend);
-		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)right_click);
-
-
-
-	}
 }
