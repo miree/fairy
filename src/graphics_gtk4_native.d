@@ -144,7 +144,7 @@ private:
 		frame       = cast(GtkFrame*)gtk_frame_new(null);
 		paned       = cast(GtkPaned*)gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
 		item_view  = MyItemView(this);
-		plot_widget = MyPlotWidget("plot_widget");
+		plot_widget = MyPlotWidget("plot_widget", canvas_properties);
 
 		gtk_frame_set_child (cast(GtkFrame*)frame, cast(GtkWidget*)paned);
 
@@ -352,6 +352,195 @@ struct MyItemView {
 
 }
 
+class CairoBackend : BackendInterface
+{
+	GtkDrawingArea *drawing_area;
+	CanvasProperties *canvas;
+	CanvasPainter painter;
+	this (GtkDrawingArea *area, CanvasProperties *canvas_properties) {
+		drawing_area = area;
+		canvas       = canvas_properties;
+		painter      = CanvasPainter(canvas);
+	}
+
+	cairo_t* cr;
+	int width, height;
+	void set_cr(cairo_t* c, int w, int h) {
+		cr = c;
+		width = w;
+		height = h;
+	}
+
+	override bool inverted_y_direction() {
+		return true;
+	}
+	override bool text_with_border() {
+		return true;
+	}
+
+	override void initialize() {
+	}
+
+	override void finish() {
+	}
+
+	override void reset_clip() {
+		cairo_reset_clip(cr);
+		cairo_rectangle(cr, 0,0, width, height);		
+		cairo_clip(cr);
+	}
+	override void set_clip(double x1, double y1, double x2, double y2) {
+		cairo_reset_clip(cr);
+		cairo_rectangle(cr, x1,y1, x2-x1, y2-y1);		
+		cairo_clip(cr);
+	}
+	override void clear(double r, double g, double b) {
+		cairo_save(cr);
+		cairo_set_source_rgba(cr, r,g,b,1);
+		cairo_paint(cr);
+		cairo_restore(cr);		
+	}
+	override void set_color(double r, double g, double b) {
+		cairo_set_source_rgba(cr, r,g,b,1);
+	}
+	double line_width;
+	override void set_line_width(double w) {
+		line_width = w;
+		cairo_set_line_width(cr, w);
+	}
+	override double get_line_width() {
+		return line_width;
+	}
+	override void vertical_line(double x, double y1, double y2) {
+		cairo_move_to(cr, x, y1);
+		cairo_line_to(cr, x, y2);
+	}
+	override void horizontal_line(double y, double x1, double x2) {
+		cairo_move_to(cr, x1, y);
+		cairo_line_to(cr, x2, y);
+	}
+	override void line(double x1, double y1, double x2, double y2) {
+		cairo_move_to(cr, x1, y1);
+		cairo_line_to(cr, x2, y2);
+	}
+	void rectangle(double x1, double y1, double x2, double y2)
+	{
+		cairo_rectangle(cr, x1,y1, x2-x1, y2-y1);
+	}
+	override void fill() {
+		cairo_fill(cr);
+	}
+	override void stroke() {
+		cairo_stroke(cr);
+	}
+	struct Bitmap {
+		uint[] data;
+		//ImageSurface surface;
+		//Pattern pattern;
+		cairo_surface_t* surface;
+		cairo_pattern_t* pattern;
+		int w,h;
+		int stride;
+	}
+	Bitmap[ulong] bitmaps;
+	ulong bitmap_counter = 0;
+	@trusted
+	override ulong    create_bitmap(int w, int h) {
+		//import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+		ulong handle = ++bitmap_counter;
+
+		Bitmap bmp;
+		//auto stride = ImageSurface.formatStrideForWidth(CairoFormat.ARGB32, w);
+		auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, w);
+		bmp.data = new uint[](w*h);
+		bmp.w = w;
+		bmp.h = h;
+		bmp.stride = stride;		
+
+		//bmp.surface = ImageSurface.createForData(cast(ubyte*)bmp.data.ptr, CairoFormat.ARGB32, w, h, stride);
+		//bmp.pattern = Pattern.createForSurface(bmp.surface);
+		//bmp.pattern.setFilter(CairoFilter.NEAREST);
+		bmp.surface = cairo_image_surface_create_for_data(cast(ubyte*)bmp.data.ptr, CAIRO_FORMAT_ARGB32, w, h, stride);
+		bmp.pattern = cairo_pattern_create_for_surface(bmp.surface);
+		cairo_pattern_set_filter(bmp.pattern, CAIRO_FILTER_NEAREST);
+
+		bitmaps[handle] = bmp;
+		return handle;
+	}
+	override void   destroy_bitmap(ulong handle) {
+		//import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+		bitmaps[handle].data = null;
+		//bitmaps[handle].pattern.destroy;
+		//bitmaps[handle].surface.destroy;
+		cairo_pattern_destroy(bitmaps[handle].pattern);
+		cairo_surface_destroy(bitmaps[handle].surface);
+		bitmaps.remove(handle);
+	}
+	@trusted
+	override uint[] access_bitmap_data(ulong handle) {
+		//import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+		return bitmaps[handle].data;
+	}
+	override void    access_bitmap_done(ulong handle) {
+		//import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+		bitmaps[handle].surface.destroy;
+		bitmaps[handle].pattern.destroy;
+		//bitmaps[handle].surface = ImageSurface.createForData(cast(ubyte*)bitmaps[handle].data.ptr, CairoFormat.ARGB32, bitmaps[handle].w, bitmaps[handle].h, bitmaps[handle].stride);
+		//bitmaps[handle].pattern = Pattern.createForSurface(bitmaps[handle].surface);
+		//bitmaps[handle].pattern.setFilter(CairoFilter.NEAREST);
+		bitmaps[handle].surface = cairo_image_surface_create_for_data (cast(ubyte*)bitmaps[handle].data.ptr, CAIRO_FORMAT_ARGB32, bitmaps[handle].w, bitmaps[handle].h, bitmaps[handle].stride);
+		bitmaps[handle].pattern = cairo_pattern_create_for_surface(bitmaps[handle].surface);
+		cairo_pattern_set_filter(bitmaps[handle].pattern, CAIRO_FILTER_NEAREST);
+	}
+	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
+		                                  double dx, double dy, double dw, double dh) {
+		//import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
+		cairo_save(cr);
+			cairo_translate(cr, dx,dy);
+			cairo_scale(cr, dw/sw, dh/sh);
+			cairo_translate(cr,-sx,-sy);
+			cairo_rectangle(cr, sx,sy, sw,sh);
+			//cairo_set_source(cr, bitmaps[handle].pattern.getPatternStruct());
+			cairo_set_source(cr, bitmaps[handle].pattern);
+			cairo_fill(cr);
+		cairo_restore(cr);
+	}
+
+	override void need_redraw() {
+		gtk_widget_queue_draw(cast(GtkWidget*)drawing_area);
+		//queueDraw();
+	}
+
+	override void show_mouse_pos(double x, double y, double z) {
+		//updateMousePosLabel(x,y);
+	}
+	override void show_value(double value, string itemname) {
+		//updateValue(value, itemname);
+	}
+	override void set_text_size(int s) {
+		cairo_set_font_size(cr, s);
+	}
+
+	override void text_extent(string str, out double w, out double h) {
+		//cairo_text_extents (cairo_t *cr, const char *utf8, cairo_text_extents_t *extents);.
+		cairo_text_extents_t cte;
+		import std.string, std.typecons;
+		auto strz = cast(char*)str.dup.toStringz;
+		cairo_text_extents(cr, strz, &cte);
+		w=cte.width;
+		h=cte.height;
+	}
+	override void text(double x, double y, string str) {
+		import std.string, std.typecons;
+		auto strz = cast(char*)str.dup.toStringz;
+		cairo_text_extents_t cte;
+		cairo_text_extents(cr, strz, &cte);
+		cairo_move_to(cr, x, y); 
+		cairo_show_text(cr, strz);
+	}
+
+}
+
 struct MyPlotWidget {
 	GtkBox *main_box;
 	GtkScrolledWindow* controls_scrolled_window;
@@ -360,20 +549,41 @@ struct MyPlotWidget {
 	GtkBox *controls_box;
 	GtkLabel *dummy;
 
+
+	CanvasProperties* canvas; 
+	CairoBackend cairo_backend;
+
 	extern(C) 
 	static void drawFunc(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
 		GtkAllocation size;
-		auto plot_widget = cast(MyPlotWidget*)userData;
-		//plot_widget.getAllocation(size);
-		//plot_widget.painter.resize(size.width,size.height);
-		//plot_widget.painter.canvas.width = size.width;
-		//plot_widget.painter.canvas.height = size.height;
-		//plot_widget.cr = cr;
-		//plot_widget.painter.draw_content();
+		gtk_widget_get_allocation(cast(GtkWidget*)drawingArea, &size);
+
+		CairoBackend backend = cast(CairoBackend)userData;
+
+		//auto plot_widget = cast(MyPlotWidget*)userData;
+		//cairo_set_source_rgba(cr, 1,0,0,1); // r g b a
+		//cairo_set_line_width(cr, 5.0);
+		//cairo_move_to(cr, 0, 0);
+		//cairo_line_to(cr, size.width, size.height);
+		//cairo_stroke(cr);
+
+
+
+		backend.set_cr(cr, size.width, size.height);
+		//plot_widget.backend.set_cr(cr, size.width, size.height);
+		backend.canvas.width = size.width;
+		backend.canvas.height = size.height;
+		backend.painter.draw_content();
+	}
+	extern(C) 
+	static void destroyNotify(void *data) {
 	}
 
+	this(string name, CanvasProperties *canvas_properties) {
 
-	this(string name) {
+		canvas        = canvas_properties;
+		cairo_backend = new CairoBackend(drawing_area, canvas);
+		cairo_backend.painter.backend = cairo_backend;
 
 		main_box = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 		controls_box = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -391,6 +601,7 @@ struct MyPlotWidget {
 		gtk_widget_set_vexpand(cast(GtkWidget*)drawing_area, true);
 		gtk_box_append(main_box, cast(GtkWidget*)drawing_area);
 		gtk_widget_set_size_request(cast(GtkWidget*)drawing_area, 100, 50);
+		gtk_drawing_area_set_draw_func(drawing_area, &drawFunc, cast(void*)cairo_backend, &destroyNotify);
 		separator = cast(GtkSeparator*)gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
 		gtk_box_append(main_box, cast(GtkWidget*)separator);
 		gtk_box_append(main_box, cast(GtkWidget*)controls_scrolled_window);
