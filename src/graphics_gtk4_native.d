@@ -360,7 +360,7 @@ class CairoBackend : BackendInterface
 	this (GtkDrawingArea *area, CanvasProperties *canvas_properties) {
 		drawing_area = area;
 		canvas       = canvas_properties;
-		painter      = CanvasPainter(canvas);
+		painter      = CanvasPainter(canvas, this);
 	}
 
 	cairo_t* cr;
@@ -435,8 +435,6 @@ class CairoBackend : BackendInterface
 	}
 	struct Bitmap {
 		uint[] data;
-		//ImageSurface surface;
-		//Pattern pattern;
 		cairo_surface_t* surface;
 		cairo_pattern_t* pattern;
 		int w,h;
@@ -446,20 +444,15 @@ class CairoBackend : BackendInterface
 	ulong bitmap_counter = 0;
 	@trusted
 	override ulong    create_bitmap(int w, int h) {
-		//import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
 		ulong handle = ++bitmap_counter;
 
 		Bitmap bmp;
-		//auto stride = ImageSurface.formatStrideForWidth(CairoFormat.ARGB32, w);
 		auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, w);
 		bmp.data = new uint[](w*h);
 		bmp.w = w;
 		bmp.h = h;
 		bmp.stride = stride;		
 
-		//bmp.surface = ImageSurface.createForData(cast(ubyte*)bmp.data.ptr, CairoFormat.ARGB32, w, h, stride);
-		//bmp.pattern = Pattern.createForSurface(bmp.surface);
-		//bmp.pattern.setFilter(CairoFilter.NEAREST);
 		bmp.surface = cairo_image_surface_create_for_data(cast(ubyte*)bmp.data.ptr, CAIRO_FORMAT_ARGB32, w, h, stride);
 		bmp.pattern = cairo_pattern_create_for_surface(bmp.surface);
 		cairo_pattern_set_filter(bmp.pattern, CAIRO_FILTER_NEAREST);
@@ -468,39 +461,29 @@ class CairoBackend : BackendInterface
 		return handle;
 	}
 	override void   destroy_bitmap(ulong handle) {
-		//import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
 		bitmaps[handle].data = null;
-		//bitmaps[handle].pattern.destroy;
-		//bitmaps[handle].surface.destroy;
 		cairo_pattern_destroy(bitmaps[handle].pattern);
 		cairo_surface_destroy(bitmaps[handle].surface);
 		bitmaps.remove(handle);
 	}
 	@trusted
 	override uint[] access_bitmap_data(ulong handle) {
-		//import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
 		return bitmaps[handle].data;
 	}
 	override void    access_bitmap_done(ulong handle) {
-		//import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
 		bitmaps[handle].surface.destroy;
 		bitmaps[handle].pattern.destroy;
-		//bitmaps[handle].surface = ImageSurface.createForData(cast(ubyte*)bitmaps[handle].data.ptr, CairoFormat.ARGB32, bitmaps[handle].w, bitmaps[handle].h, bitmaps[handle].stride);
-		//bitmaps[handle].pattern = Pattern.createForSurface(bitmaps[handle].surface);
-		//bitmaps[handle].pattern.setFilter(CairoFilter.NEAREST);
 		bitmaps[handle].surface = cairo_image_surface_create_for_data (cast(ubyte*)bitmaps[handle].data.ptr, CAIRO_FORMAT_ARGB32, bitmaps[handle].w, bitmaps[handle].h, bitmaps[handle].stride);
 		bitmaps[handle].pattern = cairo_pattern_create_for_surface(bitmaps[handle].surface);
 		cairo_pattern_set_filter(bitmaps[handle].pattern, CAIRO_FILTER_NEAREST);
 	}
 	override void draw_bitmap(ulong handle, double sx, double sy, double sw, double sh,
 		                                  double dx, double dy, double dw, double dh) {
-		//import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
 		cairo_save(cr);
 			cairo_translate(cr, dx,dy);
 			cairo_scale(cr, dw/sw, dh/sh);
 			cairo_translate(cr,-sx,-sy);
 			cairo_rectangle(cr, sx,sy, sw,sh);
-			//cairo_set_source(cr, bitmaps[handle].pattern.getPatternStruct());
 			cairo_set_source(cr, bitmaps[handle].pattern);
 			cairo_fill(cr);
 		cairo_restore(cr);
@@ -545,6 +528,7 @@ struct MyPlotWidget {
 	GtkBox *main_box;
 	GtkScrolledWindow* controls_scrolled_window;
 	GtkDrawingArea *drawing_area;
+		GtkEventControllerMotion *motion_controller;
 	GtkSeparator *separator;
 	GtkBox *controls_box;
 	GtkLabel *dummy;
@@ -560,17 +544,7 @@ struct MyPlotWidget {
 
 		CairoBackend backend = cast(CairoBackend)userData;
 
-		//auto plot_widget = cast(MyPlotWidget*)userData;
-		//cairo_set_source_rgba(cr, 1,0,0,1); // r g b a
-		//cairo_set_line_width(cr, 5.0);
-		//cairo_move_to(cr, 0, 0);
-		//cairo_line_to(cr, size.width, size.height);
-		//cairo_stroke(cr);
-
-
-
 		backend.set_cr(cr, size.width, size.height);
-		//plot_widget.backend.set_cr(cr, size.width, size.height);
 		backend.canvas.width = size.width;
 		backend.canvas.height = size.height;
 		backend.painter.draw_content();
@@ -579,11 +553,22 @@ struct MyPlotWidget {
 	static void destroyNotify(void *data) {
 	}
 
+	extern(C)
+	static void drawing_area_motion_callback(GtkEventControllerMotion* self,
+	                                         gdouble x, gdouble y, gpointer user_data) {
+		bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
+		bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
+		CairoBackend cairo_backend = cast(CairoBackend)user_data;
+		cairo_backend.painter.mouse_motion(x,y,cairo_backend,ctrl,shift);
+
+		import std.stdio;
+		writeln("motion ", x, " ", y);
+	}
+
 	this(string name, CanvasProperties *canvas_properties) {
 
 		canvas        = canvas_properties;
 		cairo_backend = new CairoBackend(drawing_area, canvas);
-		cairo_backend.painter.backend = cairo_backend;
 
 		main_box = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 		controls_box = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -605,5 +590,13 @@ struct MyPlotWidget {
 		separator = cast(GtkSeparator*)gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
 		gtk_box_append(main_box, cast(GtkWidget*)separator);
 		gtk_box_append(main_box, cast(GtkWidget*)controls_scrolled_window);
+
+
+		// attach motion controllers to drawing_area widget
+		motion_controller = cast(GtkEventControllerMotion*) gtk_event_controller_motion_new();
+		g_signal_connect(motion_controller, "motion", &drawing_area_motion_callback, cast(void*)cairo_backend);
+		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)motion_controller);
+
+
 	}
 }

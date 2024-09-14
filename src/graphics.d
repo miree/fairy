@@ -212,10 +212,6 @@ struct CanvasPainter {
 		canvas = c;
 		backend = b;
 	}
-	this(CanvasProperties *c) {
-		assert(c !is null);
-		canvas = c;
-	}
 
 	Visualizer[string] visualizers;
 
