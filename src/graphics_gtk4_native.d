@@ -4,19 +4,19 @@ import gtk4_import;
 import std.string : toStringz;
 
 
-void g_signal_connect(Widget,Callback)(Widget w, const char* signal_name, Callback callback, void* user_data) 
+ulong g_signal_connect(Widget,Callback)(Widget w, const char* signal_name, Callback callback, void* user_data) 
 {
-	g_signal_connect_d(cast(void*)w, signal_name, cast(void*)callback, user_data);
+	return g_signal_connect_d(cast(void*)w, signal_name, cast(void*)callback, user_data);
 }
 
-void g_signal_connect_swapped(Widget,Callback)(Widget w, const char* signal_name, Callback callback, void* user_data) 
+ulong g_signal_connect_swapped(Widget,Callback)(Widget w, const char* signal_name, Callback callback, void* user_data) 
 {
-	g_signal_connect_swapped_d(cast(void*)w, signal_name, cast(void*)callback, user_data);
+	return g_signal_connect_swapped_d(cast(void*)w, signal_name, cast(void*)callback, user_data);
 }
 
-void g_signal_connect_after(Widget,Callback)(Widget w, const char* signal_name, Callback callback, void* user_data) 
+ulong g_signal_connect_after(Widget,Callback)(Widget w, const char* signal_name, Callback callback, void* user_data) 
 {
-	g_signal_connect_after_d(cast(void*)w, signal_name, cast(void*)callback, user_data);
+	return g_signal_connect_after_d(cast(void*)w, signal_name, cast(void*)callback, user_data);
 }
 
 
@@ -58,11 +58,14 @@ class Gtk4NativeGui : Gui {
 
 
 	override void add_window(string name, ref CanvasProperties canvas) {
-		main_windows[name] = MainWindow(name, &canvas, application);
+		main_windows[name] = new MainWindow(name, &canvas, application);
 	}
 	override void close_window(string name) {
 	}
 	override void redraw_window(string name) {
+		//import std.stdio;
+		//writeln("redraw window ", name);
+		gtk_widget_queue_draw(cast(GtkWidget*)main_windows[name].plot_widget.drawing_area);
 	}
 	override void save_window(string name) { // copy window properties to canvas
 		auto window = name in main_windows;
@@ -117,7 +120,7 @@ class Gtk4NativeGui : Gui {
 	}
 }
 
-struct MainWindow 
+class MainWindow 
 {
 import graphics;
 
@@ -125,10 +128,10 @@ private:
 	GtkApplication*   application;
 	CanvasProperties* canvas;
 
-	GtkWindow* window;
-	GtkFrame* frame;
-	GtkPaned* paned;
-	MyItemView item_view;
+	GtkWindow*   window;
+	GtkFrame*    frame;
+	GtkPaned*    paned;
+	MyItemView   item_view;
 	MyPlotWidget plot_widget;
 
 	string name; 
@@ -143,8 +146,8 @@ private:
 		gtk_window_set_default_size(window, canvas.width, canvas.height);
 		frame       = cast(GtkFrame*)gtk_frame_new(null);
 		paned       = cast(GtkPaned*)gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
-		item_view  = MyItemView(this);
-		plot_widget = MyPlotWidget("plot_widget", canvas_properties);
+		item_view   = MyItemView(this);
+		plot_widget = MyPlotWidget(name, canvas_properties);
 
 		gtk_frame_set_child (cast(GtkFrame*)frame, cast(GtkWidget*)paned);
 
@@ -227,10 +230,10 @@ struct MyItemView {
 	GtkColumnView* col_view;
 	GtkScrolledWindow *scrolled_window;
 
-	MainWindow *main_window;
+	MainWindow main_window;
 
-	this(ref MainWindow window) {
-		main_window = &window;
+	this(MainWindow window) {
+		main_window = window;
 		string_list = gtk_string_list_new(null); // this implements GListModel
 		
 		// sync with session
@@ -354,18 +357,33 @@ struct MyItemView {
 
 
 struct MyPlotWidget {
+
+	string window_name;
+
 	GtkBox* main_box;
-	GtkScrolledWindow* controls_scrolled_window;
+	
 	GtkDrawingArea *drawing_area;
 		GtkEventControllerMotion* motion_controller;
 		GtkEventControllerScroll* scroll_controller;
 		GtkGestureClick* left_click;
 		GtkGestureClick* mid_click;
 		GtkGestureClick* right_click;
+	
 	GtkSeparator* separator;
-	GtkBox* controls_box;
-	GtkLabel* dummy;
-	GtkDrawingArea* mouse_pos;
+
+	GtkScrolledWindow* controls_scrolled_window;
+
+		GtkBox*         controls_box;
+
+			GtkCheckButton* check_autorefresh;
+			GtkButton*      button_refresh;
+			
+			GtkBox*         labels_fit_log; GtkBox*         checks_fit_log_x, checks_fit_log_y, checks_fit_log_z;
+			GtkLabel*       label_fit;      GtkCheckButton* check_fit_x,      check_fit_y,      check_fit_z;
+			GtkLabel*       label_log;      GtkCheckButton* check_log_x,      check_log_y,      check_log_z;
+
+			GtkLabel* dummy;
+			GtkDrawingArea* mouse_pos;
 
 
 	CanvasProperties* canvas; 
@@ -454,6 +472,10 @@ struct MyPlotWidget {
 
 
 	this(string name, CanvasProperties *canvas_properties) {
+		import ui;
+		import std.stdio;
+		writeln("MyPlotWidget constructor");
+		window_name  = name.dup;
 		drawing_area = cast(GtkDrawingArea*)gtk_drawing_area_new();
 		mouse_pos    = cast(GtkDrawingArea*)gtk_drawing_area_new();
 
@@ -466,6 +488,88 @@ struct MyPlotWidget {
 		gtk_scrolled_window_set_propagate_natural_width(controls_scrolled_window, true);
 		gtk_scrolled_window_set_propagate_natural_height(controls_scrolled_window, true);
 		gtk_scrolled_window_set_child(controls_scrolled_window, cast(GtkWidget*)controls_box);
+
+		check_autorefresh = cast(GtkCheckButton*)gtk_check_button_new_with_label("auto\nrefr.");
+		extern(C) static void check_autorefresh_toggled(GtkToggleButton* self,  gpointer user_data) {
+			ui.winpoll(*(cast(string*)user_data), gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		g_signal_connect(check_autorefresh, "toggled", &check_autorefresh_toggled, cast(void*)&window_name);
+		gtk_check_button_set_active(check_autorefresh, canvas.autorefresh);
+		gtk_box_append(controls_box, cast(GtkWidget*)check_autorefresh);
+
+		button_refresh = cast(GtkButton*)gtk_button_new_with_label("refr.");
+		extern(C) static void button_refresh_clicked(GtkButton* self,  gpointer user_data) {
+			ui.winrefresh(*(cast(string*)user_data)); 
+		}
+		g_signal_connect(button_refresh, "clicked", &button_refresh_clicked, cast(void*)&window_name);
+		gtk_box_append(controls_box, cast(GtkWidget*)button_refresh);
+
+		// fit (autoscale) for all 3 axis
+		label_fit = cast(GtkLabel*)gtk_label_new("fit");
+		check_fit_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
+		check_fit_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
+		check_fit_z = cast(GtkCheckButton*)gtk_check_button_new_with_label("Z");
+		gtk_check_button_set_active(check_fit_x, canvas.autoscale[0]);
+		gtk_check_button_set_active(check_fit_y, canvas.autoscale[1]);
+		gtk_check_button_set_active(check_fit_z, canvas.autoscale[2]);
+		extern(C) static void check_fit_x_toggled(GtkToggleButton* self,  gpointer user_data) {
+			ui.autoscale(*(cast(string*)user_data), 'x', gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		extern(C) static void check_fit_y_toggled(GtkToggleButton* self,  gpointer user_data) {
+			ui.autoscale(*(cast(string*)user_data), 'y', gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		extern(C) static void check_fit_z_toggled(GtkToggleButton* self,  gpointer user_data) {
+			ui.autoscale(*(cast(string*)user_data), 'z', gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		g_signal_connect(check_fit_x, "toggled", &check_fit_x_toggled, cast(void*)&window_name);
+		g_signal_connect(check_fit_y, "toggled", &check_fit_y_toggled, cast(void*)&window_name);
+		g_signal_connect(check_fit_z, "toggled", &check_fit_z_toggled, cast(void*)&window_name);
+
+		// logscale for all 3 axis
+		label_log = cast(GtkLabel*)gtk_label_new("log");
+		check_log_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
+		check_log_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
+		check_log_z = cast(GtkCheckButton*)gtk_check_button_new_with_label("Z");
+		gtk_check_button_set_active(check_log_x, canvas.autoscale[0]);
+		gtk_check_button_set_active(check_log_y, canvas.autoscale[1]);
+		gtk_check_button_set_active(check_log_z, canvas.autoscale[2]);
+		extern(C) static void check_log_x_toggled(GtkToggleButton* self,  gpointer user_data) {
+			ui.logscale(*(cast(string*)user_data), 'x', gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		extern(C) static void check_log_y_toggled(GtkToggleButton* self,  gpointer user_data) {
+			ui.logscale(*(cast(string*)user_data), 'y', gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		extern(C) static void check_log_z_toggled(GtkToggleButton* self,  gpointer user_data) {
+			ui.logscale(*(cast(string*)user_data), 'z', gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		g_signal_connect(check_log_x, "toggled", &check_log_x_toggled, cast(void*)&window_name);
+		g_signal_connect(check_log_y, "toggled", &check_log_y_toggled, cast(void*)&window_name);
+		g_signal_connect(check_log_z, "toggled", &check_log_z_toggled, cast(void*)&window_name);
+
+		labels_fit_log = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+		gtk_box_append(labels_fit_log, cast(GtkWidget*)label_fit);
+		gtk_box_append(labels_fit_log, cast(GtkWidget*)label_log);
+
+		checks_fit_log_x = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+		gtk_box_append(checks_fit_log_x, cast(GtkWidget*)check_fit_x);
+		gtk_box_append(checks_fit_log_x, cast(GtkWidget*)check_log_x);
+
+		checks_fit_log_y = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+		gtk_box_append(checks_fit_log_y, cast(GtkWidget*)check_fit_y);
+		gtk_box_append(checks_fit_log_y, cast(GtkWidget*)check_log_y);
+
+		checks_fit_log_z = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+		gtk_box_append(checks_fit_log_z, cast(GtkWidget*)check_fit_z);
+		gtk_box_append(checks_fit_log_z, cast(GtkWidget*)check_log_z);
+
+
+
+
+
+		gtk_box_append(controls_box, cast(GtkWidget*)labels_fit_log);
+		gtk_box_append(controls_box, cast(GtkWidget*)checks_fit_log_x);
+		gtk_box_append(controls_box, cast(GtkWidget*)checks_fit_log_y);
+		gtk_box_append(controls_box, cast(GtkWidget*)checks_fit_log_z);
 
 
 		dummy = cast(GtkLabel*)gtk_label_new("dummy");
@@ -716,33 +820,18 @@ class CairoBackend : BackendInterface
 	}
 
 	override void need_redraw() {
-		//import std.stdio;
-		//writeln("need_redraw");
 		gtk_widget_queue_draw(cast(GtkWidget*)drawing_area);
 	}
 
 	override void show_mouse_pos(double x, double y, double z) {
-		//import std.stdio;
-		//writeln("show_mouse_pos ", x, " ", y, " ", z);
 		mouse_pos[0] = x;
 		mouse_pos[1] = y;
 		mouse_pos[2] = z;
-
 		gtk_widget_queue_draw(cast(GtkWidget*)mouse_pos_drawing_area);
-		//with(painter) if (translating_ongoing   |
-		//                  scaling_ongoing       |
-		//                  z_translating_ongoing |
-		//                  z_scaling_ongoing) return;
-		//import core.stdc.stdio;
-		//static char[256] buffer;
-		//snprintf(buffer.ptr, buffer.length, "x = %lf y = %lf", x,y);
-		//gtk_label_set_text(mouse_pos, buffer.ptr);
-		//updateMousePosLabel(x,y);
 	}
 	override void show_value(double value, string itemname) {
 		mouse_itemname = itemname;
-		mouse_value = value;
-		//updateValue(value, itemname);
+		mouse_value    = value;
 	}
 	override void set_text_size(int s) {
 		cairo_set_font_size(cr, s);
