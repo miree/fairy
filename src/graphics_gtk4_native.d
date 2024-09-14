@@ -378,11 +378,14 @@ struct MyPlotWidget {
 			GtkCheckButton* check_autorefresh;
 			GtkButton*      button_refresh;
 			
-			GtkBox*         labels_fit_log; GtkBox*         checks_fit_log_x, checks_fit_log_y, checks_fit_log_z;
-			GtkLabel*       label_fit;      GtkCheckButton* check_fit_x,      check_fit_y,      check_fit_z;
-			GtkLabel*       label_log;      GtkCheckButton* check_log_x,      check_log_y,      check_log_z;
+			GtkBox* box_fit_log;
+			GtkBox* box_fit; GtkLabel*       label_fit;      GtkCheckButton* check_fit_x,      check_fit_y,      check_fit_z;
+			GtkBox* box_log; GtkLabel*       label_log;      GtkCheckButton* check_log_x,      check_log_y,      check_log_z;
 
-			GtkLabel* dummy;
+			GtkBox* box_grid_nums;
+			GtkBox* box_grid; GtkLabel*       label_grid;      GtkCheckButton* check_grid_x,      check_grid_y,      check_grid_z;
+			GtkBox* box_nums; GtkLabel*       label_nums;      GtkCheckButton* check_nums_x,      check_nums_y,      check_nums_z;
+
 			GtkDrawingArea* mouse_pos;
 
 
@@ -498,6 +501,15 @@ struct MyPlotWidget {
 		gtk_box_append(controls_box, cast(GtkWidget*)check_autorefresh);
 
 		button_refresh = cast(GtkButton*)gtk_button_new_with_label("refr.");
+		// reduce padding top and bottom from button
+			//GtkCssProvider* provider = gtk_css_provider_new();
+			//gtk_css_provider_load_from_data(provider, "#custom_button { border: none; margin: 0px; padding-top: 0px; padding-bottom: 0px; min-height: 10px; height: 10px; }", -1);
+			//GdkDisplay* display = gdk_display_get_default();
+			//gtk_style_context_add_provider_for_display(display, cast(GtkStyleProvider*)provider, 800/+GTK_STYLE_PROVIDER_PRIORITY_USER+/);
+			//// Set the button's CSS name to the custom style (ID selector)
+			//gtk_widget_set_name(cast(GtkWidget*)button_refresh, "custom_button");
+
+		gtk_widget_set_size_request(cast(GtkWidget*)button_refresh,20,20);
 		extern(C) static void button_refresh_clicked(GtkButton* self,  gpointer user_data) {
 			ui.winrefresh(*(cast(string*)user_data)); 
 		}
@@ -505,7 +517,7 @@ struct MyPlotWidget {
 		gtk_box_append(controls_box, cast(GtkWidget*)button_refresh);
 
 		// fit (autoscale) for all 3 axis
-		label_fit = cast(GtkLabel*)gtk_label_new("fit");
+		label_fit = cast(GtkLabel*)gtk_label_new("fit:");
 		check_fit_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
 		check_fit_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
 		check_fit_z = cast(GtkCheckButton*)gtk_check_button_new_with_label("Z");
@@ -526,7 +538,7 @@ struct MyPlotWidget {
 		g_signal_connect(check_fit_z, "toggled", &check_fit_z_toggled, cast(void*)&window_name);
 
 		// logscale for all 3 axis
-		label_log = cast(GtkLabel*)gtk_label_new("log");
+		label_log = cast(GtkLabel*)gtk_label_new("log:");
 		check_log_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
 		check_log_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
 		check_log_z = cast(GtkCheckButton*)gtk_check_button_new_with_label("Z");
@@ -546,35 +558,93 @@ struct MyPlotWidget {
 		g_signal_connect(check_log_y, "toggled", &check_log_y_toggled, cast(void*)&window_name);
 		g_signal_connect(check_log_z, "toggled", &check_log_z_toggled, cast(void*)&window_name);
 
-		labels_fit_log = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-		gtk_box_append(labels_fit_log, cast(GtkWidget*)label_fit);
-		gtk_box_append(labels_fit_log, cast(GtkWidget*)label_log);
+		box_fit = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		box_log = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		box_fit_log = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+		gtk_box_append(box_fit_log, cast(GtkWidget*)box_fit);
+		gtk_box_append(box_fit_log, cast(GtkWidget*)box_log);
 
-		checks_fit_log_x = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-		gtk_box_append(checks_fit_log_x, cast(GtkWidget*)check_fit_x);
-		gtk_box_append(checks_fit_log_x, cast(GtkWidget*)check_log_x);
+		gtk_widget_set_size_request(cast(GtkWidget*)label_fit, 30,0);
+		gtk_box_append(box_fit, cast(GtkWidget*)label_fit);
+		gtk_box_append(box_fit, cast(GtkWidget*)check_fit_x);
+		gtk_box_append(box_fit, cast(GtkWidget*)check_fit_y);
+		gtk_box_append(box_fit, cast(GtkWidget*)check_fit_z);
 
-		checks_fit_log_y = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-		gtk_box_append(checks_fit_log_y, cast(GtkWidget*)check_fit_y);
-		gtk_box_append(checks_fit_log_y, cast(GtkWidget*)check_log_y);
+		gtk_widget_set_size_request(cast(GtkWidget*)label_log, 30,0);
+		gtk_box_append(box_log, cast(GtkWidget*)label_log);
+		gtk_box_append(box_log, cast(GtkWidget*)check_log_x);
+		gtk_box_append(box_log, cast(GtkWidget*)check_log_y);
+		gtk_box_append(box_log, cast(GtkWidget*)check_log_z);
 
-		checks_fit_log_z = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-		gtk_box_append(checks_fit_log_z, cast(GtkWidget*)check_fit_z);
-		gtk_box_append(checks_fit_log_z, cast(GtkWidget*)check_log_z);
-
-
-
-
-
-		gtk_box_append(controls_box, cast(GtkWidget*)labels_fit_log);
-		gtk_box_append(controls_box, cast(GtkWidget*)checks_fit_log_x);
-		gtk_box_append(controls_box, cast(GtkWidget*)checks_fit_log_y);
-		gtk_box_append(controls_box, cast(GtkWidget*)checks_fit_log_z);
+		gtk_box_append(controls_box, cast(GtkWidget*)box_fit_log);
 
 
-		dummy = cast(GtkLabel*)gtk_label_new("dummy");
-		gtk_box_append(controls_box, cast(GtkWidget*)dummy);
-		gtk_widget_set_size_request(cast(GtkWidget*)mouse_pos, 700, 40);
+
+		// grid for all 3 axis
+		label_grid = cast(GtkLabel*)gtk_label_new("grid:");
+		check_grid_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
+		check_grid_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
+		check_grid_z = cast(GtkCheckButton*)gtk_check_button_new_with_label("top");
+		gtk_check_button_set_active(check_grid_x, canvas.grid[0]);
+		gtk_check_button_set_active(check_grid_y, canvas.grid[1]);
+		gtk_check_button_set_active(check_grid_z, canvas.grid_ontop);
+		extern(C) static void check_grid_x_toggled(GtkToggleButton* self, gpointer user_data) {
+			ui.grid(*(cast(string*)user_data), "x", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		extern(C) static void check_grid_y_toggled(GtkToggleButton* self, gpointer user_data) {
+			ui.grid(*(cast(string*)user_data), "y", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		extern(C) static void check_grid_z_toggled(GtkToggleButton* self, gpointer user_data) {
+			ui.grid(*(cast(string*)user_data), "top", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		g_signal_connect(check_grid_x, "toggled", &check_grid_x_toggled, cast(void*)&window_name);
+		g_signal_connect(check_grid_y, "toggled", &check_grid_y_toggled, cast(void*)&window_name);
+		g_signal_connect(check_grid_z, "toggled", &check_grid_z_toggled, cast(void*)&window_name);
+
+		// numbers for all 3 axis
+		label_nums = cast(GtkLabel*)gtk_label_new("nums:");
+		check_nums_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
+		check_nums_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
+		check_nums_z = cast(GtkCheckButton*)gtk_check_button_new_with_label("top");
+		gtk_check_button_set_active(check_nums_x, canvas.numbers[0]);
+		gtk_check_button_set_active(check_nums_y, canvas.numbers[1]);
+		gtk_check_button_set_active(check_nums_z, canvas.numbers_ontop);
+		extern(C) static void check_nums_x_toggled(GtkToggleButton* self, gpointer user_data) {
+			ui.numbers(*(cast(string*)user_data), "x", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		extern(C) static void check_nums_y_toggled(GtkToggleButton* self, gpointer user_data) {
+			ui.numbers(*(cast(string*)user_data), "y", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		extern(C) static void check_nums_z_toggled(GtkToggleButton* self, gpointer user_data) {
+			ui.numbers(*(cast(string*)user_data), "top", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		g_signal_connect(check_nums_x, "toggled", &check_nums_x_toggled, cast(void*)&window_name);
+		g_signal_connect(check_nums_y, "toggled", &check_nums_y_toggled, cast(void*)&window_name);
+		g_signal_connect(check_nums_z, "toggled", &check_nums_z_toggled, cast(void*)&window_name);
+
+		box_grid = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		box_nums = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		box_grid_nums = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+		gtk_box_append(box_grid_nums, cast(GtkWidget*)box_grid);
+		gtk_box_append(box_grid_nums, cast(GtkWidget*)box_nums);
+
+		gtk_widget_set_size_request(cast(GtkWidget*)label_grid, 50,0);
+		gtk_box_append(box_grid, cast(GtkWidget*)label_grid);
+		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_x);
+		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_y);
+		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_z);
+
+		gtk_widget_set_size_request(cast(GtkWidget*)label_nums, 50,0);
+		gtk_box_append(box_nums, cast(GtkWidget*)label_nums);
+		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_x);
+		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_y);
+		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_z);
+
+		gtk_box_append(controls_box, cast(GtkWidget*)box_grid_nums);
+
+
+
+		gtk_widget_set_size_request(cast(GtkWidget*)mouse_pos, 700, 20);
 		gtk_drawing_area_set_draw_func(mouse_pos, &mousePosDrawFunc, cast(void*)cairo_backend, null);
 		gtk_box_append(controls_box, cast(GtkWidget*)mouse_pos);
 		import std.string;
