@@ -86,6 +86,9 @@ class Gtk4NativeGui : Gui {
 		}
 	}
 	override void update_from_canvas(string name) {
+		if (name in main_windows) {
+			main_windows[name].update_from_canvas();
+		}
 	}
 
 	override void loop() {
@@ -165,6 +168,13 @@ private:
 		gtk_window_set_child(window, cast(GtkWidget*)frame);
 		gtk_window_present(window);
 	}
+
+	void update_from_canvas() {
+		//assert(item_view !is null);
+		//item_view.sync_with_session();
+		//item_view.sync_with_canvas(canvas);
+		plot_widget.sync_with_canvas(canvas);
+	}	
 }
 
 
@@ -365,6 +375,7 @@ struct MyPlotWidget {
 	GtkDrawingArea *drawing_area;
 		GtkEventControllerMotion* motion_controller;
 		GtkEventControllerScroll* scroll_controller;
+		GtkEventControllerKey*    key_controller;
 		GtkGestureClick* left_click;
 		GtkGestureClick* mid_click;
 		GtkGestureClick* right_click;
@@ -387,8 +398,8 @@ struct MyPlotWidget {
 			GtkSeparator*   sep2;
 
 			GtkBox* box_grid_nums;
-			GtkBox* box_grid; GtkLabel*       label_grid;      GtkCheckButton* check_grid_x,      check_grid_y,      check_grid_z;
-			GtkBox* box_nums; GtkLabel*       label_nums;      GtkCheckButton* check_nums_x,      check_nums_y,      check_nums_z;
+			GtkBox* box_grid; GtkLabel*       label_grid;      GtkCheckButton* check_grid_x,      check_grid_y,      check_grid_top;
+			GtkBox* box_nums; GtkLabel*       label_nums;      GtkCheckButton* check_nums_x,      check_nums_y,      check_nums_top;
 
 			GtkSeparator*   sep3;
 
@@ -409,6 +420,28 @@ struct MyPlotWidget {
 
 	CanvasProperties* canvas; 
 	CairoBackend cairo_backend;
+
+	void sync_with_canvas(CanvasProperties *canvas) {
+		gtk_check_button_set_active(check_autorefresh, canvas.autorefresh);
+		gtk_check_button_set_active(check_fit_x,       canvas.autoscale[0]);
+		gtk_check_button_set_active(check_fit_y,       canvas.autoscale[1]);
+		gtk_check_button_set_active(check_fit_z,       canvas.autoscale[2]);
+		gtk_check_button_set_active(check_log_x,       canvas.transform[0].logscale);
+		gtk_check_button_set_active(check_log_y,       canvas.transform[1].logscale);
+		gtk_check_button_set_active(check_log_z,       canvas.transform[2].logscale);
+		gtk_check_button_set_active(check_grid_x,      canvas.grid[0]);
+		gtk_check_button_set_active(check_grid_y,      canvas.grid[1]);
+		gtk_check_button_set_active(check_grid_top,    canvas.grid_ontop);
+		gtk_check_button_set_active(check_nums_x,      canvas.numbers[0]);
+		gtk_check_button_set_active(check_nums_y,      canvas.numbers[1]);
+		gtk_check_button_set_active(check_nums_top,    canvas.numbers_ontop);
+		gtk_check_button_set_active(check_colorbar,    canvas.color_bar);
+		gtk_spin_button_set_value(spin_n_columns, canvas.columns_or_rows);
+		//gtk_check_button_set_active(spin_n_columns,    anvas.columns_or_rows);
+		if (canvas.display_mode == DisplayMode.overlay) gtk_check_button_set_active(radio_overlay,  true);
+		if (canvas.display_mode == DisplayMode.rows)    gtk_check_button_set_active(radio_rowmajor, true);
+		if (canvas.display_mode == DisplayMode.columns) gtk_check_button_set_active(radio_colmajor, true);
+	}
 
 	extern(C)
 	static void mousePosDrawFunc(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
@@ -479,6 +512,12 @@ struct MyPlotWidget {
 		CairoBackend cairo_backend = cast(CairoBackend)user_data;
 		cairo_backend.painter.mouse_motion(x,y,cairo_backend,ctrl,shift);
 	}
+	// mouse enter
+	extern(C) static void drawing_area_enter_callback(GtkEventControllerMotion* self,
+	                                         gdouble x, gdouble y, gpointer user_data) {
+		CairoBackend cairo_backend = cast(CairoBackend)user_data;
+		gtk_widget_grab_focus(cast(GtkWidget*)cairo_backend.drawing_area);
+	}
 
 	// mouse wheel
 	extern(C)
@@ -491,6 +530,35 @@ struct MyPlotWidget {
 	}
 
 
+	// mouse wheel
+	extern(C)
+	static void drawing_area_key_pressed_callback(GtkEventControllerKey* self,
+	                                              guint keyval, guint keycode, GdkModifierType state, gpointer user_data) {
+		import ui;
+		string name = *(cast(string*)user_data);
+		switch(keyval) {
+			case '1': .. case '9': gtk_spin_button_set_value(Gtk4NativeGui.main_windows[name].plot_widget.spin_n_columns, keyval-'0'); break;
+			case 'u': ui.winrefresh(name);                                                                                             break;
+			case 'p': ui.winpoll(name);                                                                                                break;
+			case 'q': ui.winzoom(name,1*1.2);                                                                                          break;
+			case 'e': ui.winzoom(name,1/1.1666666666);                                                                                 break;
+			case 'a': ui.winmove(name,'x',-0.2);                                                                                       break;
+			case 'd': ui.winmove(name,'x',+0.2);                                                                                       break;
+			case 's': ui.winmove(name,'y',-0.2);                                                                                       break;
+			case 'w': ui.winmove(name,'y',+0.2);                                                                                       break;
+			case 'o': ui.overlay(name);                                                                                                break;
+			case 'b': ui.colorbar(name);                                                                                               break;
+			case 'c': gtk_check_button_set_active(Gtk4NativeGui.main_windows[name].plot_widget.radio_colmajor, true);                  break;
+			case 'r': gtk_check_button_set_active(Gtk4NativeGui.main_windows[name].plot_widget.radio_rowmajor, true);                  break;
+			case 'z': ui.autoscale(name, 'z', "toggle");                                                                               break;
+			case 'x': ui.autoscale(name, 'x', "toggle");                                                                               break;
+			case 'y': ui.autoscale(name, 'y', "toggle");                                                                               break;
+			case 'l': ui.logscale (name, Gtk4NativeGui.main_windows[name].plot_widget.canvas.dim==2?'z':'y', "toggle");                break;
+			case 'f': ui.winfit(name);                                                                                                 break;
+			default: {}
+		}
+	}
+
 
 	this(string name, CanvasProperties *canvas_properties) {
 		import ui;
@@ -498,6 +566,8 @@ struct MyPlotWidget {
 		writeln("MyPlotWidget constructor");
 		window_name  = name.dup;
 		drawing_area = cast(GtkDrawingArea*)gtk_drawing_area_new();
+		gtk_widget_set_can_focus(cast(GtkWidget*)drawing_area, true);
+		gtk_widget_set_focusable(cast(GtkWidget*)drawing_area, true);
 		mouse_pos    = cast(GtkDrawingArea*)gtk_drawing_area_new();
 
 		canvas        = canvas_properties;
@@ -609,43 +679,43 @@ struct MyPlotWidget {
 		label_grid = cast(GtkLabel*)gtk_label_new("grid:");
 		check_grid_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
 		check_grid_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
-		check_grid_z = cast(GtkCheckButton*)gtk_check_button_new_with_label("top");
+		check_grid_top = cast(GtkCheckButton*)gtk_check_button_new_with_label("top");
 		gtk_check_button_set_active(check_grid_x, canvas.grid[0]);
 		gtk_check_button_set_active(check_grid_y, canvas.grid[1]);
-		gtk_check_button_set_active(check_grid_z, canvas.grid_ontop);
+		gtk_check_button_set_active(check_grid_top, canvas.grid_ontop);
 		extern(C) static void check_grid_x_toggled(GtkToggleButton* self, gpointer user_data) {
 			ui.grid(*(cast(string*)user_data), "x", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
 		extern(C) static void check_grid_y_toggled(GtkToggleButton* self, gpointer user_data) {
 			ui.grid(*(cast(string*)user_data), "y", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
-		extern(C) static void check_grid_z_toggled(GtkToggleButton* self, gpointer user_data) {
+		extern(C) static void check_grid_top_toggled(GtkToggleButton* self, gpointer user_data) {
 			ui.grid(*(cast(string*)user_data), "top", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
 		g_signal_connect(check_grid_x, "toggled", &check_grid_x_toggled, cast(void*)&window_name);
 		g_signal_connect(check_grid_y, "toggled", &check_grid_y_toggled, cast(void*)&window_name);
-		g_signal_connect(check_grid_z, "toggled", &check_grid_z_toggled, cast(void*)&window_name);
+		g_signal_connect(check_grid_top, "toggled", &check_grid_top_toggled, cast(void*)&window_name);
 
 		// numbers for all 3 axis
 		label_nums = cast(GtkLabel*)gtk_label_new("nums:");
 		check_nums_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
 		check_nums_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
-		check_nums_z = cast(GtkCheckButton*)gtk_check_button_new_with_label("top");
+		check_nums_top = cast(GtkCheckButton*)gtk_check_button_new_with_label("top");
 		gtk_check_button_set_active(check_nums_x, canvas.numbers[0]);
 		gtk_check_button_set_active(check_nums_y, canvas.numbers[1]);
-		gtk_check_button_set_active(check_nums_z, canvas.numbers_ontop);
+		gtk_check_button_set_active(check_nums_top, canvas.numbers_ontop);
 		extern(C) static void check_nums_x_toggled(GtkToggleButton* self, gpointer user_data) {
 			ui.numbers(*(cast(string*)user_data), "x", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
 		extern(C) static void check_nums_y_toggled(GtkToggleButton* self, gpointer user_data) {
 			ui.numbers(*(cast(string*)user_data), "y", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
-		extern(C) static void check_nums_z_toggled(GtkToggleButton* self, gpointer user_data) {
+		extern(C) static void check_nums_top_toggled(GtkToggleButton* self, gpointer user_data) {
 			ui.numbers(*(cast(string*)user_data), "top", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
 		g_signal_connect(check_nums_x, "toggled", &check_nums_x_toggled, cast(void*)&window_name);
 		g_signal_connect(check_nums_y, "toggled", &check_nums_y_toggled, cast(void*)&window_name);
-		g_signal_connect(check_nums_z, "toggled", &check_nums_z_toggled, cast(void*)&window_name);
+		g_signal_connect(check_nums_top, "toggled", &check_nums_top_toggled, cast(void*)&window_name);
 
 		box_grid = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 		box_nums = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -657,13 +727,13 @@ struct MyPlotWidget {
 		gtk_box_append(box_grid, cast(GtkWidget*)label_grid);
 		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_x);
 		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_y);
-		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_z);
+		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_top);
 
 		gtk_widget_set_size_request(cast(GtkWidget*)label_nums, 50,0);
 		gtk_box_append(box_nums, cast(GtkWidget*)label_nums);
 		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_x);
 		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_y);
-		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_z);
+		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_top);
 
 		gtk_box_append(controls_box, cast(GtkWidget*)box_grid_nums);
 
@@ -757,12 +827,18 @@ struct MyPlotWidget {
 		// attach motion controller to drawing_area widget
 		motion_controller = cast(GtkEventControllerMotion*) gtk_event_controller_motion_new();
 		g_signal_connect(motion_controller, "motion", &drawing_area_motion_callback, cast(void*)cairo_backend);
+		g_signal_connect(motion_controller, "enter", &drawing_area_enter_callback, cast(void*)cairo_backend);
 		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)motion_controller);
 
 		// attach scroll controller to drawing_area widget
 		scroll_controller = cast(GtkEventControllerScroll*) gtk_event_controller_scroll_new(GTK_EVENT_CONTROLLER_SCROLL_VERTICAL | GTK_EVENT_CONTROLLER_SCROLL_HORIZONTAL);
 		g_signal_connect(scroll_controller, "scroll", &drawing_area_scroll_callback, cast(void*)cairo_backend);
 		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)scroll_controller);
+
+		key_controller = cast(GtkEventControllerKey*)gtk_event_controller_key_new();
+		g_signal_connect(key_controller, "key-pressed", &drawing_area_key_pressed_callback, cast(void*)&window_name);
+		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)key_controller);
+
 
 
 		// left mouse button
@@ -781,7 +857,7 @@ struct MyPlotWidget {
 			cairo_backend.painter.left_button_released(nPress,x,y,ctrl,shift);
 		}
 		left_click = cast(GtkGestureClick*)gtk_gesture_click_new();
-		gtk_gesture_single_set_button(cast(GtkGestureSingle*)left_click, 1);
+		gtk_gesture_single_set_button(cast(GtkGestureSingle*)left_click, GdkButton.PRIMARY);
 		g_signal_connect(left_click, "pressed", &drawing_area_left_click_callback, cast(void*)cairo_backend);
 		g_signal_connect(left_click, "released", &drawing_area_left_release_callback, cast(void*)cairo_backend);
 		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)left_click);
@@ -802,7 +878,7 @@ struct MyPlotWidget {
 			cairo_backend.painter.mid_button_released(nPress,x,y,ctrl,shift);
 		}
 		mid_click = cast(GtkGestureClick*)gtk_gesture_click_new();
-		gtk_gesture_single_set_button(cast(GtkGestureSingle*)mid_click, 2);
+		gtk_gesture_single_set_button(cast(GtkGestureSingle*)mid_click, GdkButton.MIDDLE);
 		g_signal_connect(mid_click, "pressed", &drawing_area_mid_click_callback, cast(void*)cairo_backend);
 		g_signal_connect(mid_click, "released", &drawing_area_mid_release_callback, cast(void*)cairo_backend);
 		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)mid_click);
@@ -827,7 +903,7 @@ struct MyPlotWidget {
 			cairo_backend.painter.right_button_released(nPress,x,y,ctrl,shift);
 		}
 		right_click = cast(GtkGestureClick*)gtk_gesture_click_new();
-		gtk_gesture_single_set_button(cast(GtkGestureSingle*)right_click, 3);
+		gtk_gesture_single_set_button(cast(GtkGestureSingle*)right_click, GdkButton.SECONDARY);
 		g_signal_connect(right_click, "pressed", &drawing_area_right_click_callback, cast(void*)cairo_backend);
 		g_signal_connect(right_click, "released", &drawing_area_right_release_callback, cast(void*)cairo_backend);
 		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)right_click);
