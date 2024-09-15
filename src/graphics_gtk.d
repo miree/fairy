@@ -1195,10 +1195,17 @@ class PlotWidget : Box {
 	CheckButton check_colorbar;
 	CheckOrRadioButton radio_overlay, radio_rowmajor, radio_colmajor; // grouped to form a gtk3 RadioButton
 	SpinButton  spin_n_columns;
-	Box         mouse_pos_box;
-	Label       mouse_pos;
-	Box         mouse_pos_value_box;
-	Label       mouse_pos_value;
+	version(gtk3) {
+		Box         mouse_pos_box;
+		Label       mouse_pos;
+		Box         mouse_pos_value_box;
+		Label       mouse_pos_value;
+	} else {
+		MousePos    mouse_pos_display;
+		double[3] mouse_pos;
+		double    mouse_value;
+		string    mouse_itemname;
+	}
 
 	version(gtk3) {
 		void append(ChildWidget)(ChildWidget ch) {
@@ -1341,6 +1348,8 @@ class PlotWidget : Box {
 
 //		///////////////////////////////////////////////////////
 
+		version(gtk3){ 
+
 		mouse_pos = new Label("  x=0\n  y=0");
 		mouse_pos.setJustify(GtkJustification.LEFT);
 		mouse_pos_box = new Box(GtkOrientation.HORIZONTAL, 0);
@@ -1351,7 +1360,9 @@ class PlotWidget : Box {
 		mouse_pos_value_box = new Box(GtkOrientation.HORIZONTAL, 0);
 		mouse_pos_value_box.setSizeRequest(150,0);
 		mouse_pos_value_box.append(mouse_pos_value);
-
+		} else {
+			mouse_pos_display = new MousePos(this);
+		}
 
 
 		///////////////////////////////////////////////
@@ -1417,26 +1428,105 @@ class PlotWidget : Box {
 		controls.append(row_col_radios);
 
 		controls.append(new Separator(GtkOrientation.VERTICAL));
-		controls.append(mouse_pos_box);
-		controls.append(mouse_pos_value_box);
+		version (gtk3) {
+			controls.append(mouse_pos_box);
+			controls.append(mouse_pos_value_box);
+		} else {
+			controls.append(mouse_pos_display);
+		}
 
 	}
 
 	void setMousePosLabel(double x, double y) {
-		import std.format;
-		auto label = format("  x=%g\n  y=%g", x,y);
-		mouse_pos.setLabel(label);
-		mouse_pos.setJustify(GtkJustification.LEFT);
+		version (gtk3) {
+			import std.format;
+			auto label = format("  x=%g\n  y=%g", x,y);
+			mouse_pos.setLabel(label);
+			mouse_pos.setJustify(GtkJustification.LEFT);
+		} else {
+			mouse_pos[0] = x;
+			mouse_pos[1] = y;
+			mouse_pos_display.queueDraw();
+		}
 	}
 	void setMousePosLabelValue(double value, string name) {
-		import std.format;
-		if (name !is null && name != "") {
-			auto label = format(" %s\n value=%g", name, value);
-			mouse_pos_value.setLabel(label);
+		version (gtk3) {
+			import std.format;
+			if (name !is null && name != "") {
+				auto label = format(" %s\n value=%g", name, value);
+				mouse_pos_value.setLabel(label);
+			} else {
+				mouse_pos_value.setLabel("");
+			}
 		} else {
-			mouse_pos_value.setLabel("");
+			mouse_value = value;
+			mouse_itemname = name;
+			mouse_pos_display.queueDraw();
 		}
 	}	
+}
+
+version(gtk4) {
+
+	class MousePos : DrawingArea {
+		import gtk.c.types;
+		import gtk.c.functions;
+		import cairo.c.types;
+		import cairo.c.functions;
+
+
+		extern(C)
+		static void drawFuncMouse(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
+			import std.stdio;
+			writeln("mousePosDrawFunc");
+			auto plot_widget = cast(PlotWidget)userData;
+			GtkAllocation size;
+			gtk_widget_get_allocation(cast(GtkWidget*)drawingArea, &size);
+			cairo_set_source_rgba(cr, 0,0,0,1);
+
+			cairo_set_font_size(cr, 14);
+			static char[256] buffer;
+			import core.stdc.stdio;
+
+			snprintf(buffer.ptr, buffer.length, "x = %f", plot_widget.mouse_pos[0]);
+			cairo_move_to(cr, 20,20);
+			cairo_show_text(cr, buffer.ptr);
+			cairo_stroke(cr);			
+
+			snprintf(buffer.ptr, buffer.length, "y = %f", plot_widget.mouse_pos[1]);
+			cairo_move_to(cr, 140,20);
+			cairo_show_text(cr, buffer.ptr);
+			cairo_stroke(cr);			
+
+			//snprintf(buffer.ptr, buffer.length, "z = %f", plot_widget.mouse_pos[2]);
+			//cairo_move_to(cr, 260,20);
+			//cairo_show_text(cr, buffer.ptr);
+			//cairo_stroke(cr);			
+
+			if (plot_widget.mouse_value !is double.init) {
+				snprintf(buffer.ptr, buffer.length, "%f", plot_widget.mouse_value);
+				cairo_move_to(cr, 20,40);
+				cairo_show_text(cr, buffer.ptr);
+				cairo_stroke(cr);			
+			}
+
+			if (plot_widget.mouse_itemname !is null) {
+				import std.string;
+				snprintf(buffer.ptr, buffer.length, "%s", plot_widget.mouse_itemname.ptr);
+				cairo_move_to(cr, 140,40);
+				cairo_show_text(cr, buffer.ptr);
+				cairo_stroke(cr);			
+			}	}
+		extern(C) 
+		static void destroyNotifyMouse(void *data) {
+		}
+
+
+		this(PlotWidget plot_widget) {
+			setDrawFunc(&drawFuncMouse, cast(void*)plot_widget, &destroyNotifyMouse);
+			setSizeRequest(700, 20);
+		}
+	}
 }
 
 //import draw;
