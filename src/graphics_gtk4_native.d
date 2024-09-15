@@ -377,14 +377,32 @@ struct MyPlotWidget {
 
 			GtkCheckButton* check_autorefresh;
 			GtkButton*      button_refresh;
+
+			GtkSeparator*   sep1;
 			
 			GtkBox* box_fit_log;
 			GtkBox* box_fit; GtkLabel*       label_fit;      GtkCheckButton* check_fit_x,      check_fit_y,      check_fit_z;
 			GtkBox* box_log; GtkLabel*       label_log;      GtkCheckButton* check_log_x,      check_log_y,      check_log_z;
 
+			GtkSeparator*   sep2;
+
 			GtkBox* box_grid_nums;
 			GtkBox* box_grid; GtkLabel*       label_grid;      GtkCheckButton* check_grid_x,      check_grid_y,      check_grid_z;
 			GtkBox* box_nums; GtkLabel*       label_nums;      GtkCheckButton* check_nums_x,      check_nums_y,      check_nums_z;
+
+			GtkSeparator*   sep3;
+
+			GtkBox* box_colorbar_overlay;
+				GtkCheckButton* check_colorbar;
+				GtkCheckButton* radio_overlay;
+
+			GtkSpinButton* spin_n_columns;
+
+			GtkBox* box_rowmajor_colmajor;
+				GtkCheckButton* radio_rowmajor;
+				GtkCheckButton* radio_colmajor;
+
+			GtkSeparator*   sep4;
 
 			GtkDrawingArea* mouse_pos;
 
@@ -498,7 +516,6 @@ struct MyPlotWidget {
 		}
 		g_signal_connect(check_autorefresh, "toggled", &check_autorefresh_toggled, cast(void*)&window_name);
 		gtk_check_button_set_active(check_autorefresh, canvas.autorefresh);
-		gtk_box_append(controls_box, cast(GtkWidget*)check_autorefresh);
 
 		button_refresh = cast(GtkButton*)gtk_button_new_with_label("refr.");
 		// reduce padding top and bottom from button
@@ -514,7 +531,12 @@ struct MyPlotWidget {
 			ui.winrefresh(*(cast(string*)user_data)); 
 		}
 		g_signal_connect(button_refresh, "clicked", &button_refresh_clicked, cast(void*)&window_name);
+
 		gtk_box_append(controls_box, cast(GtkWidget*)button_refresh);
+		gtk_box_append(controls_box, cast(GtkWidget*)check_autorefresh);
+
+		sep1 = cast(GtkSeparator*)gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+		gtk_box_append(controls_box, cast(GtkWidget*)sep1);
 
 		// fit (autoscale) for all 3 axis
 		label_fit = cast(GtkLabel*)gtk_label_new("fit:");
@@ -577,6 +599,9 @@ struct MyPlotWidget {
 		gtk_box_append(box_log, cast(GtkWidget*)check_log_z);
 
 		gtk_box_append(controls_box, cast(GtkWidget*)box_fit_log);
+
+		sep2 = cast(GtkSeparator*)gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+		gtk_box_append(controls_box, cast(GtkWidget*)sep2);
 
 
 
@@ -642,6 +667,77 @@ struct MyPlotWidget {
 
 		gtk_box_append(controls_box, cast(GtkWidget*)box_grid_nums);
 
+
+		sep3 = cast(GtkSeparator*)gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+		gtk_box_append(controls_box, cast(GtkWidget*)sep3);
+
+
+		check_colorbar = cast(GtkCheckButton*)gtk_check_button_new_with_label("colorbar");
+		gtk_check_button_set_active(check_colorbar, canvas.color_bar);
+		radio_overlay = cast(GtkCheckButton*)gtk_check_button_new_with_label("overlay");
+		radio_rowmajor = cast(GtkCheckButton*)gtk_check_button_new_with_label("rows");
+		radio_colmajor = cast(GtkCheckButton*)gtk_check_button_new_with_label("columns");
+		gtk_check_button_set_group(radio_rowmajor, radio_overlay);
+		gtk_check_button_set_group(radio_colmajor, radio_overlay);
+
+		if (canvas.display_mode == DisplayMode.overlay) gtk_check_button_set_active(radio_overlay, true);
+		if (canvas.display_mode == DisplayMode.rows)    gtk_check_button_set_active(radio_rowmajor, true);
+		if (canvas.display_mode == DisplayMode.columns) gtk_check_button_set_active(radio_colmajor, true);
+
+
+		box_colorbar_overlay = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
+		gtk_box_append(box_colorbar_overlay, cast(GtkWidget*)check_colorbar);
+		gtk_box_append(box_colorbar_overlay, cast(GtkWidget*)radio_overlay);
+
+		spin_n_columns = cast(GtkSpinButton*)gtk_spin_button_new_with_range(1,50,1);
+		
+		box_rowmajor_colmajor = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
+		gtk_box_append(box_rowmajor_colmajor, cast(GtkWidget*)radio_rowmajor);
+		gtk_box_append(box_rowmajor_colmajor, cast(GtkWidget*)radio_colmajor);
+
+		extern(C) static void check_colorbar_toggled(GtkCheckButton* self, gpointer user_data) {
+			string name = *(cast(string*)user_data);
+			ui.colorbar(name, gtk_check_button_get_active(self)?"true":"false");
+		}
+		g_signal_connect(check_colorbar, "toggled", &check_colorbar_toggled, cast(void*)&window_name);
+
+		extern(C) static void radio_overlay_toggled(GtkCheckButton* self, gpointer user_data) {
+			string name = *(cast(string*)user_data);
+			if (gtk_check_button_get_active(self)) ui.overlay(name);
+		}
+		g_signal_connect(radio_overlay, "toggled", &radio_overlay_toggled, cast(void*)&window_name);
+
+		extern(C) static void radio_rowmajor_toggled(GtkCheckButton* self, gpointer user_data) {
+			string name = *(cast(string*)user_data);
+			if (gtk_check_button_get_active(self)) ui.rows(name, cast(int)gtk_spin_button_get_value(Gtk4NativeGui.main_windows[name].plot_widget.spin_n_columns));
+		}
+		g_signal_connect(radio_rowmajor, "toggled", &radio_rowmajor_toggled, cast(void*)&window_name);
+
+		extern(C) static void radio_colmajor_toggled(GtkCheckButton* self, gpointer user_data) {
+			string name = *(cast(string*)user_data);
+			if (gtk_check_button_get_active(self)) ui.columns(name, cast(int)gtk_spin_button_get_value(Gtk4NativeGui.main_windows[name].plot_widget.spin_n_columns));
+		}
+		g_signal_connect(radio_colmajor, "toggled", &radio_colmajor_toggled, cast(void*)&window_name);
+
+
+
+
+		gtk_spin_button_set_value(spin_n_columns, canvas.columns_or_rows);
+
+		gtk_box_append(controls_box, cast(GtkWidget*)box_colorbar_overlay);
+		gtk_box_append(controls_box, cast(GtkWidget*)spin_n_columns);
+		gtk_box_append(controls_box, cast(GtkWidget*)box_rowmajor_colmajor);
+
+
+		extern(C) static void spin_n_columns_changed(GtkSpinButton* self, gpointer user_data) {
+			string name = *(cast(string*)user_data);
+			if (Gtk4NativeGui.main_windows[name].plot_widget.canvas.display_mode == DisplayMode.rows)    ui.rows   (name, cast(int)gtk_spin_button_get_value(self));
+			if (Gtk4NativeGui.main_windows[name].plot_widget.canvas.display_mode == DisplayMode.columns) ui.columns(name, cast(int)gtk_spin_button_get_value(self));
+		}
+		g_signal_connect(spin_n_columns, "value-changed", &spin_n_columns_changed, cast(void*)&window_name);
+
+		sep4 = cast(GtkSeparator*)gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+		gtk_box_append(controls_box, cast(GtkWidget*)sep4);
 
 
 		gtk_widget_set_size_request(cast(GtkWidget*)mouse_pos, 700, 20);
