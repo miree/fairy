@@ -183,20 +183,20 @@ struct MyItemView {
 	{
 		string fullname;
 		Tree[string] children;
-		Tree* find_helper(Tree* node, string[] parts) {
-			import std.stdio;
-			writeln("find_helper ", fullname, "   ", parts);
-			if (parts.length == 0) return node;
-			auto child = parts[0] in node.children;
-			if (child is null) return null;
-			writeln(" recurse down into child ", child.fullname);
-			return find_helper(child, parts[1..$]);
-		}
 		Tree* find_node(string fullname) {
+			Tree* find_helper(Tree* node, string[] parts) {
+				//import std.stdio;
+				//writeln("find_helper ", fullname, "   ", parts);
+				if (parts.length == 0) return node;
+				auto child = parts[0] in node.children;
+				if (child is null) return null;
+				//writeln(" recurse down into child ", child.fullname);
+				return find_helper(child, parts[1..$]);
+			}
 			import std.stdio;
 			import std.array;
 			auto parts = fullname.split('/');
-			writeln("find ", fullname, "  in node ", this.fullname);
+			//writeln("find ", fullname, "  in node ", this.fullname);
 			if (parts[0] != this.fullname) return null;
 			return find_helper(&this, parts[1..$]);
 		}
@@ -218,8 +218,8 @@ struct MyItemView {
 			children[parts[0]].add_helper(parts[1..$]);
 		}
 		void add(string fullname) {
-			import std.stdio;
-			writeln("Tree.add(", fullname, ")");
+			//import std.stdio;
+			//writeln("Tree.add(", fullname, ")");
 			import std.algorithm, std.range;
 			add_helper(fullname.split('/'));
 		}
@@ -250,8 +250,8 @@ struct MyItemView {
 		import fairy;
 		import std.stdio, std.array, std.algorithm;
 		foreach (item_name; session.items.byKey) {
-			import std.stdio;
-			writeln("MainWindow this root_node.add(", item_name, ")");
+			//import std.stdio;
+			//writeln("MainWindow this root_node.add(", item_name, ")");
 			root_node.add(item_name);
 		}
 		//writeln("=========== print root node ==========");
@@ -274,8 +274,8 @@ struct MyItemView {
 		selection_model = cast(GtkSelectionModel*)gtk_multi_selection_new(cast(GListModel*)treelistmodel);
 		signal_list_item_factory = gtk_signal_list_item_factory_new();
 		g_signal_connect(signal_list_item_factory, "setup",    &signal_list_item_factory_setup,    cast(void*)root_node);
-		g_signal_connect(signal_list_item_factory, "bind",     &signal_list_item_factory_bind,     cast(void*)root_node);
-		g_signal_connect(signal_list_item_factory, "unbind",   &signal_list_item_factory_unbind,   cast(void*)root_node);
+		g_signal_connect(signal_list_item_factory, "bind",     &signal_list_item_factory_bind,     cast(void*)main_window);
+		g_signal_connect(signal_list_item_factory, "unbind",   &signal_list_item_factory_unbind,   cast(void*)main_window);
 		g_signal_connect(signal_list_item_factory, "teardown", &signal_list_item_factory_teardown, cast(void*)root_node);
 		col1 = cast(GtkColumnViewColumn*)gtk_column_view_column_new("Items", signal_list_item_factory);
 		col_view = cast(GtkColumnView*)gtk_column_view_new(selection_model);
@@ -312,7 +312,7 @@ struct MyItemView {
 	{
 		Tree* root_node = cast(Tree*)user_data;
 		import std.stdio;
-		//writeln("setup");
+		writeln("setup");
 		auto expander = gtk_tree_expander_new();
 		auto checkbutton = gtk_check_button_new();
 		auto label = gtk_label_new(null);
@@ -324,9 +324,32 @@ struct MyItemView {
 		gtk_list_item_set_child((cast(GtkListItem*)object), expander);
 	}
 
+	class TreeViewCheckbuttonData {
+		string windowname;
+		string itemname;
+		ulong signal;
+		this(string win, string item) {
+			windowname = win;
+			itemname = item;
+		}
+	}
+	TreeViewCheckbuttonData[string] checkbutton_userdata;
+
+	extern(C) static void tree_view_checkbutton_toggle(GtkCheckButton* self, gpointer user_data) {
+		import ui; 
+		TreeViewCheckbuttonData data = cast(TreeViewCheckbuttonData)user_data;
+		ui.show(data.itemname, data.windowname, gtk_check_button_get_active(self)?"true":"false");
+	}
+
 	extern(C) static void signal_list_item_factory_bind(GtkSignalListItemFactory* self, GObject* object, gpointer user_data) 
 	{
-		Tree* root_node = cast(Tree*)user_data;
+		auto item = cast(GtkListItem*)object;
+		import std.stdio, std.conv;
+		writeln("bind "~gtk_list_item_get_position(item).to!string);
+
+		MainWindow main_window = cast(MainWindow)user_data;
+		//Tree* root_node = cast(Tree*)user_data;
+		Tree* root_node = main_window.item_view.root_node;
 		import std.conv;
 		auto list_item = cast(GtkListItem*)object;
 		auto expander = cast(GtkTreeExpander*)gtk_list_item_get_child(list_item);
@@ -342,18 +365,40 @@ struct MyItemView {
 		import std.array, std.string;
 		if (root_node.find_node(str.to!string).children.length) gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, false);
 		else gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, true);
-		snprintf(buf.ptr,64,"%s -> %d", str.to!string.split('/')[$-1].toStringz, gtk_list_item_get_position(list_item));
+		string fullname = str.to!string;
+		main_window.item_view.checkbutton_userdata[fullname] = new TreeViewCheckbuttonData(main_window.name, fullname.split('/')[1..$].join('/'));
+		snprintf(buf.ptr,64,"%s -> %d", fullname.split('/')[$-1].toStringz, gtk_list_item_get_position(list_item));
 		gtk_label_set_text(label, buf.ptr);
 		gtk_tree_expander_set_list_row(cast(GtkTreeExpander*)expander, tree_list_row);
+		
+		main_window.item_view.checkbutton_userdata[fullname].signal = g_signal_connect(checkbutton, "toggled", &tree_view_checkbutton_toggle, cast(void*)main_window.item_view.checkbutton_userdata[fullname]);
+
 	}
 
 	extern(C) static void signal_list_item_factory_unbind(GtkSignalListItemFactory* self, GObject* object, gpointer user_data) 
 	{
-		Tree* root_node = cast(Tree*)user_data;
-		import std.stdio;
+		MainWindow main_window = cast(MainWindow)user_data;
+		//Tree* root_node = cast(Tree*)user_data;
+		Tree* root_node = main_window.item_view.root_node;
 		import std.conv;
+
+		auto list_item = cast(GtkListItem*)object;
+		auto expander = cast(GtkTreeExpander*)gtk_list_item_get_child(list_item);
+		auto box = cast(GtkBox*)gtk_tree_expander_get_child(expander);
+		auto checkbutton = cast(GtkCheckButton*)gtk_widget_get_first_child(cast(GtkWidget*)box);
+		auto label = cast(GtkLabel*)gtk_widget_get_next_sibling(cast(GtkWidget*)checkbutton);
+		// get the content (string) of the list model row
+		auto tree_list_row = cast(GtkTreeListRow*)gtk_list_item_get_item(list_item);
+		auto str_obj  = cast(GtkStringObject*)gtk_tree_list_row_get_item(tree_list_row);
+		const char* str = gtk_string_object_get_string(cast(GtkStringObject*)str_obj);
+		string fullname = str.to!string;
+
+		g_signal_handler_disconnect(cast(GObject*)checkbutton, main_window.item_view.checkbutton_userdata[fullname].signal);
 		auto item = cast(GtkListItem*)object;
+		import std.stdio;
 		writeln("unbind "~gtk_list_item_get_position(item).to!string);
+
+		main_window.item_view.checkbutton_userdata.remove(fullname);
 	}
 
 	extern(C) static void signal_list_item_factory_teardown(GtkSignalListItemFactory* self, GObject* object, gpointer user_data) 
@@ -437,7 +482,6 @@ struct MyPlotWidget {
 		gtk_check_button_set_active(check_nums_top,    canvas.numbers_ontop);
 		gtk_check_button_set_active(check_colorbar,    canvas.color_bar);
 		gtk_spin_button_set_value(spin_n_columns, canvas.columns_or_rows);
-		//gtk_check_button_set_active(spin_n_columns,    anvas.columns_or_rows);
 		if (canvas.display_mode == DisplayMode.overlay) gtk_check_button_set_active(radio_overlay,  true);
 		if (canvas.display_mode == DisplayMode.rows)    gtk_check_button_set_active(radio_rowmajor, true);
 		if (canvas.display_mode == DisplayMode.columns) gtk_check_button_set_active(radio_colmajor, true);
@@ -456,23 +500,23 @@ struct MyPlotWidget {
 		static char[256] buffer;
 		import core.stdc.stdio;
 
-		snprintf(buffer.ptr, buffer.length, "x = %f", backend.mouse_pos[0]);
+		snprintf(buffer.ptr, buffer.length, "x = %.9g", backend.mouse_pos[0]);
 		cairo_move_to(cr, 20,20);
 		cairo_show_text(cr, buffer.ptr);
 		cairo_stroke(cr);			
 
-		snprintf(buffer.ptr, buffer.length, "y = %f", backend.mouse_pos[1]);
-		cairo_move_to(cr, 140,20);
+		snprintf(buffer.ptr, buffer.length, "y = %.9g", backend.mouse_pos[1]);
+		cairo_move_to(cr, 180,20);
 		cairo_show_text(cr, buffer.ptr);
 		cairo_stroke(cr);			
 
-		snprintf(buffer.ptr, buffer.length, "z = %f", backend.mouse_pos[2]);
-		cairo_move_to(cr, 260,20);
+		snprintf(buffer.ptr, buffer.length, "z = %.9g", backend.mouse_pos[2]);
+		cairo_move_to(cr, 340,20);
 		cairo_show_text(cr, buffer.ptr);
 		cairo_stroke(cr);			
 
 		if (backend.mouse_value !is double.init) {
-			snprintf(buffer.ptr, buffer.length, "%f", backend.mouse_value);
+			snprintf(buffer.ptr, buffer.length, "%.9g", backend.mouse_value);
 			cairo_move_to(cr, 20,40);
 			cairo_show_text(cr, buffer.ptr);
 			cairo_stroke(cr);			
@@ -480,8 +524,8 @@ struct MyPlotWidget {
 
 		if (backend.mouse_itemname !is null) {
 			import std.string;
-			snprintf(buffer.ptr, buffer.length, "%s", backend.mouse_itemname.ptr);
-			cairo_move_to(cr, 140,40);
+			snprintf(buffer.ptr, buffer.length, "%s", backend.mouse_itemname.toStringz);
+			cairo_move_to(cr, 180,40);
 			cairo_show_text(cr, buffer.ptr);
 			cairo_stroke(cr);			
 		}
@@ -563,7 +607,7 @@ struct MyPlotWidget {
 	this(string name, CanvasProperties *canvas_properties) {
 		import ui;
 		import std.stdio;
-		writeln("MyPlotWidget constructor");
+		//writeln("MyPlotWidget constructor");
 		window_name  = name.dup;
 		drawing_area = cast(GtkDrawingArea*)gtk_drawing_area_new();
 		gtk_widget_set_can_focus(cast(GtkWidget*)drawing_area, true);
