@@ -41,7 +41,7 @@
 #define PORT__TRANS         6000
 #define PORT__STREAM        6002
 
-typedef struct
+typedef struct sLmdControl
 {
   FILE    *fFile;         /* file descripter or server No.    */
   int16_t *pBuffer;       /* pointer to internal buffer  */

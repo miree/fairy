@@ -581,16 +581,48 @@ struct MsgAck {}
 //struct MsgEventsPerSecond {long events;}
 void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filename) {
 	import mbsapi_import;
+	enum GETEVT_FILE       = 1;
+	enum GETEVT_STREAM     = 2;
+	enum GETEVT_TRANS      = 3;
+	enum GETEVT_EVENT      = 4;
+	enum GETEVT_REVSERV    = 5;
+	enum GETEVT_RFIO       = 6;
+	enum GETEVT_TAGINDEX   = 10;
+	enum GETEVT_TAGNUMBER  = 11;
+	enum GETEVT_SUCCESS    = 0;
+	enum GETEVT_FAILURE    = 1;
+	enum GETEVT_FRAGMENT   = 2;
+	enum GETEVT_NOMORE     = 3;
+	enum GETEVT_NOFILE     = 4;
+	enum GETEVT_NOSERVER   = 5;
+	enum GETEVT_RDERR      = 6;
+	enum GETEVT_CLOSE_ERR  = 7;
+	enum GETEVT_NOCHANNEL  = 8;
+	enum GETEVT_TIMEOUT    = 9;
+	enum GETEVT_NOTAGFILE  = 10;
+	enum GETEVT_NOTAG      = 11;
+	enum GETEVT_TAGRDERR   = 12;
+	enum GETEVT_TAGWRERR   = 13;
+	enum GETEVT_NOLMDFILE  = 14;
+	enum PUTEVT_SUCCESS    = 0;
+	enum PUTEVT_FILE_EXIST = 101;
+	enum PUTEVT_FAILURE    = 102;
+	enum PUTEVT_TOOBIG     = 103;
+	enum PUTEVT_TOO_SMALLS = 104;
+	enum PUTEVT_CLOSE_ERR  = 105;
+	enum PUTEVT_WRERR      = 106;
+	enum PUTEVT_NOCHANNEL  = 107;
+	
 	import std.stdio;
 	auto mbs_channel = f_evt_control();
 	if (mbs_filename !is null) {
 		import std.string;
 		char *file_header;
-		if (f_evt_get_open(GETEVT__FILE,
+		if (f_evt_get_open(GETEVT_FILE,
 			           cast(char*)mbs_filename.dup.toStringz, 
 			           mbs_channel,
 			           &file_header,
-			           1,0) != GETEVT__SUCCESS) {
+			           1,0) != GETEVT_SUCCESS) {
 			writeln("failed to open file ", mbs_filename);
 			return;
 		}
@@ -636,7 +668,7 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 				int *i_event_header;
 				int *i_buffer_header;
 				int result = f_evt_get_event(mbs_channel, &i_event_header, &i_buffer_header);
-				if (result != GETEVT__SUCCESS) {
+				if (result != GETEVT_SUCCESS) {
 					writeln("end of file");
 					break;
 				}

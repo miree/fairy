@@ -1,6 +1,6 @@
-VPATH=src
-CFLAGS = `pkg-config alsa gtk4 gsl --cflags` -g -O0
-LDFLAGS = `pkg-config alsa gtk4 gsl --libs`
+VPATH=src src/mbsapi
+CFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --cflags` -g -O0
+LDFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --libs`
 
 all: fairy
 
@@ -34,6 +34,8 @@ OBJECTS=\
 	graphics.o             \
 	graphics_gtk4_native.o \
 	gtk4_import.o          \
+	mbsapi_import.o        \
+	elderpt.o              \
 	histogram.o            \
 	item.o                 \
 	multifit_nlin.o        \
@@ -41,11 +43,29 @@ OBJECTS=\
 	transform.o            \
 	ui.o                   \
 	value.o                \
-	waveform.o             
+	waveform.o             \
+	f_evcli.o              \
+	f_evt.o                \
+	f_his_swpbas.o         \
+	f_his_toupper.o        \
+	fLmd.o                 \
+	f_mbs_status.o         \
+	f_radware.o            \
+	f_stccomm.o            \
+	f_swaplw.o             \
+	f_ut_compress.o        \
+	f_ut_seg_show.o        \
+	f_ut_status.o          \
+	f_ut_time.o            \
+	f_ut_utime.o           
+
+%.o: %.c
+	gcc -Isrc/mbsapi $(CFLAGS) -c $<
+
 
 %.o: %.d
 	make -C include
-	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -c $<
+	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -c $<
 
 fairy: src/gtk4_import.i $(PREPROCESSED) $(OBJECTS)
 	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -o $@ $+ $(LDFLAGS) 
