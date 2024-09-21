@@ -61,6 +61,10 @@ class Gtk4NativeGui : Gui {
 		main_windows[name] = new MainWindow(name, &canvas, application);
 	}
 	override void close_window(string name) {
+		if (name in main_windows) {
+			main_windows[name].close();
+			main_windows.remove(name);
+		}
 	}
 	override void redraw_window(string name) {
 		//import std.stdio;
@@ -114,6 +118,7 @@ class Gtk4NativeGui : Gui {
 		auto self = cast(Gtk4NativeGui)user_data;
 		import fairy;
 	 
+	 	g_application_hold(cast(GApplication*)app);
 		immutable ulong refresh_period_ms = 20;
 		g_timeout_add(refresh_period_ms, &timeout_callback, null);
 		foreach(name, ref canvas; session.windows) {
@@ -146,6 +151,8 @@ private:
 
 
 		window      = cast(GtkWindow*)gtk_application_window_new(app);
+		gtk_window_set_hide_on_close(window, true);
+		g_signal_connect(window, "hide", &hide_callback, cast(void*)&name);
 		gtk_window_set_default_size(window, canvas.width, canvas.height);
 		frame       = cast(GtkFrame*)gtk_frame_new(null);
 		paned       = cast(GtkPaned*)gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
@@ -175,6 +182,23 @@ private:
 		//item_view.sync_with_canvas(canvas);
 		plot_widget.sync_with_canvas(canvas);
 	}	
+	void close() {
+		gtk_window_close(cast(GtkWindow*)window);
+	}
+	extern(C) static void hide_callback(GtkWidget*, gpointer user_data) {
+		import fairy;
+		string name = *(cast(string*)user_data);
+		try {
+			if ((name in Gtk4NativeGui.main_windows) !is null) Gtk4NativeGui.main_windows.remove(name);
+			fairy.session.close_window(name);
+		} catch (Exception e) {
+			// nothing
+			// we land here if the close was executed from command line 
+			// then fairy.sesssion.close_window is executed once called from command line
+			// and again if the window gets a Hide-notification
+		}
+	}
+
 }
 
 
