@@ -206,6 +206,7 @@ struct MyItemView {
 	struct Tree
 	{
 		string fullname;
+		bool expanded;
 		Tree[string] children;
 		Tree* find_node(string fullname) {
 			Tree* find_helper(Tree* node, string[] parts) {
@@ -260,6 +261,20 @@ struct MyItemView {
 
 	void refresh_string_list() {
 		import std.stdio, std.array, std.algorithm;
+		// remember the expansion state (iterate over all items in the list)
+		for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)treelistmodel); ++i) {
+			GtkTreeListRow* row = gtk_tree_list_model_get_row(treelistmodel, i);
+			if (gtk_tree_list_row_is_expandable(row)) {
+				auto str_obj  = cast(GtkStringObject*)gtk_tree_list_row_get_item(row);
+				const char* str = gtk_string_object_get_string(cast(GtkStringObject*)str_obj);
+				import std.conv;
+				auto fullname = str.to!string;
+				root_node.find_node(fullname).expanded = gtk_tree_list_row_get_expanded(row)?true:false;
+				//writeln("row ", i,  "(", fullname, "): ", gtk_tree_list_row_get_expanded(row));
+			}
+		}
+
+
 		// clear the string list
 		gtk_string_list_splice(string_list, 
 			                   0, g_list_model_get_n_items(cast(GListModel*)string_list),
@@ -267,6 +282,21 @@ struct MyItemView {
 		// refill the string list
 		foreach (child_name; root_node.children.byKey.array.sort) {
 			gtk_string_list_append(string_list, root_node.children[child_name].fullname.toStringz);
+		}
+
+		// apply the expansion state (iterate over all items in the list)
+		for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)treelistmodel); ++i) {
+			GtkTreeListRow* row = gtk_tree_list_model_get_row(treelistmodel, i);
+			if (gtk_tree_list_row_is_expandable(row)) {
+				auto str_obj  = cast(GtkStringObject*)gtk_tree_list_row_get_item(row);
+				const char* str = gtk_string_object_get_string(cast(GtkStringObject*)str_obj);
+				import std.conv;
+				auto fullname = str.to!string;
+				if (root_node.find_node(fullname).expanded) {
+					gtk_tree_list_row_set_expanded(row,true);
+				}
+				//writeln("row ", i,  "(", fullname, "): ", gtk_tree_list_row_get_expanded(row));
+			}
 		}
 	}
 
@@ -312,7 +342,7 @@ struct MyItemView {
 		                                                               cast(void*)main_window,
 		                                                               null);
 		selection_model = cast(GtkSelectionModel*)gtk_multi_selection_new(cast(GListModel*)treelistmodel);
-		signal_list_item_factory = gtk_signal_list_item_factory_new();
+		signal_list_item_factory    = gtk_signal_list_item_factory_new();
 		string_list_signal_setup    = g_signal_connect(signal_list_item_factory, "setup",    &signal_list_item_factory_setup,    cast(void*)main_window);
 		string_list_signal_bind     = g_signal_connect(signal_list_item_factory, "bind",     &signal_list_item_factory_bind,     cast(void*)main_window);
 		string_list_signal_unbind   = g_signal_connect(signal_list_item_factory, "unbind",   &signal_list_item_factory_unbind,   cast(void*)main_window);
@@ -347,13 +377,11 @@ struct MyItemView {
 		return cast(GListModel*)string_list;
 	}
 
-
 	extern(C) static void signal_list_item_factory_setup(GtkSignalListItemFactory* self, GObject* object, gpointer user_data) 
 	{
 		import std.stdio;
 		//writeln("setup");
 		MainWindow main_window = cast(MainWindow)user_data;
-		Tree* root_node = main_window.item_view.root_node;
 		auto expander = gtk_tree_expander_new();
 		auto checkbutton = gtk_check_button_new();
 		auto label = gtk_label_new(null);
@@ -361,7 +389,6 @@ struct MyItemView {
 		gtk_box_append(cast(GtkBox*)box, checkbutton);
 		gtk_box_append(cast(GtkBox*)box, label);
 		gtk_tree_expander_set_child(cast(GtkTreeExpander*)expander, box);
-			//gtk_tree_expander_set_child(cast(GtkTreeExpander*)expander, label);
 		gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, false);
 		gtk_list_item_set_child((cast(GtkListItem*)object), expander);
 	}
@@ -373,21 +400,21 @@ struct MyItemView {
 		gtk_list_item_set_child((cast(GtkListItem*)object), null);
 	}
 
-	class TreeViewCheckbuttonData {
-		string windowname;
-		string itemname;
-		ulong signal;
-		this(string win, string item) {
-			windowname = win;
-			itemname = item;
+	class TreeViewRowData {
+		MainWindow main_window;
+		string fullname;
+		ulong signal_checked;
+		this(MainWindow window, string itemname) {
+			main_window = window;
+			fullname = itemname;
 		}
 	}
-	TreeViewCheckbuttonData[GtkListItem*] checkbutton_userdata;
+	TreeViewRowData[GtkListItem*] treeview_row_data;
 
 	extern(C) static void tree_view_checkbutton_toggle(GtkCheckButton* self, gpointer user_data) {
 		import ui; 
-		TreeViewCheckbuttonData data = cast(TreeViewCheckbuttonData)user_data;
-		ui.show(data.itemname, data.windowname, gtk_check_button_get_active(self)?"true":"false");
+		TreeViewRowData data = cast(TreeViewRowData)user_data;
+		ui.show(data.fullname[6..$], data.main_window.name, gtk_check_button_get_active(self)?"true":"false");
 	}
 
 	extern(C) static void signal_list_item_factory_bind(GtkSignalListItemFactory* self, GObject* item, gpointer user_data) 
@@ -418,12 +445,13 @@ struct MyItemView {
 		gtk_tree_expander_set_list_row(cast(GtkTreeExpander*)expander, tree_list_row);
 		
 		// decide if the expander has to be shown (only if there are children)
-		if (root_node.find_node(fullname).children.length) gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, false);
-		else gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, true);
+		auto node = root_node.find_node(fullname);
+		//if (node.children.length) gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, false);
+		gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, node.children.length?false:true);
 
 		// make storage for checkbutton data and remember the signal to be able to disconnect it later
-		main_window.item_view.checkbutton_userdata[list_item] = new TreeViewCheckbuttonData(main_window.name, fullname.split('/')[1..$].join('/'));
-		main_window.item_view.checkbutton_userdata[list_item].signal = g_signal_connect(checkbutton, "toggled", &tree_view_checkbutton_toggle, cast(void*)main_window.item_view.checkbutton_userdata[list_item]);
+		main_window.item_view.treeview_row_data[list_item] = new TreeViewRowData(main_window, fullname);
+		main_window.item_view.treeview_row_data[list_item].signal_checked = g_signal_connect(checkbutton, "toggled", &tree_view_checkbutton_toggle, cast(void*)main_window.item_view.treeview_row_data[list_item]);
 	}
 
 	extern(C) static void signal_list_item_factory_unbind(GtkSignalListItemFactory* self, GObject* object, gpointer user_data) 
@@ -435,8 +463,8 @@ struct MyItemView {
 		auto box           = cast(GtkBox*)         gtk_tree_expander_get_child(expander);
 		auto checkbutton   = cast(GtkCheckButton*) gtk_widget_get_first_child (cast(GtkWidget*)box);
 		// disconnect the signal
-		g_signal_handler_disconnect(cast(GObject*)checkbutton, main_window.item_view.checkbutton_userdata[list_item].signal);
-		main_window.item_view.checkbutton_userdata.remove(list_item);
+		g_signal_handler_disconnect(cast(GObject*)checkbutton, main_window.item_view.treeview_row_data[list_item].signal_checked);
+		main_window.item_view.treeview_row_data.remove(list_item);
 	}
 
 
