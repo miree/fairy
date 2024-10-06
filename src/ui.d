@@ -481,9 +481,10 @@ string show(string item_name, string window_name, string action = "true") {
 	import fairy;
 	import std.algorithm, std.array;
 	auto canvas = fairy.session.get_canvas(window_name);
+	item_name ~= '/';
 	if (action == "true") {
 		foreach(itemname; session.items.byKey.array.sort) {
-			if (itemname.startsWith(item_name) && !canvas.itemnames.canFind(itemname)) {
+			if (itemname == item_name[0..$-1] || (itemname.startsWith(item_name)) && !canvas.itemnames.canFind(itemname)) {
 				canvas.itemnames ~= itemname;
 				if (canvas.itemnames.length == 1) canvas.dim = 0;
 			}
@@ -492,7 +493,7 @@ string show(string item_name, string window_name, string action = "true") {
 	if (action == "false") {
 		string[] itemnames;
 		foreach(itemname; canvas.itemnames) {
-			if(!itemname.startsWith(item_name)) {
+			if(!(itemname == item_name[0..$-1] || itemname.startsWith(item_name))) {
 				itemnames ~= itemname;
 			}
 		}

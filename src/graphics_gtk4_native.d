@@ -417,11 +417,12 @@ struct MyItemView {
 	void sync_with_canvas(CanvasProperties *canvas) {
 		foreach(list_item, ref rowdata; treeview_row_data) {
 			import std.algorithm;
+			string item_name = rowdata.fullname[6..$]~'/';
 			bool do_check = false; // if only one of the children is not checked set this to false
 			// set of all children of fullname in session
-			auto n_in_session = session.items.byKey.filter!(itemname=>itemname.startsWith(rowdata.fullname[6..$])).count;
+			auto n_in_session = session.items.byKey.filter!(itemname=>itemname.startsWith(item_name) || itemname == item_name[0..$-1]).count;
 			// set of all children of fullname in canvas
-			auto n_in_canvas = main_window.canvas.itemnames.filter!(itemname=>itemname.startsWith(rowdata.fullname[6..$])).count;
+			auto n_in_canvas = main_window.canvas.itemnames.filter!(itemname=>itemname.startsWith(item_name) || itemname == item_name[0..$-1]).count;
 			if (n_in_canvas && n_in_canvas == n_in_session) do_check = true;
 			g_signal_handler_disconnect(cast(GObject*)rowdata.checkbutton, rowdata.signal_checked);
 			gtk_check_button_set_active(rowdata.checkbutton, do_check);
@@ -476,11 +477,12 @@ struct MyItemView {
 		gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, node.children.length?false:true);
 
 		import std.algorithm;
+		string item_name = fullname[6..$]~'/';
 		bool do_check = false; // if only one of the children is not checked set this to false
 		// set of all children of fullname in session
-		auto n_in_session = session.items.byKey.filter!(itemname=>itemname.startsWith(fullname[6..$])).count;
+		auto n_in_session = session.items.byKey.filter!(itemname=>itemname.startsWith(item_name) || itemname == item_name[0..$-1]).count;
 		// set of all children of fullname in canvas
-		auto n_in_canvas = main_window.canvas.itemnames.filter!(itemname=>itemname.startsWith(fullname[6..$])).count;
+		auto n_in_canvas = main_window.canvas.itemnames.filter!(itemname=>itemname.startsWith(item_name) || itemname == item_name[0..$-1]).count;
 		if (n_in_canvas && n_in_canvas == n_in_session) do_check = true;
 		gtk_check_button_set_active(checkbutton, do_check);
 		//if (main_window.canvas.itemnames.canFind(fullname[6..$])) {
