@@ -479,28 +479,45 @@ string wave(string name) {
 	 "true or false"])
 string show(string item_name, string window_name, string action = "true") {
 	import fairy;
-	import std.algorithm;
+	import std.algorithm, std.array;
 	auto canvas = fairy.session.get_canvas(window_name);
-	auto visual = fairy.session.get_visual_item(item_name);
-	if (!canvas.itemnames.canFind(item_name) && action == "true") { // add item
-		canvas.itemnames ~= item_name;
-		if (canvas.itemnames.length==1) {
-			import std.stdio;
-			//canvas.fit_content = true;
-			canvas.dim = 0;  // 0 means to determine the dim from frist drawn item
-			//canvas.transform[0].logscale = false;
-			//canvas.transform[1].logscale = false;
-			//canvas.transform[2].logscale = false;
+	if (action == "true") {
+		foreach(itemname; session.items.byKey.array.sort) {
+			if (itemname.startsWith(item_name) && !canvas.itemnames.canFind(itemname)) {
+				canvas.itemnames ~= itemname;
+				if (canvas.itemnames.length == 1) canvas.dim = 0;
+			}
 		}
-	} else if (action == "false") { // remove item
+	} 
+	if (action == "false") {
 		string[] itemnames;
-		foreach(item; canvas.itemnames) {
-			if (item != item_name) {
-				itemnames ~= item;
+		foreach(itemname; canvas.itemnames) {
+			if(!itemname.startsWith(item_name)) {
+				itemnames ~= itemname;
 			}
 		}
 		canvas.itemnames = itemnames;
 	}
+	//auto visual = fairy.session.get_visual_item(item_name);
+	//if (!canvas.itemnames.canFind(item_name) && action == "true") { // add item
+	//	canvas.itemnames ~= item_name;
+	//	if (canvas.itemnames.length==1) {
+	//		import std.stdio;
+	//		//canvas.fit_content = true;
+	//		canvas.dim = 0;  // 0 means to determine the dim from frist drawn item
+	//		//canvas.transform[0].logscale = false;
+	//		//canvas.transform[1].logscale = false;
+	//		//canvas.transform[2].logscale = false;
+	//	}
+	//} else if (action == "false") { // remove item
+	//	string[] itemnames;
+	//	foreach(item; canvas.itemnames) {
+	//		if (item != item_name) {
+	//			itemnames ~= item;
+	//		}
+	//	}
+	//	canvas.itemnames = itemnames;
+	//}
 	update_window_gui(window_name);
 	return "";
 }

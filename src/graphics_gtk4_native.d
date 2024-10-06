@@ -91,8 +91,10 @@ class Gtk4NativeGui : Gui {
 	}
 	override void update_from_canvas(string name) {
 		if (name in main_windows) {
+			//main_windows[name].item_view.refresh_string_list();
 			main_windows[name].update_from_canvas();
 		}
+
 	}
 
 	override void loop() {
@@ -179,7 +181,7 @@ private:
 	void update_from_canvas() {
 		//assert(item_view !is null);
 		//item_view.sync_with_session();
-		//item_view.sync_with_canvas(canvas);
+		item_view.sync_with_canvas(canvas);
 		plot_widget.sync_with_canvas(canvas);
 	}	
 	void close() {
@@ -255,8 +257,6 @@ struct MyItemView {
 	void addItem(string fullname, Item item) {
 		root_node.add(fullname);
 		refresh_string_list();
-
-
 	}
 
 	void refresh_string_list() {
@@ -354,6 +354,7 @@ struct MyItemView {
 		gtk_scrolled_window_set_child(scrolled_window, cast(GtkWidget*)col_view);
 		gtk_widget_set_size_request (cast(GtkWidget*)scrolled_window, 100, 100);
 	}
+	
 
 	static extern(C) GListModel* treelist_listmodel_create(void* item, void* user_data) 
 	{
@@ -403,18 +404,43 @@ struct MyItemView {
 	class TreeViewRowData {
 		MainWindow main_window;
 		string fullname;
+		GtkCheckButton* checkbutton;
 		ulong signal_checked;
-		this(MainWindow window, string itemname) {
+		this(MainWindow window, string itemname, GtkCheckButton* ckbutton) {
 			main_window = window;
 			fullname = itemname;
+			checkbutton = ckbutton;
 		}
 	}
 	TreeViewRowData[GtkListItem*] treeview_row_data;
 
+	void sync_with_canvas(CanvasProperties *canvas) {
+		foreach(list_item, ref rowdata; treeview_row_data) {
+			import std.algorithm;
+			bool do_check = false; // if only one of the children is not checked set this to false
+			// set of all children of fullname in session
+			auto n_in_session = session.items.byKey.filter!(itemname=>itemname.startsWith(rowdata.fullname[6..$])).count;
+			// set of all children of fullname in canvas
+			auto n_in_canvas = main_window.canvas.itemnames.filter!(itemname=>itemname.startsWith(rowdata.fullname[6..$])).count;
+			if (n_in_canvas && n_in_canvas == n_in_session) do_check = true;
+			g_signal_handler_disconnect(cast(GObject*)rowdata.checkbutton, rowdata.signal_checked);
+			gtk_check_button_set_active(rowdata.checkbutton, do_check);
+			rowdata.signal_checked = g_signal_connect(rowdata.checkbutton, "toggled", &tree_view_checkbutton_toggle, cast(void*)rowdata);
+
+
+			//if (canvas.itemnames.canFind(rowdata.fullname[6..$])) {
+			//	gtk_check_button_set_active(rowdata.checkbutton, true);
+			//} else {
+			//	gtk_check_button_set_active(rowdata.checkbutton, false);
+			//}
+		}
+	}
+
 	extern(C) static void tree_view_checkbutton_toggle(GtkCheckButton* self, gpointer user_data) {
-		import ui; 
+		import fairy,ui; 
 		TreeViewRowData data = cast(TreeViewRowData)user_data;
-		ui.show(data.fullname[6..$], data.main_window.name, gtk_check_button_get_active(self)?"true":"false");
+		auto itemname = data.fullname[6..$];
+		ui.show(itemname, data.main_window.name, gtk_check_button_get_active(self)?"true":"false");
 	}
 
 	extern(C) static void signal_list_item_factory_bind(GtkSignalListItemFactory* self, GObject* item, gpointer user_data) 
@@ -449,8 +475,20 @@ struct MyItemView {
 		//if (node.children.length) gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, false);
 		gtk_tree_expander_set_hide_expander(cast(GtkTreeExpander*)expander, node.children.length?false:true);
 
+		import std.algorithm;
+		bool do_check = false; // if only one of the children is not checked set this to false
+		// set of all children of fullname in session
+		auto n_in_session = session.items.byKey.filter!(itemname=>itemname.startsWith(fullname[6..$])).count;
+		// set of all children of fullname in canvas
+		auto n_in_canvas = main_window.canvas.itemnames.filter!(itemname=>itemname.startsWith(fullname[6..$])).count;
+		if (n_in_canvas && n_in_canvas == n_in_session) do_check = true;
+		gtk_check_button_set_active(checkbutton, do_check);
+		//if (main_window.canvas.itemnames.canFind(fullname[6..$])) {
+		//	gtk_check_button_set_active(checkbutton, true);
+		//}
+
 		// make storage for checkbutton data and remember the signal to be able to disconnect it later
-		main_window.item_view.treeview_row_data[list_item] = new TreeViewRowData(main_window, fullname);
+		main_window.item_view.treeview_row_data[list_item] = new TreeViewRowData(main_window, fullname, checkbutton);
 		main_window.item_view.treeview_row_data[list_item].signal_checked = g_signal_connect(checkbutton, "toggled", &tree_view_checkbutton_toggle, cast(void*)main_window.item_view.treeview_row_data[list_item]);
 	}
 

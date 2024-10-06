@@ -167,7 +167,7 @@ struct Session {
 		}
 		Visual visual = cast(Visual)item.item;
 		if (visual is null) {
-			throw new Exception("item " ~ name ~ " cannot be visualizes");
+			throw new Exception("item " ~ name ~ " cannot be visualized");
 		}
 		return visual;
 	}
@@ -242,6 +242,8 @@ struct Session {
 }
 
 Session session;
+
+
 @trusted
 void run(string[] args) {
 
