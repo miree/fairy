@@ -64,7 +64,7 @@ int set_window_position(GtkWindow *window, int x, int y)
 		Display *display = GDK_DISPLAY_XDISPLAY(gdk_surface_get_display(surface));
 		Window xid = gdk_x11_surface_get_xid(surface);
 
-		printf (" move to %d %d", x, y);
+		// printf (" move to %d %d", x, y);
 		// Use XMoveWindow to set the window position
 		XMoveWindow(display, xid, x, y);
 		XFlush(display); // Ensure the move request is sent immediately
