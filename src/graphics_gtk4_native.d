@@ -72,12 +72,28 @@ class Gtk4NativeGui : Gui {
 		gtk_widget_queue_draw(cast(GtkWidget*)main_windows[name].plot_widget.drawing_area);
 	}
 	override void save_window(string name) { // copy window properties to canvas
+		import std.stdio;
+		writeln("save_window");
 		auto window = name in main_windows;
 		if (window !is null) {
-			int width, height;
-			gtk_window_get_default_size(window.window, 
-			                            &window.canvas.width, 
-			                            &window.canvas.height);
+			int x,y,w,h;
+			if (get_window_position_and_size(window.window, &x, &y, &w, &h)) {
+				writeln(" x y w h = ", x, " ", y, " ", w, " ", h);
+				window.canvas.width  = w;
+				window.canvas.height = h;
+				window.canvas.xpos   = x;
+				window.canvas.ypos   = y;
+				import std.stdio;
+				writeln("save worked");
+			} else {
+				import std.stdio;
+				writeln("not worked");
+				int width, height;
+				_cairo_rectangle_int allocation;
+				gtk_widget_get_allocation(cast(GtkWidget*)window.window, &allocation);
+				window.canvas.width  = allocation.width;
+				window.canvas.height = allocation.height;
+			}
 		}
 	}
 	override void remove_item(string name) {
@@ -109,6 +125,7 @@ class Gtk4NativeGui : Gui {
 		scope(exit) g_object_unref (application);
 
 		g_signal_connect!(GtkApplication*)(application, "activate", &activate, cast(gpointer)this);
+		g_signal_connect!(GtkApplication*)(application, "shutdown", &shutdown, cast(gpointer)this);
 
 		int argc = 0;
 		char* argv = null;
@@ -126,7 +143,12 @@ class Gtk4NativeGui : Gui {
 		foreach(name, ref canvas; session.windows) {
 			self.add_window(name, canvas);
 		}
-
+	}
+	extern(C) static void shutdown (GtkApplication *app, gpointer user_data) {
+		auto self = cast(Gtk4NativeGui)user_data;
+		foreach(name; main_windows.byKey) self.save_window(name);
+		import std.stdio;
+		stderr.writeln("Application shutdown");
 	}
 }
 
@@ -154,7 +176,8 @@ private:
 
 		window      = cast(GtkWindow*)gtk_application_window_new(app);
 		gtk_window_set_hide_on_close(window, true);
-		g_signal_connect(window, "hide", &hide_callback, cast(void*)&name);
+		g_signal_connect(window, "hide",    &hide_callback,    cast(void*)&name);
+		g_signal_connect(window, "realize", &realize_callback, cast(void*)canvas);
 		gtk_window_set_default_size(window, canvas.width, canvas.height);
 		frame       = cast(GtkFrame*)gtk_frame_new(null);
 		paned       = cast(GtkPaned*)gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
@@ -198,6 +221,16 @@ private:
 			// we land here if the close was executed from command line 
 			// then fairy.sesssion.close_window is executed once called from command line
 			// and again if the window gets a Hide-notification
+		}
+	}
+	extern(C) static void realize_callback(GtkWidget* window, gpointer user_data) {
+		auto canvas = cast(CanvasProperties*)user_data;
+		if (set_window_position(cast(GtkWindow*)window, canvas.xpos, canvas.ypos)) {
+			import std.stdio;
+			writeln("++worked");
+		} else {
+			import std.stdio;
+			writeln("not worked");
 		}
 	}
 
@@ -301,16 +334,27 @@ struct MyItemView {
 	}
 
 
-	GtkStringList* string_list;
+	GtkStringList*       string_list;
 	ulong string_list_signal_setup, string_list_signal_bind, string_list_signal_unbind, string_list_signal_teardown;
-	GtkTreeListModel* treelistmodel;
-	GtkSelectionModel* selection_model;
-	GtkListItemFactory *signal_list_item_factory;
+	GtkTreeListModel*    treelistmodel;
+	GtkSelectionModel*   selection_model;
+	GtkListItemFactory*  signal_list_item_factory;
 	GtkColumnViewColumn* col1;
-	GtkColumnView* col_view;
-	GtkScrolledWindow *scrolled_window;
+	GtkColumnView*       col_view;
+	GtkScrolledWindow*   scrolled_window;
 
-	MainWindow main_window;
+	// the actions
+	//GSimpleAction* show_selected;
+	GSimpleAction* show_all_selected;
+	GSimpleAction* hide_all_selected;
+	GSimpleAction* expand_all_recursive;
+	//GSimpleAction* collapse_all_recursive;
+
+	GMenu*           menu;        // the menu structure
+	GtkPopoverMenu*  popup;       // the widget
+	GtkGestureClick* right_click; // the action that makes the popup widget appear
+
+	MainWindow main_window; // reference to main_window we live in
 
 	this(MainWindow window) {
 		main_window = window;
@@ -353,6 +397,137 @@ struct MyItemView {
 		scrolled_window = cast(GtkScrolledWindow*)gtk_scrolled_window_new();
 		gtk_scrolled_window_set_child(scrolled_window, cast(GtkWidget*)col_view);
 		gtk_widget_set_size_request (cast(GtkWidget*)scrolled_window, 100, 100);
+
+
+		//static extern(C) void show_selected_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+		//	import std.stdio;
+		//	writeln("show selected");
+		//	MainWindow main_window = cast(MainWindow)user_data;
+		//	//GtkBitset* selected = gtk_selection_model_get_selection(cast(GtkSelectionModel*)main_window.item_view.selection_model);
+		//	//auto n_selected = gtk_bitset_get_size(selected);
+		//	//writeln("n_selected = ", n_selected);
+		//	//for (int j = 0; j < n_selected; ++j) {
+		//	//	int i = gtk_bitset_get_nth(selected, j);
+		//	//	GtkTreeListRow* row = gtk_tree_list_model_get_row(main_window.item_view.treelistmodel, i);
+		//	for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)main_window.item_view.treelistmodel); ++i) {
+		//		GtkTreeListRow* row = gtk_tree_list_model_get_row(main_window.item_view.treelistmodel, i);
+		//		//writeln("expbandable ", gtk_tree_list_row_is_expandable(row));
+		//		//if (gtk_tree_list_row_is_expandable(row)) {
+		//		//	gtk_tree_list_row_set_expanded(row,true);
+		//			if (gtk_selection_model_is_selected(cast(GtkSelectionModel*)main_window.item_view.selection_model, i)) {
+		//				auto str_obj  = cast(GtkStringObject*)gtk_tree_list_row_get_item(row);
+		//				const char* str = gtk_string_object_get_string(cast(GtkStringObject*)str_obj);
+		//				import std.conv;
+		//				auto fullname = str.to!string;
+		//				writeln("fullname ", fullname);
+		//				import ui;
+		//				ui.show(fullname[6..$], main_window.name, "true");
+		//			}
+
+		//			//main_window.item_view.root_node.find_node(fullname).expanded = true;
+		//		//}
+		//	}
+		//	//main_window.item_view.refresh_string_list();
+		//	//g_object_unref(cast(GObject*)selected);
+		//}
+		static extern(C) void show_all_selected_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			MainWindow main_window = cast(MainWindow)user_data;
+			for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)main_window.item_view.treelistmodel); ++i) {
+				GtkTreeListRow* row = gtk_tree_list_model_get_row(main_window.item_view.treelistmodel, i);
+					if (gtk_selection_model_is_selected(cast(GtkSelectionModel*)main_window.item_view.selection_model, i)) {
+						auto str_obj  = cast(GtkStringObject*)gtk_tree_list_row_get_item(row);
+						const char* str = gtk_string_object_get_string(cast(GtkStringObject*)str_obj);
+						import std.conv;
+						auto fullname = str.to!string;
+						import ui;
+						ui.show(fullname[6..$], main_window.name, "all");
+					}
+			}
+		}
+		static extern(C) void hide_all_selected_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			MainWindow main_window = cast(MainWindow)user_data;
+			for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)main_window.item_view.treelistmodel); ++i) {
+				GtkTreeListRow* row = gtk_tree_list_model_get_row(main_window.item_view.treelistmodel, i);
+					if (gtk_selection_model_is_selected(cast(GtkSelectionModel*)main_window.item_view.selection_model, i)) {
+						auto str_obj  = cast(GtkStringObject*)gtk_tree_list_row_get_item(row);
+						const char* str = gtk_string_object_get_string(cast(GtkStringObject*)str_obj);
+						import std.conv;
+						auto fullname = str.to!string;
+						import ui;
+						ui.show(fullname[6..$], main_window.name, "none");
+					}
+			}
+		}
+		static extern(C) void expand_all_recursive_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			MainWindow main_window = cast(MainWindow)user_data;
+			for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)main_window.item_view.treelistmodel); ++i) {
+				GtkTreeListRow* row = gtk_tree_list_model_get_row(main_window.item_view.treelistmodel, i);
+				if (gtk_tree_list_row_is_expandable(row)) {
+					gtk_tree_list_row_set_expanded(row,true);
+				}
+			}
+		}
+		//// for some reasond this crashes
+		//static extern(C) void collapse_all_recursive_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+		//	MainWindow main_window = cast(MainWindow)user_data;
+		//	//for (int i = g_list_model_get_n_items(cast(GListModel*)main_window.item_view.treelistmodel)-1; i>=0; --i) {
+		//	for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)main_window.item_view.treelistmodel); ++i) {
+		//		GtkTreeListRow* row = gtk_tree_list_model_get_row(main_window.item_view.treelistmodel, i);
+		//		if (gtk_tree_list_row_is_expandable(row)) {
+		//			gtk_tree_list_row_set_expanded(row,false); 
+		//		}
+		//	}
+		//}
+
+		// define window level actions
+		//show_selected = cast(GSimpleAction*)g_simple_action_new("show_selected", null);
+		//g_signal_connect(show_selected, "activate", &show_selected_activate_callback, cast(void*)main_window);
+		//g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)show_selected);
+
+		show_all_selected = cast(GSimpleAction*)g_simple_action_new("show_all_selected", null);
+		g_signal_connect(show_all_selected, "activate", &show_all_selected_activate_callback, cast(void*)main_window);
+		g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)show_all_selected);
+
+		hide_all_selected = cast(GSimpleAction*)g_simple_action_new("hide_all_selected", null);
+		g_signal_connect(hide_all_selected, "activate", &hide_all_selected_activate_callback, cast(void*)main_window);
+		g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)hide_all_selected);
+
+		expand_all_recursive = cast(GSimpleAction*)g_simple_action_new("expand_all_recursive", null);
+		g_signal_connect(expand_all_recursive, "activate", &expand_all_recursive_activate_callback, cast(void*)main_window);
+		g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)expand_all_recursive);
+
+		//collapse_all_recursive = cast(GSimpleAction*)g_simple_action_new("collapse_all_recursive", null);
+		//g_signal_connect(collapse_all_recursive, "activate", &collapse_all_recursive_activate_callback, cast(void*)main_window);
+		//g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)collapse_all_recursive);
+
+		// build the popup menu contents
+		menu = cast(GMenu*)g_menu_new();
+		//g_menu_append(menu, "show only selected","win.show_selected");
+		g_menu_append(menu, "show selected",     "win.show_all_selected");
+		g_menu_append(menu, "hide selected",     "win.hide_all_selected");
+		g_menu_append(menu, "expand all",        "win.expand_all_recursive");
+		//g_menu_append(menu, "collapse all",    "win.collapse_all_recursive");
+		popup = cast(GtkPopoverMenu*)gtk_popover_menu_new_from_model(cast(GMenuModel*)menu);
+
+		// create the gesture that makes the popup appear
+		right_click = cast(GtkGestureClick*)gtk_gesture_click_new();
+		gtk_widget_set_parent(cast(GtkWidget*)popup, cast(GtkWidget*)col_view);		
+		gtk_gesture_single_set_button(cast(GtkGestureSingle*)right_click, GdkButton.SECONDARY);
+		extern(C) static void col_view_right_click_callback(GtkGestureClick* self, int nPress,
+		                                                    gdouble x, gdouble y, gpointer user_data) {
+			MainWindow main_window = cast(MainWindow)user_data;
+			gtk_widget_set_visible(cast(GtkWidget*)main_window.item_view.popup, true);
+			auto rect = GdkRectangle(cast(int)x, cast(int)y, 4,4);
+			gtk_popover_set_pointing_to(cast(GtkPopover*)main_window.item_view.popup, &rect);
+			gtk_popover_set_has_arrow(cast(GtkPopover*)main_window.item_view.popup, false);
+			gtk_popover_set_position(cast(GtkPopover*)main_window.item_view.popup, GTK_POS_BOTTOM );
+		}
+		g_signal_connect(right_click, "pressed", &col_view_right_click_callback, cast(void*)main_window);
+		// connect the gesture to the col_view widget
+		gtk_widget_add_controller(cast(GtkWidget*)col_view, cast(GtkEventController*)right_click);
+
+	
+
 	}
 	
 
@@ -441,7 +616,7 @@ struct MyItemView {
 		import fairy,ui; 
 		TreeViewRowData data = cast(TreeViewRowData)user_data;
 		auto itemname = data.fullname[6..$];
-		ui.show(itemname, data.main_window.name, gtk_check_button_get_active(self)?"true":"false");
+		ui.show(itemname, data.main_window.name, gtk_check_button_get_active(self)?"all":"none");
 	}
 
 	extern(C) static void signal_list_item_factory_bind(GtkSignalListItemFactory* self, GObject* item, gpointer user_data) 
@@ -467,7 +642,8 @@ struct MyItemView {
 		import core.stdc.stdio;
 		import std.array, std.string, std.conv;
 		auto fullname = str.to!string;
-		snprintf(buf.ptr,64,"%s -> %d", fullname.split('/')[$-1].toStringz, gtk_list_item_get_position(list_item));
+		snprintf(buf.ptr,64,"%s", fullname.split('/')[$-1].toStringz);
+		//snprintf(buf.ptr,64,"%s -> %d", fullname.split('/')[$-1].toStringz, gtk_list_item_get_position(list_item));
 		gtk_label_set_text(label, buf.ptr);
 		gtk_tree_expander_set_list_row(cast(GtkTreeExpander*)expander, tree_list_row);
 		

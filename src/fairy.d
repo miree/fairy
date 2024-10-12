@@ -224,6 +224,7 @@ struct Session {
 		auto filename = name~".session";
 		//writeln("save session to file ", filename);
 		JSONValue json_out;
+		writeln("write_to_file");
 		// windows are easy, because we can directly serialize the array
 		json_out["windows"] = serialize(windows);
 

@@ -10,6 +10,7 @@ INCLUDES=\
 	fairy.di                \
 	functions.di            \
 	graphics.di             \
+	elderpt.di              \
 	histogram.di            \
 	item.di                 \
 	multifit_nlin.di        \

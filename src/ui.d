@@ -476,21 +476,39 @@ string wave(string name) {
 @UI_EXPORT("show item in window",
 	["name of item to display",
 	 "name of window on which the item should be shown",
-	 "true or false"])
+	 "true, false, all, none: true/false add/remove exact match, add/none add/remove also children"])
 string show(string item_name, string window_name, string action = "true") {
 	import fairy;
 	import std.algorithm, std.array;
 	auto canvas = fairy.session.get_canvas(window_name);
-	item_name ~= '/';
 	if (action == "true") {
-		foreach(itemname; session.items.byKey.array.sort) {
-			if (itemname == item_name[0..$-1] || (itemname.startsWith(item_name)) && !canvas.itemnames.canFind(itemname)) {
-				canvas.itemnames ~= itemname;
-				if (canvas.itemnames.length == 1) canvas.dim = 0;
+		if (session.items.byKey.canFind(item_name) && !canvas.itemnames.canFind(item_name)) {
+			canvas.itemnames ~= item_name;
+			if (canvas.itemnames.length == 1) canvas.dim = 0;
+		}
+	}
+	if (action == "false") {
+		string[] itemnames;
+		foreach(itemname; canvas.itemnames) {
+			if(itemname != item_name) {
+				itemnames ~= itemname;
 			}
 		}
+		canvas.itemnames = itemnames;
+	}
+	if (action == "all") {
+		item_name ~= '/';
+		foreach(itemname; session.items.byKey.array.sort) {
+			if (itemname == item_name[0..$-1] || (itemname.startsWith(item_name))) {
+				if (!canvas.itemnames.canFind(itemname)) {
+					canvas.itemnames ~= itemname;
+					if (canvas.itemnames.length == 1) canvas.dim = 0;
+				}
+			} 
+		}
 	} 
-	if (action == "false") {
+	if (action == "none") {
+		item_name ~= '/';
 		string[] itemnames;
 		foreach(itemname; canvas.itemnames) {
 			if(!(itemname == item_name[0..$-1] || itemname.startsWith(item_name))) {
