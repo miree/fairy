@@ -160,11 +160,14 @@ private:
 	GtkApplication*   application;
 	CanvasProperties* canvas;
 
-	GtkWindow*   window;
-	GtkFrame*    frame;
-	GtkPaned*    paned;
-	MyItemView   item_view;
-	MyPlotWidget plot_widget;
+	GtkWindow*    window;
+	GtkFrame*     frame;
+	GtkBox*       toplevel;
+		GtkHeaderBar* header_bar;
+		GtkLabel*     header_title;
+		GtkPaned*     paned;
+	MyItemView    item_view;
+	MyPlotWidget  plot_widget;
 
 	string name; 
 	this (string window_name, CanvasProperties* canvas_properties, GtkApplication* app)
@@ -179,13 +182,20 @@ private:
 		g_signal_connect(window, "hide",    &hide_callback,    cast(void*)&name);
 		g_signal_connect(window, "realize", &realize_callback, cast(void*)canvas);
 		gtk_window_set_default_size(window, canvas.width, canvas.height);
+		toplevel    = cast(GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL,0);
+		header_bar  = cast(GtkHeaderBar*)gtk_header_bar_new();
+		header_title= cast(GtkLabel*)gtk_label_new(("fairy - " ~ window_name).toStringz);
 		frame       = cast(GtkFrame*)gtk_frame_new(null);
 		paned       = cast(GtkPaned*)gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
 		item_view   = MyItemView(this);
 		plot_widget = MyPlotWidget(name, canvas_properties);
 
-		gtk_frame_set_child (cast(GtkFrame*)frame, cast(GtkWidget*)paned);
 
+		gtk_header_bar_set_title_widget(header_bar, cast(GtkWidget*)header_title);
+		gtk_header_bar_set_show_title_buttons(header_bar, false);
+		gtk_frame_set_child (cast(GtkFrame*)frame, cast(GtkWidget*)toplevel);
+		gtk_box_append(toplevel, cast(GtkWidget*)header_bar);
+		gtk_box_append(toplevel, cast(GtkWidget*)paned);
 		gtk_paned_set_position(paned, 200);
 		gtk_paned_set_start_child(paned, cast(GtkWidget*)item_view.scrolled_window);
 		gtk_paned_set_resize_start_child(paned, false);
