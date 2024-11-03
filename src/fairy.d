@@ -8,6 +8,7 @@ static this() {
 	import waveform;
 	import functions;
 	import value;
+	import interactive_demo;
 	add_item_factory("waveform.Waveform",       new WaveformFactory);
 	add_item_factory("histogram.FileWaveform",  new FileWaveformFactory);
 	add_item_factory("histogram.FileHistogram", new FileHistogramFactory);
@@ -15,6 +16,7 @@ static this() {
 	add_item_factory("histogram.Hist2",         new Hist2Factory);
 	add_item_factory("functions.Function",      new FunctionFactory);
 	add_item_factory("value.Value",             new ValueFactory);
+	add_item_factory("interactive_demo.Points", new PointsFactory);
 }
 
 ItemFactory[string] item_factories;

@@ -37,6 +37,7 @@ OBJECTS=\
 	mbsapi_import.o        \
 	elderpt.o              \
 	histogram.o            \
+	interactive_demo.o     \
 	item.o                 \
 	multifit_nlin.o        \
 	serializeJSON.o        \

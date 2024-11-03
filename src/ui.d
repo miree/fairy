@@ -397,6 +397,15 @@ string hist1(string name, ulong bins, double left = double.init, double right = 
 	return "";
 }
 
+@UI_EXPORT("add set of points as interactive demo",
+	["name of point set",
+	 "number of points"])
+string points(string name, uint n) {
+	import fairy, interactive_demo;
+	fairy.session.add_item(name, new Points(n));
+	return "";
+}
+
 @UI_EXPORT("fill value into the bin of a 1D-histogram",
 	["name of histogram",
 	 "position",
