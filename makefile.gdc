@@ -32,12 +32,13 @@ OBJECTS=\
 	fairy.o                \
 	functions.o            \
 	graphics.o             \
+	interactive.o          \
+	interactive_demo.o     \
 	graphics_gtk4_native.o \
 	gtk4_import.o          \
 	mbsapi_import.o        \
 	elderpt.o              \
 	histogram.o            \
-	interactive_demo.o     \
 	item.o                 \
 	multifit_nlin.o        \
 	serializeJSON.o        \

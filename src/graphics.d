@@ -66,11 +66,6 @@ interface Visual {
 	void overrideVersion(ulong);
 }
 
-// for all Visualizers that can be manipulated in the GUI
-interface Interactive {
-	bool mouse_motion_idle(double x, double y, in Transform[3] t); // return true if redwaw is needed
-}
-
 
 class Visualizer
 {
@@ -82,6 +77,10 @@ public:
 	}
 	double getValue(double x, double y) {
 		return double.init;
+	}
+	// this should return true if moving the mouse pointer changes the Visualizer appearance
+	bool mousePointer(double x, double y, in Transform[3] box) {
+		return false;
 	}
 
 	bool get_leftright(out double[2] leftright, in Transform[3] t)  {
@@ -607,15 +606,25 @@ struct CanvasPainter {
 				}
 
 				backend.show_mouse_pos(x_world, y_world, z_world);
+				import interactive;
 				if (canvas.display_mode != DisplayMode.overlay) {
 					if (mouse_itemname !is null) {
-						auto value = visualizers[mouse_itemname].getValue(x_world, y_world);
+						auto visualizer = visualizers[mouse_itemname];
+						auto value = visualizer.getValue(x_world, y_world);
 						backend.show_value(value, mouse_itemname);
+						// if the visualizer is interactive we call the interactMouseMotion funciton here
+						auto interactive_visualizer = cast(Interactive)visualizer;
+						if (interactive_visualizer) {
+							auto bbox = interactive_visualizer.interactMouseMotion(x_world, y_world, canvas.transform);
+							if (interactive_visualizer.setHighlightHandle(bbox.handle)) {
+								backend.need_redraw();
+							}						
+						}
 					} else {
 						backend.show_value(double.init, "");
 					}
 				} 
-				else {
+				else { // DisplayMode.overlay
 					double last_not_nan_value;
 					string itemname = null;
 					foreach(name; canvas.itemnames) {
@@ -626,6 +635,9 @@ struct CanvasPainter {
 							if (value !is double.init) {
 								last_not_nan_value = value;
 								itemname = name;
+							}
+							if (visualizers[mouse_itemname].mousePointer(x_world,y_world,canvas.transform)) {
+								backend.need_redraw();
 							}
 						}
 					}
@@ -734,14 +746,14 @@ struct CanvasPainter {
 
 	void left_button_pressed(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
-		//writeln("left click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
+		writeln("left click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
 		start_selection_x = x;
 		start_selection_y = y;
 		draw_selection_box = true;
 	}
 	void left_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
-		//writeln("left release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
+		writeln("left release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
 		draw_selection_box = false;
 		backend.need_redraw();
 	}
