@@ -110,12 +110,15 @@ public:
 			double h = t[1].canvas2world_delta(HEIGHT);
 			double px = points[point_index][0];
 			double py = points[point_index][1];
-			return BoundingBox(px-w/2,py-h/2, px+w/2,py+h/2, this, point_index);
+			import std.math;
+			return BoundingBox(px-w/2,py-h/2, px+w/2,py+h/2, sqrt(min_distance), this, point_index);
 		}
 		return BoundingBox();
 	}
 	override bool setHighlightHandle(long handle) {
+		import std.stdio;
 		if (highlighted_point_index != handle) {
+			writeln("ResetHighlightHandle ", handle);
 			highlighted_point_index = handle;
 			return true; // highlight changed -> need redraw (which is signaled to the caller by returning true)
 		}

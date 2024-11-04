@@ -200,6 +200,7 @@ struct CanvasPainter {
 	bool z_translating_ongoing = false;
 	bool z_scaling_ongoing     = false;
 
+	import interactive;
 
 	this(CanvasProperties *c, BackendInterface b) {
 		assert(c !is null);
@@ -608,13 +609,8 @@ struct CanvasPainter {
 						auto visualizer = visualizers[mouse_itemname];
 						auto value = visualizer.getValue(x_world, y_world);
 						backend.show_value(value, mouse_itemname);
-						// if the visualizer is interactive we call the interactMouseMotion funciton here
-						auto interactive_visualizer = cast(Interactive)visualizer;
-						if (interactive_visualizer) {
-							auto bbox = interactive_visualizer.interactMouseMotion(x_world, y_world, canvas.transform);
-							if (interactive_visualizer.setHighlightHandle(bbox.handle)) {
-								backend.need_redraw();
-							}						
+						if (highlight([mouse_itemname], visualizers, x_world, y_world, canvas.transform)) {
+							backend.need_redraw();
 						}
 					} else {
 						backend.show_value(double.init, "");
@@ -633,32 +629,16 @@ struct CanvasPainter {
 								last_not_nan_value = value;
 								itemname = name;
 							}
-							auto interactive_visualizer = cast(Interactive)(*visualizer);
-							if (interactive_visualizer) {
-								bboxes ~= interactive_visualizer.interactMouseMotion(x_world, y_world, canvas.transform);
-							}
 						}
 					}
-					// iterate all items again and set the one that is highlighted by mouse pointer
-					// if no item is highlighted it is still necessary to iterate all of them 
-					// because we may need to un-highlight one.
-					import std.algorithm, std.array;
-					auto candidates = bboxes.filter!(b=>b.valid).array.sort;
-					foreach(name; canvas.itemnames) {
-						auto visualizer = name in visualizers;
-						if (visualizer !is null) {
-							auto interactive_item = cast(Interactive)(*visualizer);
-							long handle = -1;
-							if (candidates.length > 0) {
-								auto bbox = candidates.front;	
-								if (interactive_item is bbox.item) handle = bbox.handle;
-							}
-							if (interactive_item.setHighlightHandle(handle)) {
-								backend.need_redraw();
-							}
-						}
+					if (highlight(canvas.itemnames, visualizers, x_world, y_world, canvas.transform)) {
+						backend.need_redraw();
 					}
 					backend.show_value(last_not_nan_value, itemname);
+				}
+			} else if (idx >= 0 && idx < canvas.itemnames.length) {
+				if (un_highlight(canvas.itemnames[idx], visualizers)) {
+					backend.need_redraw();
 				}
 			}
 		}

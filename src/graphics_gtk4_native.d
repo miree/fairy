@@ -932,13 +932,25 @@ struct MyPlotWidget {
 		bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
 		bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
 		CairoBackend cairo_backend = cast(CairoBackend)user_data;
+		//import std.stdio;
+		//writeln("motion");
 		cairo_backend.painter.mouse_motion(x,y,cairo_backend,ctrl,shift);
 	}
 	// mouse enter
 	extern(C) static void drawing_area_enter_callback(GtkEventControllerMotion* self,
 	                                         gdouble x, gdouble y, gpointer user_data) {
 		CairoBackend cairo_backend = cast(CairoBackend)user_data;
+		//import std.stdio;
+		//writeln("enter");
 		gtk_widget_grab_focus(cast(GtkWidget*)cairo_backend.drawing_area);
+	}
+	// mouse leaving
+	extern(C) static void drawing_area_leave_callback(GtkEventControllerMotion* self,
+	                                         gdouble x, gdouble y, gpointer user_data) {
+		CairoBackend cairo_backend = cast(CairoBackend)user_data;
+		//import std.stdio;
+		//writeln("leave");
+		//cairo_backend.painter.mouse_leaving(cairo_backend);
 	}
 
 	// mouse wheel
@@ -1250,6 +1262,7 @@ struct MyPlotWidget {
 		motion_controller = cast(GtkEventControllerMotion*) gtk_event_controller_motion_new();
 		g_signal_connect(motion_controller, "motion", &drawing_area_motion_callback, cast(void*)cairo_backend);
 		g_signal_connect(motion_controller, "enter", &drawing_area_enter_callback, cast(void*)cairo_backend);
+		g_signal_connect(motion_controller, "leave", &drawing_area_leave_callback, cast(void*)cairo_backend);
 		gtk_widget_add_controller(cast(GtkWidget*)drawing_area, cast(GtkEventController*)motion_controller);
 
 		// attach scroll controller to drawing_area widget

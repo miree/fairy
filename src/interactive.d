@@ -20,12 +20,12 @@ interface Interactive {
 // The box should be given in world coordinates.
 struct BoundingBox {
 	double x1,x2,y1,y2;
+	double distance;  // the actual distance to the mouse pointer
 	Interactive item; // a reference to the item of this BoundingBox
 	long handle = -1; // this is context dependent, each Interactive element 
 	                  // must put a number here that allows it to identify the 
 	                  // element that is associated with this bounding box
-	this (double x_1, double y_1, double x_2, double y_2, Interactive i = null, long h = -1) {
-		item = i;
+	this (double x_1, double y_1, double x_2, double y_2, double d, Interactive i = null, long h = -1) {
 		// make sure that x2 >= x1 
 		if (x_2 > x_1) { x1 = x_1; x2 = x_2; } 
 		else           { x2 = x_1; x1 = x_2; }
@@ -34,6 +34,8 @@ struct BoundingBox {
 		if (y_2 > y_1) { y1 = y_1; y2 = y_2; } 
 		else           { y2 = y_1; y1 = y_2; }
 
+		distance = d;
+		item = i;
 		handle = h;
 	}
 	bool valid() const {
@@ -69,7 +71,6 @@ struct BoundingBox {
 	}
 	int opCmp(in BoundingBox b) const {
 		// (a==b) differs from (!(a<b) && !(b<a))
-		//if (opEquals(b)) return 0;
 
 		// see if one box contains the other 
 		if (b.contains(this)) return -1;
@@ -78,15 +79,79 @@ struct BoundingBox {
 		// then compare the areas 
 		if (this.area < b.area) return -1;
 		if (this.area > b.area) return  1;
+
+		// then compare the distances 
+		if (this.distance < b.distance) return -1;
+		if (this.distance > b.distance) return  1;
+
 		return  0;
 	}
+}
+
+import transform;
+import graphics;
+// returns true if any visual change was caused by this function call so that a redraw of the 
+// scene needs to be scheduled
+bool highlight(string[] keys, Visualizer[string] container, double x, double y, in Transform[3] t) {
+	import std.algorithm, std.array;
+
+	bool need_redraw = false;
+
+	BoundingBox[] bboxes;
+	import std.stdio;
+	//writeln("findCandidates");
+	// get the best matching BoundingBox from each interactive item
+	keys.map!(key=>key in container).filter!(vis=>vis)
+	    .map!(vis=>cast(Interactive)(*vis)).filter!(vis=>vis)
+	    .each!((interactive){
+			bboxes ~= interactive.interactMouseMotion(x,y,t);
+	    });
+
+	// from all best matches select the single overall best matching one
+	auto candidates = bboxes.filter!(b=>b.valid).array.sort;
+	long handle = -1;
+	Interactive best_match = null;
+	if (candidates.length > 0) {
+		handle = candidates.front.handle;
+		best_match = candidates.front.item;
+	}
+	//writeln("candidates.length = ", candidates.length);
+	// tell the single best matching interactive item that it can highlight its element (refered to by handle)
+	// and tell all other interactive items that they are not highlighted (set handle to -1)
+	keys.map!(key=>key in container).filter!(vis=>vis)
+	    .map!(vis=>cast(Interactive)(*vis)).filter!(inta=>inta)
+	    .each!((interactive){
+	    	if (best_match !is null && (interactive is best_match)) {
+	    		//writeln("set handle ", handle);
+	    		need_redraw |= interactive.setHighlightHandle(handle);
+	    	} else {
+	    		//writeln("unset handle");
+	    		need_redraw |= interactive.setHighlightHandle(-1);
+	    	}
+	    });
+	return need_redraw;
+}
+bool un_highlight(string key, Visualizer[string] container) {
+	// if mouse is outside of canvas, all interactives need to be set to -1 (no highlight)
+	import std.stdio;
+	import std.algorithm, std.array;
+	bool need_redraw = false;
+	auto vis = key in container;
+	if (vis) {
+		auto ita = cast(Interactive)(*vis);
+		if (ita) {
+			writeln("un_highlight");
+			need_redraw |= ita.setHighlightHandle(-1);
+		}
+	}
+	return need_redraw;
 }
 
 
 unittest {
 	import std.stdio;
 	writeln("Test BoundingBox");
-	auto bb1 = BoundingBox(2,2,1,1);
+	auto bb1 = BoundingBox(2,2,1,1,1.4);
 	assert(bb1.x1 == 1);
 	assert(bb1.x2 == 2);
 	assert(bb1.y1 == 1);
@@ -94,7 +159,7 @@ unittest {
 	assert(bb1 == bb1);
 	assert(bb1.valid);
 
-	auto bb2 = BoundingBox(0,0,4,4);
+	auto bb2 = BoundingBox(0,0,4,4,1.5);
 	assert(bb2.contains(bb1));
 	assert(!bb1.contains(bb2));
 	assert(bb1.contains(1.5,1.5));
