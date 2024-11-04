@@ -78,10 +78,6 @@ public:
 	double getValue(double x, double y) {
 		return double.init;
 	}
-	// this should return true if moving the mouse pointer changes the Visualizer appearance
-	bool mousePointer(double x, double y, in Transform[3] box) {
-		return false;
-	}
 
 	bool get_leftright(out double[2] leftright, in Transform[3] t)  {
 		return false;
@@ -625,6 +621,7 @@ struct CanvasPainter {
 					}
 				} 
 				else { // DisplayMode.overlay
+					BoundingBox[] bboxes;
 					double last_not_nan_value;
 					string itemname = null;
 					foreach(name; canvas.itemnames) {
@@ -636,7 +633,27 @@ struct CanvasPainter {
 								last_not_nan_value = value;
 								itemname = name;
 							}
-							if (visualizers[mouse_itemname].mousePointer(x_world,y_world,canvas.transform)) {
+							auto interactive_visualizer = cast(Interactive)(*visualizer);
+							if (interactive_visualizer) {
+								bboxes ~= interactive_visualizer.interactMouseMotion(x_world, y_world, canvas.transform);
+							}
+						}
+					}
+					// iterate all items again and set the one that is highlighted by mouse pointer
+					// if no item is highlighted it is still necessary to iterate all of them 
+					// because we may need to un-highlight one.
+					import std.algorithm, std.array;
+					auto candidates = bboxes.filter!(b=>b.valid).array.sort;
+					foreach(name; canvas.itemnames) {
+						auto visualizer = name in visualizers;
+						if (visualizer !is null) {
+							auto interactive_item = cast(Interactive)(*visualizer);
+							long handle = -1;
+							if (candidates.length > 0) {
+								auto bbox = candidates.front;	
+								if (interactive_item is bbox.item) handle = bbox.handle;
+							}
+							if (interactive_item.setHighlightHandle(handle)) {
 								backend.need_redraw();
 							}
 						}

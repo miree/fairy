@@ -20,10 +20,12 @@ interface Interactive {
 // The box should be given in world coordinates.
 struct BoundingBox {
 	double x1,x2,y1,y2;
+	Interactive item; // a reference to the item of this BoundingBox
 	long handle = -1; // this is context dependent, each Interactive element 
 	                  // must put a number here that allows it to identify the 
 	                  // element that is associated with this bounding box
-	this (double x_1, double y_1, double x_2, double y_2, long h) {
+	this (double x_1, double y_1, double x_2, double y_2, Interactive i = null, long h = -1) {
+		item = i;
 		// make sure that x2 >= x1 
 		if (x_2 > x_1) { x1 = x_1; x2 = x_2; } 
 		else           { x2 = x_1; x1 = x_2; }
@@ -34,17 +36,17 @@ struct BoundingBox {
 
 		handle = h;
 	}
-	bool valid() {
+	bool valid() const {
 		return x1 !is double.init;
 	}
 	double area() const {
 		return (x2-x1)*(y2-y1);
 	}
 	bool contains(double x, double y) const {
-		if (x < x1) return false;
-		if (x > x2) return false;
-		if (y < y1) return false;
-		if (y > y2) return false;
+		if (x <= x1) return false;
+		if (x >= x2) return false;
+		if (y <= y1) return false;
+		if (y >= y2) return false;
 		return true;
 	}
 	bool contains(in BoundingBox b) const {
@@ -53,28 +55,30 @@ struct BoundingBox {
 			contains(b.x2,b.y2)) return true;
 		return false;
 	}
-	bool opEquals(in BoundingBox b) {
+	bool opEquals(in BoundingBox b) const {
 		// all points identical means equal
 		// note that this is not consistent with equality as derived from opCmp
 		// (a==b) differs from (!(a<b) && !(b<a)) 
-		return x1 == b.x1 &&
-		       x2 == b.x2 && 
-		       y1 == b.y1 &&
-		       y2 == b.y2;
+		// if both are invalid they are considered equal
+		// if not all elements have to be equal
+		return x1     == b.x1 &&
+		       x2     == b.x2 && 
+		       y1     == b.y1 &&
+		       y2     == b.y2 &&
+		       handle == b.handle;
 	}
-	int opCmp(in BoundingBox b) {
+	int opCmp(in BoundingBox b) const {
 		// (a==b) differs from (!(a<b) && !(b<a))
-		
-		// first see if one box contains the other 
+		//if (opEquals(b)) return 0;
+
+		// see if one box contains the other 
 		if (b.contains(this)) return -1;
 		if (this.contains(b)) return  1;
 		
 		// then compare the areas 
 		if (this.area < b.area) return -1;
-		if (b.area < this.area) return  1;
-
-		// then assume they are equal
-		return 0;
+		if (this.area > b.area) return  1;
+		return  0;
 	}
 }
 
@@ -87,6 +91,8 @@ unittest {
 	assert(bb1.x2 == 2);
 	assert(bb1.y1 == 1);
 	assert(bb1.y2 == 2);
+	assert(bb1 == bb1);
+	assert(bb1.valid);
 
 	auto bb2 = BoundingBox(0,0,4,4);
 	assert(bb2.contains(bb1));
@@ -96,13 +102,17 @@ unittest {
 	assert(!bb1.contains(1.5,0));
 	assert(!bb1.contains(0,3));
 	assert(!bb1.contains(3,0));
+	assert(bb2 == bb2);
+	assert(bb2.valid);
 
 	auto bbs = [bb2,bb1];
 	import std.algorithm, std.array;
+	//bbs.sort.array.writeln();
 	assert(bbs.sort.array == [bb1,bb2]);
 
-	auto helper1 = BoundingBox();
-	assert(!helper1.valid);
+	auto bbinvalid = BoundingBox();
+	assert(!bbinvalid.valid);
 	assert(bb1.valid);
 	assert(bb2.valid);
+
 }

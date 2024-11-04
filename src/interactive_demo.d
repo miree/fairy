@@ -74,7 +74,7 @@ public:
 
 	override BoundingBox interactMouseMotion(double x, double y, in Transform[3] t) {
 		import std.stdio;
-		writeln("interactMouseMotion called");
+		//writeln("interactMouseMotion called");
 		bool is_close(long d, double world1, double world2, double max_canvas_distance) {
 			double canvas1 = t[d].world2canvas(world1);
 			double canvas2 = t[d].world2canvas(world2);
@@ -110,7 +110,7 @@ public:
 			double h = t[1].canvas2world_delta(HEIGHT);
 			double px = points[point_index][0];
 			double py = points[point_index][1];
-			return BoundingBox(px-w/2,py-h/2, px+w/2,py+h/2, point_index);
+			return BoundingBox(px-w/2,py-h/2, px+w/2,py+h/2, this, point_index);
 		}
 		return BoundingBox();
 	}
