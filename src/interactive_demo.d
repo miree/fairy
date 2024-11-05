@@ -35,7 +35,7 @@ public:
 		try{
 			data = deserialize!Data(json);
 		} catch(Exception e) {
-			writeln("XXX ", e.msg);
+			writeln("XXX Points.this(ref JSONValue json)", e.msg);
 		} 
 	}
 	override JSONValue toJSON() { return serialize(data); }
@@ -67,18 +67,30 @@ class PointsVisualizer : Visualizer,  Interactive
 public:
 	this(ulong itemversion, double[2][] points){
 		super(itemversion, 2);
-		this.points = points;
+		this.points = points; // don't copy the data, work directly with item data
 	}
 	import graphics, transform;
 	long highlighted_point_index = -1;
+
+	double logprocess(double x, in Transform t) const {
+		import std.math;
+		if (t.logscale && x <= 0) {
+			return double.init;
+		}
+		if (t.logscale && x > 0) {
+			return t.world2canvas(log(x));
+		}
+		return t.world2canvas(x);
+	}
 
 	override BoundingBox interactMouseMotion(double x, double y, in Transform[3] t) {
 		import std.stdio;
 		//writeln("interactMouseMotion called");
 		bool is_close(long d, double world1, double world2, double max_canvas_distance) {
-			double canvas1 = t[d].world2canvas(world1);
-			double canvas2 = t[d].world2canvas(world2);
+			double canvas1 = logprocess(world1,t[d]);
+			double canvas2 = logprocess(world2,t[d]);
 			double distance = canvas2-canvas1;
+			if (distance is double.init) return false;
 			if (distance < 0) distance = -distance;
 			if (distance < max_canvas_distance) return true;
 			return false;
@@ -118,18 +130,21 @@ public:
 	override bool setHighlightHandle(long handle) {
 		import std.stdio;
 		if (highlighted_point_index != handle) {
-			writeln("ResetHighlightHandle ", handle);
+			//writeln("ResetHighlightHandle ", handle);
 			highlighted_point_index = handle;
 			return true; // highlight changed -> need redraw (which is signaled to the caller by returning true)
 		}
 		return false;
 	}
 
+
+
 	override void draw(BackendInterface d, in Transform[3] t) const  
 	{
 		foreach(i, p; points) {
-			double x = t[0].world2canvas(p[0]);
-			double y = t[1].world2canvas(p[1]);
+			double x = logprocess(p[0],t[0]);
+			double y = logprocess(p[1],t[1]);
+			if (x is double.init || y is double.init) continue;
 			double w = 4, h = 4;
 			import std.algorithm;
 			if (i == highlighted_point_index) {

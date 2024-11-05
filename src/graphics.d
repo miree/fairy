@@ -187,11 +187,13 @@ struct CanvasPainter {
 
 	double mouse_pos_x;
 	double mouse_pos_y;
+	bool   mouse_moved; // to detect if mouse movement happened between mouse button click an release events
+	bool   left_mouse_move; // indicates that the left mouse button was clicked on a movable interactive elememnt
 
 	// variables for selection box
 	double start_selection_x;
 	double start_selection_y;
-	bool draw_selection_box;
+	bool draw_selection_box; // indicates that the left mouse button was NOT clicket on a movable interactive element (in this case a selection box is drawn)
 	double current_selection_x;
 	double current_selection_y;
 
@@ -573,74 +575,66 @@ struct CanvasPainter {
 
 	}
 
-	void mouse_motion(double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {
-		mouse_pos_x = x;
-		mouse_pos_y = y;
-
-		// determine mouse position and update the mouse_pos label
+	void iterate_grid_transforms(double x, double y, void delegate(double x, double y, double z, bool inside, string itemname, in Transform[3] t) @safe callback ) {
 		string mouse_itemname = null;
 		foreach( idx, transform ; grid_transforms) {
 			import std.math;
 			double x_world = transform[0].canvas2world(x);
 			double y_world = transform[1].canvas2world(y);
 			double z_world = transform[2].canvas2world((y_world - transform[1].min)/transform[1].width);
-
+			if (idx >= 0 && idx < canvas.itemnames.length) {
+				mouse_itemname  = canvas.itemnames[idx];
+			}
 			if (x_world > transform[0].min && x_world < transform[0].max &&
 				y_world > transform[1].min && y_world < transform[1].max) {
+				callback(transform[0].exp(x_world), transform[1].exp(y_world), transform[2].exp(z_world), true, mouse_itemname, transform);
+			} else {
+				callback(transform[0].exp(x_world), transform[1].exp(y_world), transform[2].exp(z_world), false, mouse_itemname, transform);
+			}
+		}
 
-				mouse_transform = transform;
-				if (canvas.transform[0].logscale) {
-					x_world = exp(x_world);
-				}
-				if (canvas.transform[1].logscale) {
-					y_world = exp(y_world);
-				}
-				if (canvas.transform[2].logscale) {
-					z_world = exp(z_world);
-				}
-				if (idx >= 0 && idx < canvas.itemnames.length) {
-					mouse_itemname  = canvas.itemnames[idx];
-				}
+	}
 
-				backend.show_mouse_pos(x_world, y_world, z_world);
-				import interactive;
-				if (canvas.display_mode != DisplayMode.overlay) {
-					if (mouse_itemname !is null) {
-						auto visualizer = visualizers[mouse_itemname];
-						auto value = visualizer.getValue(x_world, y_world);
-						backend.show_value(value, mouse_itemname);
-						if (highlight([mouse_itemname], visualizers, x_world, y_world, canvas.transform)) {
-							backend.need_redraw();
-						}
+	void mouse_motion(double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {
+		mouse_pos_x = x;
+		mouse_pos_y = y;
+		mouse_moved = true;
+
+		// this section handles 
+		//   1) the display of the mouse potition in the GUI
+		//   2) display the value that is returned by the item where the mouse pointer hovers
+		//   3) highlight one element of interactive items when the mouse pointer is close enough 
+		if (canvas.display_mode != DisplayMode.overlay) { 
+			// grid mode
+			iterate_grid_transforms(x,y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
+				if (inside)  {
+					backend.show_mouse_pos(x_world, y_world, z_world);
+					if (itemname !is null) {
+						if (highlight([itemname], visualizers, x_world, y_world, canvas.transform)) backend.need_redraw();
+						backend.show_value(visualizers[itemname].getValue(x_world, y_world), itemname);						
+					}	
+				} else {
+					if (itemname !is null && un_highlight(itemname, visualizers)) backend.need_redraw();
+				}
+			});
+		} else { 
+			// overlay mode
+			iterate_grid_transforms(x,y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
+				if (inside) {
+					backend.show_mouse_pos(x_world, y_world, z_world);
+					if (highlight(canvas.itemnames, visualizers, x_world, y_world, canvas.transform)) backend.need_redraw();
+					import std.algorithm, std.array, std.typecons;
+					// make a list of typles (itemname, value) which only contains not-NaN values
+					auto values = canvas.itemnames.map!(name=>tuple(name,name in visualizers)).filter!(tup=>tup[1])
+					                              .map!(tup=>tuple(tup[0],(*tup[1]).getValue(x_world,y_world)))
+					                              .filter!(tup=>tup[1] !is double.init);
+					if (!values.empty) {
+						backend.show_value(values.front[1], values.front[0]);
 					} else {
-						backend.show_value(double.init, "");
+						backend.show_value(double.init, null);
 					}
 				} 
-				else { // DisplayMode.overlay
-					BoundingBox[] bboxes;
-					double last_not_nan_value;
-					string itemname = null;
-					foreach(name; canvas.itemnames) {
-						//import std.stdio;writeln(v.name);
-						auto visualizer = name in visualizers;
-						if (visualizer !is null) {
-							auto value = visualizer.getValue(x_world, y_world);
-							if (value !is double.init) {
-								last_not_nan_value = value;
-								itemname = name;
-							}
-						}
-					}
-					if (highlight(canvas.itemnames, visualizers, x_world, y_world, canvas.transform)) {
-						backend.need_redraw();
-					}
-					backend.show_value(last_not_nan_value, itemname);
-				}
-			} else if (idx >= 0 && idx < canvas.itemnames.length) {
-				if (un_highlight(canvas.itemnames[idx], visualizers)) {
-					backend.need_redraw();
-				}
-			}
+			});
 		}
 
 		//drawer.show_mouse_pos(transform.transform_canvas2world_x(x), transform.transform_canvas2world_y(y));
@@ -743,16 +737,23 @@ struct CanvasPainter {
 
 	void left_button_pressed(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
+		//mouse_pos_x = x;
+		//mouse_pos_y = y;
 		writeln("left click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
 		start_selection_x = x;
 		start_selection_y = y;
+		//if ()
 		draw_selection_box = true;
+		mouse_moved = false;
 	}
 	void left_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		writeln("left release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
 		draw_selection_box = false;
 		backend.need_redraw();
+		//if (!mouse_moved) {
+
+		//}
 	}
 
 	/////////////////////////////////////////////////////////

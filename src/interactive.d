@@ -72,6 +72,13 @@ struct BoundingBox {
 	int opCmp(in BoundingBox b) const {
 		// (a==b) differs from (!(a<b) && !(b<a))
 
+		// invalid boxes always end up last in sorted ranges
+		if (this.valid != b.valid) {
+			if (this.valid) return -1;
+			return 1;
+		}
+		if (!this.valid && !b.valid) return 0;
+
 		// see if one box contains the other 
 		if (b.contains(this)) return -1;
 		if (this.contains(b)) return  1;
@@ -90,42 +97,43 @@ struct BoundingBox {
 
 import transform;
 import graphics;
-// returns true if any visual change was caused by this function call so that a redraw of the 
-// scene needs to be scheduled
-bool highlight(string[] keys, Visualizer[string] container, double x, double y, in Transform[3] t) {
+
+// return a list of all best candidates from all items (keys are itemnames)
+auto highlight_candidates(string[] keys, Visualizer[string] container, double x, double y, in Transform[3] t) {
 	import std.algorithm, std.array;
-
-	bool need_redraw = false;
-
 	BoundingBox[] bboxes;
 	import std.stdio;
-	//writeln("findCandidates");
 	// get the best matching BoundingBox from each interactive item
 	keys.map!(key=>key in container).filter!(vis=>vis)
 	    .map!(vis=>cast(Interactive)(*vis)).filter!(vis=>vis)
 	    .each!((interactive){
 			bboxes ~= interactive.interactMouseMotion(x,y,t);
 	    });
-
-	// from all best matches select the single overall best matching one
-	auto candidates = bboxes.filter!(b=>b.valid).array.sort;
+	return bboxes;
+}
+auto best_matching_bbox(string[] keys, Visualizer[string] container, double x, double y, in Transform[3] t) {
+	import std.algorithm, std.array;
+	BoundingBox[] bboxes = highlight_candidates(keys, container, x,y,t);
+	auto candidates = bboxes.sort; 
 	long handle = -1;
 	Interactive best_match = null;
-	if (candidates.length > 0) {
-		handle = candidates.front.handle;
-		best_match = candidates.front.item;
-	}
-	//writeln("candidates.length = ", candidates.length);
-	// tell the single best matching interactive item that it can highlight its element (refered to by handle)
-	// and tell all other interactive items that they are not highlighted (set handle to -1)
+	if (candidates.length > 0) return candidates.front;
+	return BoundingBox(); // invalid box		
+}
+
+// identify one (or none) iteractive item that has the mouse pointer (x,y) close enough to create a highlight
+// return true if any visual change was caused by this function call so that a redraw of the 
+// scene needs to be scheduled
+bool highlight(string[] keys, Visualizer[string] container, double x, double y, in Transform[3] t) {
+	import std.algorithm, std.array;
+	bool need_redraw = false;
+	auto best_bbox = best_matching_bbox(keys, container, x,y,t);
 	keys.map!(key=>key in container).filter!(vis=>vis)
 	    .map!(vis=>cast(Interactive)(*vis)).filter!(inta=>inta)
 	    .each!((interactive){
-	    	if (best_match !is null && (interactive is best_match)) {
-	    		//writeln("set handle ", handle);
-	    		need_redraw |= interactive.setHighlightHandle(handle);
+	    	if (best_bbox.item !is null && (interactive is best_bbox.item)) {
+	    		need_redraw |= interactive.setHighlightHandle(best_bbox.handle);
 	    	} else {
-	    		//writeln("unset handle");
 	    		need_redraw |= interactive.setHighlightHandle(-1);
 	    	}
 	    });
@@ -140,7 +148,7 @@ bool un_highlight(string key, Visualizer[string] container) {
 	if (vis) {
 		auto ita = cast(Interactive)(*vis);
 		if (ita) {
-			writeln("un_highlight");
+			//writeln("un_highlight");
 			need_redraw |= ita.setHighlightHandle(-1);
 		}
 	}
