@@ -280,7 +280,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 	}
 
 	override void defaultEventHandler_mousedown(MouseDownEvent event) {
-		if (event.button == MouseButton.left)    painter.left_button_pressed  (1, event.clientX, event.clientY);
+		if (event.button == MouseButton.left)    painter.left_button_pressed  (1, event.clientX, event.clientY, this);
 		if (event.button == MouseButton.middle)  painter.mid_button_pressed   (1, event.clientX, event.clientY, this);
 		if (event.button == MouseButton.right)   painter.right_button_pressed (1, event.clientX, event.clientY);
 		if (event.button == MouseButton.wheelUp)   painter.scroll(0,-1);

@@ -29,11 +29,21 @@ public:
 			d[0] = uniform(0,10);
 			d[1] = uniform(0,10);
 		}
+		deltas = data.points.dup;
+		foreach(ref d; deltas) {
+			d[0] = 0.0;
+			d[1] = 0.0;
+		}
 	}
 	this(ref JSONValue json) {
 		import std.stdio;
 		try{
 			data = deserialize!Data(json);
+			deltas = data.points.dup;
+			foreach(ref d; deltas) {
+				d[0] = 0.0;
+				d[1] = 0.0;
+			}
 		} catch(Exception e) {
 			writeln("XXX Points.this(ref JSONValue json)", e.msg);
 		} 
@@ -52,12 +62,13 @@ public:
 	}
 	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) 
 	{
-		return new PointsVisualizer(item_version, data.points);
+		return new PointsVisualizer(item_version, data.points, deltas);
 	}
 
 private:
 	Data data;
 	ulong item_version;
+	double[2][] deltas; // not part of data, but part of interactive appearance
 }
 
 import interactive;
@@ -65,12 +76,15 @@ import interactive;
 class PointsVisualizer : Visualizer,  Interactive
 {
 public:
-	this(ulong itemversion, double[2][] points){
+	this(ulong itemversion, double[2][] points, double[2][] deltas){
 		super(itemversion, 2);
 		this.points = points; // don't copy the data, work directly with item data
+		this.deltas = deltas; 
 	}
 	import graphics, transform;
 	long highlighted_point_index = -1;
+
+	long[] selected_points;
 
 	double logprocess(double x, in Transform t) const {
 		import std.math;
@@ -137,25 +151,108 @@ public:
 		return false;
 	}
 
+	// change selection of element with handle
+	// if add_or_remove is true, the element is added/removed from selected set depending if it is already in the set or not
+	// if handle is -1 the selected set is emptied.
+	override void select(long handle, bool add_or_remove) {
+		import std.algorithm;
+		import std.stdio;
+		writeln("select ", handle, " ", add_or_remove);
+		if (handle == -1) {
+			selected_points.length = 0;
+		} else if (handle >= 0 && handle <= points.length) {
+			if (add_or_remove) {
+				if (selected_points.canFind(handle)) { 
+					// remove an existing point
+					auto found = selected_points.find(handle);
+					swap(found[0],found[$-1]);
+					selected_points.length = selected_points.length-1;
+				} else {
+					// add a new point
+					selected_points ~= handle;
+				}
+			} else {
+				selected_points.length = 0;
+				selected_points ~= handle;
 
+			}
+		}
+	}
+	
+	override void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove) {
+		import std.algorithm;
+		BoundingBox sb = selection_box(x1,y1, x2,y2, t);
+		if (!sb.valid) return;
+		if ((!add && !remove) || (add  &&  remove)) { // if neither add nor remove are given, delete the point selection and only select the boxed elements
+			selected_points.length = 0;
+			add = true;
+		}
+		foreach(i, p; points) {
+			if (sb.contains(p[0],p[1])) {
+				if (add && !selected_points.canFind(i)) {
+					selected_points ~= i;
+				}
+				if (!add && selected_points.canFind(i)) {
+					auto found = selected_points.find(i);
+					swap(found[0],found[$-1]);
+					selected_points.length = selected_points.length-1;
+				}
+			}
+		}
+	}
+
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+		double[2] start = [x_canvas_start, y_canvas_start];
+		double[2] current = [x_canvas, y_canvas];
+		if (handle >= -1 && handle <= cast(long)points.length) {
+			for (int dim = 0; dim < 2; ++dim) {
+				if (t[dim].logscale) {
+
+				} else {
+					if (handle >= 0) deltas[handle][dim] = t[dim].canvas2world_delta(current[dim] - start[dim]); // drag the active point ...
+					foreach(s;selected_points) {
+						deltas[s][dim] = t[dim].canvas2world_delta(current[dim] - start[dim]); // ... and all selected points
+					}
+				}
+				if (end) {
+					if (handle >= 0) points[handle][dim] += deltas[handle][dim];
+					if (handle >= 0) deltas[handle][dim] = 0;
+					foreach(s;selected_points) {
+						points[s][dim] += deltas[s][dim];
+						deltas[s][dim] = 0;
+					}
+				}
+			}
+		}
+	}
 
 	override void draw(BackendInterface d, in Transform[3] t) const  
 	{
 		foreach(i, p; points) {
-			double x = logprocess(p[0],t[0]);
-			double y = logprocess(p[1],t[1]);
-			if (x is double.init || y is double.init) continue;
+			double[2] pc; // point_on_canvas
+			for (int dim = 0; dim < 2; ++dim) {
+				if (t[dim].logscale) {
+
+				} else {
+					pc[dim] = t[dim].world2canvas(p[dim] + deltas[i][dim]);
+				}
+			}
+			if (pc[0] is double.init || pc[1] is double.init) continue;
 			double w = 4, h = 4;
 			import std.algorithm;
 			if (i == highlighted_point_index) {
 				w = 10; h = 10;
 			}
-			d.rectangle(x-w/2,y-h/2,   x+w/2,y+h/2);
+			d.set_color(0,0,1);
+			if (selected_points.canFind(i)) {
+				d.set_color(1,0,0);
+			}
+			d.rectangle(pc[0]-w/2,pc[1]-h/2,   pc[0]+w/2,pc[1]+h/2);
+			d.fill;
 		}
-		d.set_color(0,0,1);
-		d.fill;
 	}
 
 private:
 	double[2][] points;
+	double[2][] deltas;
 }

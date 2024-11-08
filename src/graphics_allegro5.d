@@ -143,7 +143,7 @@ class Allegro5Gui : Gui {
 					auto window = MainWindow.main_windows[event.mouse.display];
 					import std.stdio;
 					if (event.mouse.button == 1) {
-						window.painter.left_button_pressed(1, event.mouse.x, event.mouse.y);
+						window.painter.left_button_pressed(1, event.mouse.x, event.mouse.y, window);
 					} else if (event.mouse.button == 2) { // right button
 						window.painter.right_button_pressed(1, event.mouse.x, event.mouse.y);
 					} else if (event.mouse.button == 3) { // middle button

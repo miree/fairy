@@ -1282,7 +1282,7 @@ struct MyPlotWidget {
 			bool ctrl  = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_CONTROL_MASK) != 0;
 			bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
 			CairoBackend cairo_backend = cast(CairoBackend)user_data;
-			cairo_backend.painter.left_button_pressed(nPress,x,y,ctrl,shift);
+			cairo_backend.painter.left_button_pressed(nPress,x,y,cairo_backend,ctrl,shift);
 		}
 		extern(C) static void drawing_area_left_release_callback(GtkGestureClick* self, int nPress,
 		                                              gdouble x, gdouble y, gpointer user_data) {

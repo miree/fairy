@@ -17,10 +17,10 @@ gtk4: src/*.d
 	dmd -Isrc -i src/app.d src/mbsapi/*.c  -of=fairy -version=gtk4 -version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-4 -I/src/mbsapi
 
 minigui: src/*.d
-	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui -version=elderpt  $(LD_FLAGS)
+	dmd -I.. -Isrc -i src/app.d src/mbsapi/*.c  -of=fairy -version=minigui -version=elderpt  $(LD_FLAGS) -I/src/mbsapi
 
 minigui_gl: src/*.d
-	dmd -I.. -Isrc -i src/app.d -of=fairy -version=minigui_gl -version=elderpt  $(LD_FLAGS)
+	dmd -I.. -Isrc -i src/app.d src/mbsapi/*.c  -of=fairy -version=minigui_gl -version=elderpt  $(LD_FLAGS) -I/src/mbsapi
 
 ldc-allegro5: src/*.d
 	ldc -O -release -Isrc -i src/app.d -of=fairy --d-version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color -L-lasound

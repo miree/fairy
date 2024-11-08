@@ -203,6 +203,13 @@ struct CanvasPainter {
 	bool z_scaling_ongoing     = false;
 
 	import interactive;
+	BoundingBox select_or_drag; // when the left mouse button is clicked near an interactive element, it may be grabed directly (click and drag),
+	                            // or it may be selected (click an release). The click event sets this variable "select_or_drag" to the interactive
+	                            // element. In the following motion or release event it is decided which of the two actions is executed.
+	double canvas_drag_start_x; // if a click and drag is performed, this is the starting point of the drag operation in canvas coordinates
+	double canvas_drag_start_y; // if a click and drag is performed, this is the starting point of the drag operation in canvas coordinates
+
+
 
 	this(CanvasProperties *c, BackendInterface b) {
 		assert(c !is null);
@@ -571,8 +578,11 @@ struct CanvasPainter {
 
 		backend.finish();
 
+		// for some reason mouse motion is called here (TODO: why???) but this falsely sets the "mouse_moved" variable to true even if the mouse was not moved.
+		// quick-fix remember the variable and restore it after the function returns.
+		bool mm = mouse_moved;
 		mouse_motion(mouse_pos_x, mouse_pos_y, backend);
-
+		mouse_moved = mm;
 	}
 
 	void iterate_grid_transforms(double x, double y, void delegate(double x, double y, double z, bool inside, string itemname, in Transform[3] t) @safe callback ) {
@@ -600,41 +610,43 @@ struct CanvasPainter {
 		mouse_pos_y = y;
 		mouse_moved = true;
 
-		// this section handles 
-		//   1) the display of the mouse potition in the GUI
-		//   2) display the value that is returned by the item where the mouse pointer hovers
-		//   3) highlight one element of interactive items when the mouse pointer is close enough 
-		if (canvas.display_mode != DisplayMode.overlay) { 
-			// grid mode
-			iterate_grid_transforms(x,y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
-				if (inside)  {
-					backend.show_mouse_pos(x_world, y_world, z_world);
-					if (itemname !is null) {
-						if (highlight([itemname], visualizers, x_world, y_world, canvas.transform)) backend.need_redraw();
-						backend.show_value(visualizers[itemname].getValue(x_world, y_world), itemname);						
-					}	
-				} else {
-					if (itemname !is null && un_highlight(itemname, visualizers)) backend.need_redraw();
-				}
-			});
-		} else { 
-			// overlay mode
-			iterate_grid_transforms(x,y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
-				if (inside) {
-					backend.show_mouse_pos(x_world, y_world, z_world);
-					if (highlight(canvas.itemnames, visualizers, x_world, y_world, canvas.transform)) backend.need_redraw();
-					import std.algorithm, std.array, std.typecons;
-					// make a list of typles (itemname, value) which only contains not-NaN values
-					auto values = canvas.itemnames.map!(name=>tuple(name,name in visualizers)).filter!(tup=>tup[1])
-					                              .map!(tup=>tuple(tup[0],(*tup[1]).getValue(x_world,y_world)))
-					                              .filter!(tup=>tup[1] !is double.init);
-					if (!values.empty) {
-						backend.show_value(values.front[1], values.front[0]);
+		if (!draw_selection_box && !select_or_drag.valid) {
+			// this section handles 
+			//   1) the display of the mouse potition in the GUI
+			//   2) display the value that is returned by the item where the mouse pointer hovers
+			//   3) highlight one element of interactive items when the mouse pointer is close enough 
+			if (canvas.display_mode != DisplayMode.overlay) { 
+				// grid mode
+				iterate_grid_transforms(x,y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
+					if (inside)  {
+						backend.show_mouse_pos(x_world, y_world, z_world);
+						if (itemname !is null) {
+							if (highlight([itemname], visualizers, x_world, y_world, canvas.transform)) backend.need_redraw();
+							backend.show_value(visualizers[itemname].getValue(x_world, y_world), itemname);						
+						}	
 					} else {
-						backend.show_value(double.init, null);
+						if (itemname !is null && un_highlight(itemname, visualizers)) backend.need_redraw();
 					}
-				} 
-			});
+				});
+			} else { 
+				// overlay mode
+				iterate_grid_transforms(x,y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
+					if (inside) {
+						backend.show_mouse_pos(x_world, y_world, z_world);
+						if (highlight(canvas.itemnames, visualizers, x_world, y_world, canvas.transform)) backend.need_redraw();
+						import std.algorithm, std.array, std.typecons;
+						// make a list of typles (itemname, value) which only contains not-NaN values
+						auto values = canvas.itemnames.map!(name=>tuple(name,name in visualizers)).filter!(tup=>tup[1])
+						                              .map!(tup=>tuple(tup[0],(*tup[1]).getValue(x_world,y_world)))
+						                              .filter!(tup=>tup[1] !is double.init);
+						if (!values.empty) {
+							backend.show_value(values.front[1], values.front[0]);
+						} else {
+							backend.show_value(double.init, null);
+						}
+					} 
+				});
+			}
 		}
 
 		//drawer.show_mouse_pos(transform.transform_canvas2world_x(x), transform.transform_canvas2world_y(y));
@@ -663,6 +675,24 @@ struct CanvasPainter {
 			if (z_scaling_ongoing || z_translating_ongoing) {
 				backend.need_redraw();
 			}
+		}
+		if (select_or_drag.valid) {
+			if (canvas.display_mode == DisplayMode.overlay) {
+				foreach(itemname; canvas.itemnames) {
+					auto vis = itemname in visualizers;
+					if (vis) {
+						auto interact = cast(Interactive)(*vis);
+						if (interact) {
+							long handle = -1;
+							if (interact is select_or_drag.item) handle = select_or_drag.handle;
+							interact.drag(handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[0]);
+						}
+					}
+				}
+			} else {
+				select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, canvas.transform);
+			}
+			backend.need_redraw();
 		}
 		if (draw_selection_box) {
 			current_selection_x = x;
@@ -735,25 +765,127 @@ struct CanvasPainter {
 	}
 
 
-	void left_button_pressed(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
+	void left_button_pressed(int nPress, double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {
 		import std.stdio;
 		//mouse_pos_x = x;
 		//mouse_pos_y = y;
 		writeln("left click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
 		start_selection_x = x;
 		start_selection_y = y;
-		//if ()
-		draw_selection_box = true;
+
+		// invalidate the select_or_drag variable
+		select_or_drag = BoundingBox();
+
+		if (canvas.display_mode != DisplayMode.overlay) { 
+			// grid mode
+			iterate_grid_transforms(x,y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
+				if (inside && itemname !is null)  {
+					auto best_bbox = best_matching_bbox([itemname], visualizers, x_world, y_world, canvas.transform);
+					if (best_bbox.valid) {
+						writeln("select or drag on ", itemname);
+						select_or_drag = best_bbox;
+						canvas_drag_start_x = x;
+						canvas_drag_start_y = y;
+					}
+				} 
+			});
+		} else { 
+			// overlay mode
+			iterate_grid_transforms(x,y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
+				if (inside) {
+					auto best_bbox = best_matching_bbox(canvas.itemnames, visualizers, x_world, y_world, canvas.transform);
+					if (best_bbox.valid) {
+						foreach(name; canvas.itemnames) {
+							if (cast(Interactive)visualizers[name] is best_bbox.item) {
+								writeln("select or drag on ", name);
+							} 
+						}
+						select_or_drag = best_bbox;
+						canvas_drag_start_x = x;
+						canvas_drag_start_y = y;
+					}
+				} 
+			});
+		}
+		// only draw selection box if the click was outside of an interactive element
+		if (!select_or_drag.valid) draw_selection_box = true;
 		mouse_moved = false;
 	}
 	void left_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
-		writeln("left release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
-		draw_selection_box = false;
-		backend.need_redraw();
-		//if (!mouse_moved) {
+		writeln("left release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift, "    mouse_moved=", mouse_moved);
 
-		//}
+		// dragging interactive elements
+		if (mouse_moved && select_or_drag.valid) {
+			bool end = true;
+			if (canvas.display_mode == DisplayMode.overlay) {
+				foreach(itemname; canvas.itemnames) {
+					auto vis = itemname in visualizers;
+					if (vis) {
+						auto interact = cast(Interactive)(*vis);
+						if (interact) {
+							long handle = -1;
+							if (interact is select_or_drag.item) handle = select_or_drag.handle;
+							interact.drag(handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[0], end);
+						}
+					}
+				}
+			} else {
+				ulong grid_idx = 0;
+				foreach(idx, transform; grid_transforms) {
+					if (idx >= 0 && idx < canvas.itemnames.length) {
+						auto vis = canvas.itemnames[idx] in visualizers;
+						if (vis) {
+							auto interact = cast(Interactive)(*vis);
+							if (interact && (interact is select_or_drag.item)) {
+								grid_idx = idx;
+							}
+						}
+					}
+				}
+				select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[grid_idx], end);
+			}
+
+			//select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, canvas.transform, end);
+		} 
+		// selection via box
+		if (mouse_moved && draw_selection_box) {
+			if (canvas.display_mode != DisplayMode.overlay) {
+				// grid mode
+				foreach(idx, transform; grid_transforms) {
+					if (idx >= 0 && idx < canvas.itemnames.length) {
+						auto vis = canvas.itemnames[idx] in visualizers;
+						if (vis && cast(Interactive)(*vis)) {
+							(cast(Interactive)(*vis)).select_box(start_selection_x,start_selection_y, x,y, transform, ctrl, shift);
+						}
+					}
+				}
+			} else {
+				// overlay mode
+				import std.algorithm;
+				canvas.itemnames.map!(n=>visualizers[n]).filter!(vis=>vis)
+				                .map!(vis=>cast(Interactive)(vis)).filter!(i=>i)
+				                .each!((interactive) {
+				                	interactive.select_box(start_selection_x, start_selection_y, x,y, grid_transforms[0], ctrl, shift);
+				                });
+			}
+		}
+		// select if on an interactive element or deselect all if not on an interactive element
+		if (!mouse_moved) {
+			import std.algorithm;
+			if (select_or_drag.valid) {
+				if (ctrl) {
+					select_or_drag.item.select(select_or_drag.handle, true);
+				} else {
+					select_one(select_or_drag, canvas.itemnames, visualizers);
+				}
+			} else {
+				select_one(BoundingBox(), canvas.itemnames, visualizers); // unselect all if mouse was not over an interactive element
+			}
+		}
+		select_or_drag = BoundingBox();
+		backend.need_redraw();
+		draw_selection_box = false;
 	}
 
 	/////////////////////////////////////////////////////////

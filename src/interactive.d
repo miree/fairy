@@ -9,6 +9,13 @@ interface Interactive {
 	// returns true if that changes the apperance of the interactive element
 	// and a redraw is needed.
 	bool setHighlightHandle(long handle);
+	// if an interactive element was selected (e.g. in the GUI) this function should be called to tell the 
+	// Interactive about it (so that it can draw it differently).
+	void select(long handle, bool add_or_remove = false);
+	// selection with a box (box points are canvas coordinates), the add flag decide if the points inside the box should be added or removed
+	void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove);
+	// an interactive element is dragged by calling this function with x and y being in canvas coordinates 
+	void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false);
 }
 
 
@@ -38,7 +45,7 @@ struct BoundingBox {
 		item = i;
 		handle = h;
 	}
-	bool valid() const {
+	bool valid() const { // invalid BoundingBoxes have (handle == -1)
 		return x1 !is double.init;
 	}
 	double area() const {
@@ -139,6 +146,7 @@ bool highlight(string[] keys, Visualizer[string] container, double x, double y, 
 	    });
 	return need_redraw;
 }
+// remove all highlights from all elelments 
 bool un_highlight(string key, Visualizer[string] container) {
 	// if mouse is outside of canvas, all interactives need to be set to -1 (no highlight)
 	import std.stdio;
@@ -153,6 +161,42 @@ bool un_highlight(string key, Visualizer[string] container) {
 		}
 	}
 	return need_redraw;
+}
+void select_one(BoundingBox select_this_one, string[] keys, Visualizer[string] container) {
+	import std.algorithm, std.array;
+	keys.map!(key=>key in container).filter!(vis=>vis)
+	    .map!(vis=>cast(Interactive)(*vis)).filter!(vis=>vis)
+	    .each!((interactive){
+	    	if ((interactive is select_this_one.item)) {
+	    		select_this_one.item.select(select_this_one.handle);
+	    	} else {
+	    		interactive.select(-1);
+	    	}
+	    });
+}
+// create a bounding box from 4 canvas coordinates, transform the box into world coordintates
+// an truncate the bounding box on the tranform box
+BoundingBox selection_box(double x1, double y1, double x2, double y2, in Transform[3] t) {
+	import std.algorithm;
+	if (x1 > x2) swap(x1,x2);
+	if (y2 > y1) swap(y1,y2);
+
+	double world_x1 = t[0].canvas2world(x1);
+	double world_y1 = t[1].canvas2world(y1);
+	double world_x2 = t[0].canvas2world(x2);
+	double world_y2 = t[1].canvas2world(y2);
+
+	if (world_x1 < t[0].min) world_x1 = t[0].min;
+	if (world_x2 > t[0].max) world_x2 = t[0].max;
+	if (world_x2 < t[0].min) return BoundingBox();
+	if (world_x1 > t[0].max) return BoundingBox();
+
+	if (world_y1 < t[1].min) world_y1 = t[1].min;
+	if (world_y2 > t[1].max) world_y2 = t[1].max;
+	if (world_y2 < t[1].min) return BoundingBox();
+	if (world_y1 > t[1].max) return BoundingBox();
+
+	return BoundingBox(world_x1,world_y1, world_x2,world_y2, 0.0);
 }
 
 

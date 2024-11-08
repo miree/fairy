@@ -1742,7 +1742,7 @@ class PlotArea :  DrawingArea, BackendInterface {
 				double x = event_button.x, y = event_button.y;
 				bool ctrl  = (event_button.state & GdkModifierType.CONTROL_MASK) != 0;
 				bool shift = (event_button.state & GdkModifierType.SHIFT_MASK  ) != 0;
-				if (event_button.button == 1) painter.left_button_pressed (nPress,x,y,ctrl,shift);
+				if (event_button.button == 1) painter.left_button_pressed (nPress,x,y,this,ctrl,shift);
 				if (event_button.button == 2) painter.mid_button_pressed  (nPress,x,y,this,ctrl,shift);		
 				if (event_button.button == 3) painter.right_button_pressed(nPress,x,y,ctrl,shift);
 				return false;
@@ -1913,7 +1913,7 @@ private:
 		painter.mid_button_released(nPress,x,y,ctrl,shift);
 	}
 	void left_button_pressed(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
-		painter.left_button_pressed(nPress,x,y,ctrl,shift);
+		painter.left_button_pressed(nPress,x,y,this,ctrl,shift);
 	}
 	void left_button_released(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
 		painter.left_button_released(nPress,x,y,ctrl,shift);
