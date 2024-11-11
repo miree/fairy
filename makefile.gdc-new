@@ -1,0 +1,89 @@
+VPATH=include src src/mbsapi
+
+CFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --cflags` -g -O0
+LDFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --libs` -Wl,-rpath=/home/michael/.local/lib -lX11
+
+all: fairy
+
+
+include/%.di: src/%.d
+	dmd -o- -Isrc -i -H $< -Hd=include || true # for one file dmd gives an error and the " || true " prevents make from quitting in that case
+
+%.i: %.c
+	gcc $(CFLAGS) -E $< > $@
+
+include/alsa_import.i: src/alsa_import.c
+	gcc $(CFLAGS) -E $< > $@
+
+include/mbsapi_import.i: src/mbsapi_import.c
+	gcc $(CFLAGS) -E $< > $@
+
+include/multifit_nlin_import.i: src/multifit_nlin_import.c
+	gcc $(CFLAGS) -E $< > $@
+
+# special case for gtk_import because there are also function bodies and not only declarations
+include/gtk4_import.i: src/gtk4_import.h
+	gcc $(CFLAGS) -E $< > $@
+
+gtk4_import.o: src/gtk4_import.c
+	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -c $<
+
+OBJECTS=\
+	alsa.o                 \
+	app.o                  \
+	asciirender.o          \
+	audiodaq.o             \
+	cmdline.o              \
+	expression.o           \
+	fairy.o                \
+	functions.o            \
+	graphics.o             \
+	interactive.o          \
+	interactive_demo.o     \
+	graphics_gtk4_native.o \
+	gtk4_import.o          \
+	mbsapi_import.o        \
+	elderpt.o              \
+	histogram.o            \
+	item.o                 \
+	multifit_nlin.o        \
+	serializeJSON.o        \
+	transform.o            \
+	ui.o                   \
+	value.o                \
+	waveform.o             \
+	f_evcli.o              \
+	f_evt.o                \
+	f_his_swpbas.o         \
+	f_his_toupper.o        \
+	fLmd.o                 \
+	f_mbs_status.o         \
+	f_radware.o            \
+	f_stccomm.o            \
+	f_swaplw.o             \
+	f_ut_compress.o        \
+	f_ut_seg_show.o        \
+	f_ut_status.o          \
+	f_ut_time.o            \
+	f_ut_utime.o           	
+
+%.o: %.c
+	gcc -Isrc/mbsapi $(CFLAGS) -c $<
+
+%.o: %.d
+	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -c $<
+
+include fairy.d.dep
+
+# %.o: %.d
+# 	make -C include
+# 	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -c $<
+
+fairy: $(PREPROCESSED) $(OBJECTS)
+	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -o $@ $+ $(LDFLAGS) 
+
+includes: 
+	make -C include
+
+clean:
+	rm -f include/*.di include/*.i *.o fairy 
