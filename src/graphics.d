@@ -587,6 +587,8 @@ struct CanvasPainter {
 
 	void iterate_grid_transforms(double x, double y, void delegate(double x, double y, double z, bool inside, string itemname, in Transform[3] t) @safe callback ) {
 		string mouse_itemname = null;
+			//import std.stdio;
+			//writeln("iterate_grid_transforms ", grid_transforms.length);
 		foreach( idx, transform ; grid_transforms) {
 			import std.math;
 			double x_world = transform[0].canvas2world(x);
@@ -594,6 +596,8 @@ struct CanvasPainter {
 			double z_world = transform[2].canvas2world((y_world - transform[1].min)/transform[1].width);
 			if (idx >= 0 && idx < canvas.itemnames.length) {
 				mouse_itemname  = canvas.itemnames[idx];
+			} else {
+				mouse_itemname = null;
 			}
 			if (x_world > transform[0].min && x_world < transform[0].max &&
 				y_world > transform[1].min && y_world < transform[1].max) {
@@ -618,6 +622,8 @@ struct CanvasPainter {
 			if (canvas.display_mode != DisplayMode.overlay) { 
 				// grid mode
 				iterate_grid_transforms(x,y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
+					//import std.stdio;
+					//writeln("inside ", inside, "   ", itemname);
 					if (inside)  {
 						backend.show_mouse_pos(x_world, y_world, z_world);
 						if (itemname !is null) {
@@ -626,6 +632,7 @@ struct CanvasPainter {
 						}	
 					} else {
 						if (itemname !is null && un_highlight(itemname, visualizers)) backend.need_redraw();
+						backend.show_value(double.init, null);
 					}
 				});
 			} else { 

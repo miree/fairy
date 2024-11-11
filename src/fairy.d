@@ -17,6 +17,7 @@ static this() {
 	add_item_factory("functions.Function",      new FunctionFactory);
 	add_item_factory("value.Value",             new ValueFactory);
 	add_item_factory("interactive_demo.Points", new PointsFactory);
+	add_item_factory("interactive_demo.Ellipse",new EllipseFactory);
 }
 
 ItemFactory[string] item_factories;

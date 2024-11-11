@@ -406,6 +406,14 @@ string points(string name, uint n) {
 	return "";
 }
 
+@UI_EXPORT("add an ellipse as interactive demo",
+	["name of the ellipse"])
+string ellipse(string name) {
+	import fairy, interactive_demo;
+	fairy.session.add_item(name, new Ellipse());
+	return "";
+}
+
 @UI_EXPORT("fill value into the bin of a 1D-histogram",
 	["name of histogram",
 	 "position",
