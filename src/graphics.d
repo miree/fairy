@@ -601,6 +601,7 @@ struct CanvasPainter {
 			}
 			if (x_world > transform[0].min && x_world < transform[0].max &&
 				y_world > transform[1].min && y_world < transform[1].max) {
+				//mouse_transform = t;
 				callback(transform[0].exp(x_world), transform[1].exp(y_world), transform[2].exp(z_world), true, mouse_itemname, transform);
 			} else {
 				callback(transform[0].exp(x_world), transform[1].exp(y_world), transform[2].exp(z_world), false, mouse_itemname, transform);
@@ -625,6 +626,7 @@ struct CanvasPainter {
 					//import std.stdio;
 					//writeln("inside ", inside, "   ", itemname);
 					if (inside)  {
+						mouse_transform = t;
 						backend.show_mouse_pos(x_world, y_world, z_world);
 						if (itemname !is null) {
 							if (highlight([itemname], visualizers, x_world, y_world, canvas.transform)) backend.need_redraw();
@@ -639,6 +641,7 @@ struct CanvasPainter {
 				// overlay mode
 				iterate_grid_transforms(x,y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
 					if (inside) {
+						mouse_transform = t;
 						backend.show_mouse_pos(x_world, y_world, z_world);
 						if (highlight(canvas.itemnames, visualizers, x_world, y_world, canvas.transform)) backend.need_redraw();
 						import std.algorithm, std.array, std.typecons;
@@ -717,18 +720,30 @@ struct CanvasPainter {
 		if (canvas.color_bar &&
 			x_world <= mouse_transform[0].max && 
 			x_world >= mouse_transform[0].max - mouse_transform[0].width*canvas.color_key_width) {
-			//writeln("right click in z-colorbar");
-			canvas.transform[2].scale_start(y, canvas.rows, canvas.height, true);
-			z_scaling_ongoing = true;
+			writeln("right click in z-colorbar");
+			if (z_translating_ongoing) {
+				canvas.transform[2].translate_finish();
+				z_translating_ongoing = false;
+			} else {
+				canvas.transform[2].scale_start(y, canvas.rows, canvas.height, true);
+				z_scaling_ongoing = true;
+			}
 		} else {
-			canvas.transform[0].scale_start(x, canvas.columns,  canvas.width, false);
-			canvas.transform[1].scale_start(y, canvas.rows,     canvas.height, true);
-			scaling_ongoing = true;
+			if (translating_ongoing) {
+				canvas.transform[0].translate_finish();
+				canvas.transform[1].translate_finish();
+				backend.need_redraw();
+				translating_ongoing = false;
+			} else {
+				canvas.transform[0].scale_start(x, canvas.columns,  canvas.width, false);
+				canvas.transform[1].scale_start(y, canvas.rows,     canvas.height, true);
+				scaling_ongoing = true;
+			}
 		}
 	}
 	void right_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
-		//writeln("right release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
+		writeln("right release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift, " z_scaling_ongoing=", z_scaling_ongoing);
 		if (scaling_ongoing) {
 			canvas.transform[0].scale_finish();
 			canvas.transform[1].scale_finish();
@@ -748,13 +763,25 @@ struct CanvasPainter {
 		if (canvas.color_bar &&
 			x_world <= mouse_transform[0].max && 
 			x_world >= mouse_transform[0].max - mouse_transform[0].width*canvas.color_key_width) {
-			if (backend.inverted_y_direction) canvas.transform[2].translate_start(-y/(canvas.height/canvas.rows), canvas.rows, canvas.height);
-			else                              canvas.transform[2].translate_start(y/(canvas.height/canvas.rows), canvas.rows, canvas.height);
-			z_translating_ongoing = true;
+			if (z_scaling_ongoing) {
+				canvas.transform[2].scale_finish();
+				z_scaling_ongoing = false;
+			} else {
+				if (backend.inverted_y_direction) canvas.transform[2].translate_start(-y/(canvas.height/canvas.rows), canvas.rows, canvas.height);
+				else                              canvas.transform[2].translate_start(y/(canvas.height/canvas.rows), canvas.rows, canvas.height);
+				z_translating_ongoing = true;
+			}
 		} else {
-			canvas.transform[0].translate_start(x, canvas.columns,  canvas.width);
-			canvas.transform[1].translate_start(y, canvas.rows,     canvas.height);
-			translating_ongoing = true;
+			if (scaling_ongoing) {
+				canvas.transform[0].scale_finish();
+				canvas.transform[1].scale_finish();
+				backend.need_redraw();
+				scaling_ongoing = false;		
+			} else {
+				canvas.transform[0].translate_start(x, canvas.columns,  canvas.width);
+				canvas.transform[1].translate_start(y, canvas.rows,     canvas.height);
+				translating_ongoing = true;
+			}
 		}
 	}
 	void mid_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
@@ -765,7 +792,8 @@ struct CanvasPainter {
 			canvas.transform[1].translate_finish();
 			backend.need_redraw();
 			translating_ongoing = false;
-		} else {
+		} 
+		if (z_translating_ongoing) {
 			canvas.transform[2].translate_finish();
 			z_translating_ongoing = false;
 		}
