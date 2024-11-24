@@ -9,15 +9,16 @@ static this() {
 	import functions;
 	import value;
 	import interactive_demo;
-	add_item_factory("waveform.Waveform",       new WaveformFactory);
-	add_item_factory("histogram.FileWaveform",  new FileWaveformFactory);
-	add_item_factory("histogram.FileHistogram", new FileHistogramFactory);
-	add_item_factory("histogram.Hist1",         new Hist1Factory);
-	add_item_factory("histogram.Hist2",         new Hist2Factory);
-	add_item_factory("functions.Function",      new FunctionFactory);
-	add_item_factory("value.Value",             new ValueFactory);
-	add_item_factory("interactive_demo.Points", new PointsFactory);
-	add_item_factory("interactive_demo.Ellipse",new EllipseFactory);
+	add_item_factory("waveform.Waveform",                   new WaveformFactory);
+	add_item_factory("histogram.FileWaveform",              new FileWaveformFactory);
+	add_item_factory("histogram.FileHistogram",             new FileHistogramFactory);
+	add_item_factory("histogram.Hist1",                     new Hist1Factory);
+	add_item_factory("histogram.Hist2",                     new Hist2Factory);
+	add_item_factory("functions.Function",                  new FunctionFactory);
+	add_item_factory("value.Value",                         new ValueFactory);
+	add_item_factory("interactive_demo.Points",             new PointsFactory);
+	add_item_factory("interactive_demo.HierarchicalPoints", new HierarchicalPointsFactory);
+	add_item_factory("interactive_demo.Ellipse",            new EllipseFactory);
 }
 
 ItemFactory[string] item_factories;

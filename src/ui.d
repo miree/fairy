@@ -406,6 +406,14 @@ string points(string name, uint n) {
 	return "";
 }
 
+@UI_EXPORT("add set of hierarchial points as interactive demo",
+	["name of point set"])
+string hpoints(string name) {
+	import fairy, interactive_demo;
+	fairy.session.add_item(name, new HierarchicalPoints( [[0,0],[1,0],[0,1],[1,1],[2,2],[2,-2]], [[0,1],[0,2],[1,3],[3,4],[3,5]] ));
+	return "";
+}
+
 @UI_EXPORT("add an ellipse as interactive demo",
 	["name of the ellipse"])
 string ellipse(string name) {

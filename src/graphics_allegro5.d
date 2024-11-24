@@ -69,7 +69,7 @@ class Allegro5Gui : Gui {
 		font = fonts[default_font_size];
 
 
-		auto timeout_timer = al_create_timer(0.10);
+		auto timeout_timer = al_create_timer(0.1);
 		al_register_event_source(queue, al_get_timer_event_source(timeout_timer));
 		al_start_timer(timeout_timer);
 
