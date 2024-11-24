@@ -67,7 +67,7 @@ double triangle(double x, double w) {
 	return 1.0-x/w;
 }
 
-enum UnaryFunctionNames = ["sin","cos","tan","asin","acos","atan","exp","log","step"];
+enum UnaryFunctionNames = ["sqrt","sin","cos","tan","asin","acos","atan","exp","log","step"];
 enum BinaryFunctionNames = ["atan2","gauss","window","triangle"];
 class Function(string name, int argc) : Expression {
 	import std.range, std.math;

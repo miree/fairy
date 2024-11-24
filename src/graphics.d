@@ -804,7 +804,7 @@ struct CanvasPainter {
 		import std.stdio;
 		//mouse_pos_x = x;
 		//mouse_pos_y = y;
-		writeln("left click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
+		//writeln("left click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
 		start_selection_x = x;
 		start_selection_y = y;
 
@@ -817,7 +817,7 @@ struct CanvasPainter {
 				if (inside && itemname !is null)  {
 					auto best_bbox = best_matching_bbox([itemname], visualizers, x_world, y_world, canvas.transform);
 					if (best_bbox.valid) {
-						writeln("select or drag on ", itemname);
+						//writeln("select or drag on ", itemname);
 						select_or_drag = best_bbox;
 						canvas_drag_start_x = x;
 						canvas_drag_start_y = y;
@@ -848,7 +848,7 @@ struct CanvasPainter {
 	}
 	void left_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
 		import std.stdio;
-		writeln("left release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift, "    mouse_moved=", mouse_moved);
+		//writeln("left release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift, "    mouse_moved=", mouse_moved);
 
 		// dragging interactive elements
 		if (mouse_moved && select_or_drag.valid) {

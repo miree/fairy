@@ -245,7 +245,7 @@ string ls(bool all = true) {
 	 "definition of the function",
 	 "function parameters"])
 @trusted
-string funct(string name, string definition, string[] parameters = null) {
+string funct(string name, string definition, string[] parameters = null, string handles = null) {
 	import std.algorithm, std.conv, std.stdio, std.array;
 	import fairy, functions;
 	double[string] pars;
@@ -256,7 +256,7 @@ string funct(string name, string definition, string[] parameters = null) {
 		}
 	}
 	pars["x"]=0.0;
-	fairy.session.add_item(name, new Function(definition, pars));
+	fairy.session.add_item(name, new Function(definition, pars, handles));
 	return "";
 }
 
@@ -409,8 +409,9 @@ string points(string name, uint n) {
 @UI_EXPORT("add set of hierarchial points as interactive demo",
 	["name of point set"])
 string hpoints(string name) {
-	import fairy, interactive_demo;
-	fairy.session.add_item(name, new HierarchicalPoints( [[0,0],[1,0],[0,1],[1,1],[2,2],[2,-2]], [[0,1],[0,2],[1,3],[3,4],[3,5]] ));
+	import fairy, interactive;                         ///  0     1     2     3     4     5          
+	//fairy.session.add_item(name, new HierarchicalPoints( [[0,0],[1,0],[0,1],[1,1],[2,2],[2,-2]],   [[0,1],[0,2],[1,3],[3,4],[3,5]] ));
+	fairy.session.add_item(name, new HierarchicalPoints( [[0,0],[1,0]],   [[0,1]] ));
 	return "";
 }
 

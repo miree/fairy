@@ -9,6 +9,7 @@ static this() {
 	import functions;
 	import value;
 	import interactive_demo;
+	import interactive;
 	add_item_factory("waveform.Waveform",                   new WaveformFactory);
 	add_item_factory("histogram.FileWaveform",              new FileWaveformFactory);
 	add_item_factory("histogram.FileHistogram",             new FileHistogramFactory);
