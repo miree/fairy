@@ -8,3 +8,4 @@
 #include <gsl/gsl_deriv.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_sf.h>

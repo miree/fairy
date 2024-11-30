@@ -18,7 +18,7 @@ include/alsa_import.i: src/alsa_import.c
 include/mbsapi_import.i: src/mbsapi_import.c
 	gcc $(CFLAGS) -E $< > $@
 
-include/multifit_nlin_import.i: src/multifit_nlin_import.c
+include/gsl_import.i: src/gsl_import.c
 	gcc $(CFLAGS) -E $< > $@
 
 # special case for gtk_import because there are also function bodies and not only declarations

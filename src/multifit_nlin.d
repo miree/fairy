@@ -24,7 +24,7 @@ pragma(lib, "m");
 import std.stdio;
 import std.math;
 import std.traits;
-import multifit_nlin_import;
+import gsl_import;
 
 /+ C is coordinate type of data point
  + Data points alwas have coordinate (c), value (v) and uncertainty called sigma (s).

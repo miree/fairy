@@ -66,9 +66,24 @@ double triangle(double x, double w) {
 	if (x>=w) return 0;
 	return 1.0-x/w;
 }
+// gaussian folded exponential
+@trusted
+double gex(double x, double s, double t) {
+	import std.math;
+	import gsl_import : gsl_sf_erfc, gsl_sf_log_erfc;
+	//gnuplot> f(x,s,t) = erfc((s/sqrt(2)/t)-x/sqrt(2)/s)*exp(1.0*s**2/(2*t**2) - x/t)/(2*t)
+	double q2 = sqrt(2.0);
+	double s2 = s*q2;
+	double t2 = t*q2;
+	//return 	gsl_sf_erfc( s/t2 - x/s2 ) * exp(s*s/t2/t2 - x/t)/2/t;
+	double log_result = gsl_sf_log_erfc( s/t2 - x/s2 ) + s*s/t2/t2 - x/t - log(2*t);
+	return exp(log_result);
+
+}
 
 enum UnaryFunctionNames = ["sqrt","sin","cos","tan","asin","acos","atan","exp","log","step"];
 enum BinaryFunctionNames = ["atan2","gauss","window","triangle"];
+enum TernaryFunctionNames = ["gex"]; // gexp is gaussian convoluted exponentail 
 class Function(string name, int argc) : Expression {
 	import std.range, std.math;
 	this(ref string expression, ref int[string] parameter_index_lookup) {
@@ -96,6 +111,9 @@ class Function(string name, int argc) : Expression {
 		static if (argc==2) {
 			mixin("return "~name~"(args[0].eval(params), args[1].eval(params));");
 		}
+		static if (argc==3) {
+			mixin("return "~name~"(args[0].eval(params), args[1].eval(params), args[2].eval(params));");
+		}
 	}
 	Expression[] args;	
 }
@@ -113,6 +131,12 @@ class Number : Expression {
 			expression.popFront;
 			return;
 		} 
+		static foreach(function_name; TernaryFunctionNames) {
+			if (expression.startsWith(function_name)) {
+				e = new Function!(function_name,3)(expression, parameter_index_lookup);
+				return;
+			}
+		}
 		static foreach(function_name; BinaryFunctionNames) {
 			if (expression.startsWith(function_name)) {
 				e = new Function!(function_name,2)(expression, parameter_index_lookup);
