@@ -52,6 +52,20 @@ double gauss(double x, double s) {
 	double x_s = x/s;
 	return exp(-0.5*x_s*x_s)/sqrt(2*PI)/s;
 }
+@trusted
+double erf(double x) {
+	import gsl_import;
+	return gsl_sf_erf(x);
+}
+@trusted
+double erfc(double x) {
+	import gsl_import;
+	return gsl_sf_erfc(x);
+}
+double cauchy(double x, double s) {
+	import std.math;
+	return s/(s*s + x*x)/PI;
+}
 double step(double x) {
 	if (x>=0) return 1.0;
 	return 0.0;
@@ -81,8 +95,8 @@ double gex(double x, double s, double t) {
 
 }
 
-enum UnaryFunctionNames = ["sqrt","sin","cos","tan","asin","acos","atan","exp","log","step"];
-enum BinaryFunctionNames = ["atan2","gauss","window","triangle"];
+enum UnaryFunctionNames = ["sqrt","sin","cos","tan","asin","acos","atan","exp","log","step","erfc","erf"];
+enum BinaryFunctionNames = ["atan2","gauss","cauchy","window","triangle"];
 enum TernaryFunctionNames = ["gex"]; // gexp is gaussian convoluted exponentail 
 class Function(string name, int argc) : Expression {
 	import std.range, std.math;
