@@ -187,12 +187,25 @@ private:
 	MyItemView    item_view;
 	MyPlotWidget  plot_widget;
 
+	GtkButton*      button_menu_open;
+	GMenu*          menu_top;
+	GtkPopoverMenu* menu_popover;
+	GSimpleAction*  menu_action_window_new;
+	GSimpleAction*  menu_action_window_close;
+
+	string[]        new_window_accels;
+	const(char*)[]  new_window_accels_;
+	string[]        close_window_accels;
+	const(char*)[]  close_window_accels_;
+
+
 	string name; 
 	this (string window_name, CanvasProperties* canvas_properties, GtkApplication* app)
 	{
 		name = window_name;
 		application = app;
 		canvas      = canvas_properties;
+
 
 
 		window      = cast(GtkWindow*)gtk_application_window_new(app);
@@ -207,6 +220,58 @@ private:
 		paned       = cast(GtkPaned*)gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
 		item_view   = MyItemView(this);
 		plot_widget = MyPlotWidget(name, canvas_properties);
+
+		///////////////////////////////
+		// main window menu actions
+		///////////////////////////////
+
+		// create new window
+		menu_action_window_new = g_simple_action_new("new_window", null);
+		static extern(C) void menu_action_window_new_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			import ui, std.conv;
+			for (int i = 0; i < 100; ++i) {
+				try { ui.win("window"~i.to!string); break; } 
+				catch(Exception e) {}
+			}
+		}
+		g_signal_connect(menu_action_window_new, "activate", &menu_action_window_new_activate_callback, null);
+		g_action_map_add_action(cast(GActionMap*)window, cast(GAction*)menu_action_window_new);
+
+		// close window
+		menu_action_window_close = g_simple_action_new("close_window", null);
+		static extern(C) void menu_action_window_close_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			import ui;
+			auto window = cast(MainWindow)user_data;
+			ui.close(window.name);
+		}
+		g_signal_connect(menu_action_window_close, "activate", &menu_action_window_close_activate_callback, cast(void*)this);
+		g_action_map_add_action(cast(GActionMap*)window, cast(GAction*)menu_action_window_close);
+
+		menu_top = cast(GMenu*)g_menu_new();
+		g_menu_append(menu_top, "new window",     "win.new_window");
+		g_menu_append(menu_top, "close window",     "win.close_window");
+
+		menu_popover = cast(GtkPopoverMenu*)gtk_popover_menu_new_from_model(cast(GMenuModel*)menu_top);
+		//gtk_popover_menu_set_position(menu_popover, GTK_POS_BOTTOM);
+
+		button_menu_open = cast(GtkButton*)gtk_button_new();
+		gtk_widget_set_parent(cast(GtkWidget*)menu_popover, cast(GtkWidget*)button_menu_open);		
+
+		gtk_button_set_icon_name(button_menu_open, "open-menu-symbolic");
+		gtk_header_bar_pack_start(header_bar, cast(GtkWidget*)button_menu_open);
+		static extern(C) void button_menu_open_clicked_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			import std.stdio;
+			writeln("clicked callback");
+			auto menu_popover = cast(GtkWidget*)user_data;
+			gtk_widget_set_visible(menu_popover, true);
+		}
+		g_signal_connect(button_menu_open, "clicked", &button_menu_open_clicked_callback, menu_popover);
+		//application.setAccelsForAction("win.new_window", ["<Control>n"]);
+		new_window_accels   = ["<Control>n"];    new_window_accels_ = [ new_window_accels[0].ptr,   null ];
+		close_window_accels = ["<Control>w"];  close_window_accels_ = [ close_window_accels[0].ptr, null ];
+		gtk_application_set_accels_for_action(app, "win.new_window",   new_window_accels_.ptr);
+		gtk_application_set_accels_for_action(app, "win.close_window", close_window_accels_.ptr);
+
 
 
 		gtk_header_bar_set_title_widget(header_bar, cast(GtkWidget*)header_title);

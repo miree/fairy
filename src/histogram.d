@@ -273,7 +273,7 @@ class FileHistogram : Visual, FitDataSource, Item {
 										   hist_data.bins_x, hist_data.bins_y, 
 										   hist_data.left, hist_data.right, hist_data.bottom, hist_data.top);
 			break;
-			default: assert(false);
+			default: return null; //assert(false);
 		}
 	}
 
