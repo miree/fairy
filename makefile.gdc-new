@@ -71,7 +71,7 @@ OBJECTS=\
 	gcc -Isrc/mbsapi $(CFLAGS) -c $<
 
 %.o: %.d
-	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -c $<
+	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -c $<
 
 include fairy.d.dep
 
@@ -80,7 +80,7 @@ include fairy.d.dep
 # 	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -c $<
 
 fairy: $(PREPROCESSED) $(OBJECTS)
-	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -o $@ $+ $(LDFLAGS) 
+	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -o $@ $+ $(LDFLAGS) 
 
 includes: 
 	make -C include
