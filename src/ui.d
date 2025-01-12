@@ -260,6 +260,16 @@ string funct(string name, string definition, string[] parameters = null, string 
 	return "";
 }
 
+@UI_EXPORT("create a 1D gate",
+	["left limit", 
+	 "right limit"])
+@trusted
+string gate1d(string name, double  left, double right) {
+	import fairy, gate;
+	fairy.session.add_item(name, new Gate1D(left,right));
+	return "";
+}
+
 @UI_EXPORT("fit function to histogram",
 	["name of functiton item",
 	 "name of histogram item",

@@ -1472,8 +1472,8 @@ class CairoBackend : BackendInterface
 		cairo_paint(cr);
 		cairo_restore(cr);		
 	}
-	override void set_color(double r, double g, double b) {
-		cairo_set_source_rgba(cr, r,g,b,1);
+	override void set_color(double r, double g, double b, double a = 1) {
+		cairo_set_source_rgba(cr, r,g,b,a);
 	}
 	double line_width;
 	override void set_line_width(double w) {

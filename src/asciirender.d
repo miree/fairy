@@ -302,7 +302,7 @@ public:
 	override void clear(double r, double g, double b) {
 		bitmap.each!((ref line){line[]=0;});
 	}
-	override void set_color(double r, double g, double b) {
+	override void set_color(double r, double g, double b, double a = 1) {
 		double brightness = (r+g+b)/3;
 		color_setting = cast(ubyte)(133-5.0*brightness);
 		if (color_setting > 132) color_setting = 132;

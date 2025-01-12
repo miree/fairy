@@ -23,7 +23,7 @@ interface BackendInterface {
 	void set_clip(double x1, double y1, double x2, double y2);
 
 	void clear(double r, double g, double b);
-	void set_color(double r, double g, double b);
+	void set_color(double r, double g, double b, double a = 1); // a is alpha
 	
 	// line drawing
 	void set_line_width(double w);
