@@ -162,20 +162,21 @@ extern(C) void hist2d_set_bin(int handle, int bin1, int bin2, double value) {
 //	double left;
 //	double right;
 //}
-double[2][] elder_ranges_1D;
+import gate;
+Gate1D[] elder_ranges_1D;
+struct MsgGate1DCreate {
+	string name;
+	shared Gate1D gate;
+}
 extern(C) int cond1d_create(const char *name,
 							double left,
 							double right,
 							int handle) {
-	//// ignore handle argument (this refers to an exisiting histogram, but our ranges are standalone) 
-	//import std.conv;
+	import std.conv;
 	int rhandle = cast(int)elder_ranges_1D.length;
-	//elder_ranges_1D ~= new Range(left,right);
-	//main_thread.send(MsgRange1dCreate(rhandle, name.to!string, left, right));
-	//sw_1d_gates[rhandle] = StopWatch();
-	//sw_1d_gates[rhandle].start();
-	//return rhandle;
-	elder_ranges_1D ~= [left,right];
+	elder_ranges_1D ~= new Gate1D(left,right);
+	string itemname = fix_name(name.to!string);
+	main_thread.send(MsgGate1DCreate(itemname, cast(shared Gate1D)elder_ranges_1D[rhandle]));
 	return rhandle;
 }
 //struct MsgRange1dChange {
@@ -187,8 +188,8 @@ extern(C) void cond1d_get(int handle,
 							double *left,
 							double *right) {
 	//import std.datetime;
-	*left  = elder_ranges_1D[handle][0];
-	*right = elder_ranges_1D[handle][1];
+	*left  = elder_ranges_1D[handle].data.left;
+	*right = elder_ranges_1D[handle].data.right;
 	//if (sw_1d_gates[handle].peek.total!"msecs" > 100) { // limit the rate of checking for changes
 	//	main_thread.send(MsgRange1dChange(handle,*left,*right));
 	//	sw_1d_gates[handle].reset();

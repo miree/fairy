@@ -18,14 +18,17 @@ import interactive;
 
 class Gate1D : Visual, Item
 {
-private:
+public:
 	struct Data{
 		@SERIALIZE double left;
 		@SERIALIZE double right;
 	}	
 	Data data;
+	double left_delta  = 0; // relevant for user interaction 
+	double right_delta = 0; // relevant for user interaction
+
 	ulong item_version = 0;
-public:
+
 	this(double left, double right) {
 		data.left = left;
 		data.right = right;
@@ -52,6 +55,7 @@ import transform;
 import graphics;
 private:
 	Gate1D gate;
+	long highlight_handle = -1;
 public:
 	this(Gate1D g, ulong itemversion) {
 		ulong dim = 1;
@@ -60,9 +64,10 @@ public:
 	}
 	override void draw(BackendInterface d, in Transform[3] t) const	{
 		import std.algorithm;
-		double left = gate.data.left;
-		double right = gate.data.right;
+		double left  = gate.data.left  + gate.left_delta;
+		double right = gate.data.right + gate.right_delta;
 		if (left > right) swap(left, right);
+
 		import std.math;
 		double x1 = t[0].world2canvas(left);
 		double x2 = t[0].world2canvas(right);
@@ -78,6 +83,9 @@ public:
 		d.rectangle(x1,bottom,x2,top);
 		d.fill();
 		d.set_line_width(3);
+		if (highlight_handle != -1) {
+			d.set_line_width(5);
+		}
 		d.set_color(0,0,1);
 		d.vertical_line(x1, bottom, top);
 		d.stroke();
@@ -108,9 +116,57 @@ public:
 		return result;
 	}	
 	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) { return false; }
-	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {}
-	override BoundingBox interactMouseMotion(double mouse_world_x, double mouse_world_y, in Transform[3] t) { return BoundingBox();}
-	override bool setHighlightHandle(long handle) { return false; }
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+		if (handle != -1) {
+			double delta = t[0].canvas2world_delta(x_canvas - x_canvas_start);
+			gate.left_delta = delta;
+			gate.right_delta = delta;
+			if (end) {
+				gate.data.left += gate.left_delta;
+				gate.data.right += gate.right_delta;
+				gate.left_delta = 0;
+				gate.right_delta = 0;
+			}
+		}
+	}
+	double logprocess(double x, in Transform t) const {
+		import std.math;
+		if (t.logscale && x <= 0) {
+			return double.init;
+		}
+		if (t.logscale && x > 0) {
+			return t.world2canvas(log(x));
+		}
+		return t.world2canvas(x);
+	}
+	override BoundingBox interactMouseMotion(double mouse_world_x, double mouse_world_y, in Transform[3] t) { 
+		bool is_close(long d, double world1, double world2, double max_canvas_distance) {
+			double canvas1 = logprocess(world1,t[d]);
+			double canvas2 = logprocess(world2,t[d]);
+			double distance = canvas2-canvas1;
+			if (distance is double.init) return false;
+			if (distance < 0) distance = -distance;
+			if (distance < max_canvas_distance) return true;
+			return false;
+		}
+		import std.algorithm, std.math;
+		if (gate.data.left > gate.data.right) swap(gate.data.left, gate.data.right);
+
+		if (gate.data.left < mouse_world_x && mouse_world_x < gate.data.right) {
+			return BoundingBox(gate.data.left, t[1].min, gate.data.right, t[1].max, 
+				               gate.data.right-gate.data.left,
+				               this, 0);
+		}		
+
+		return BoundingBox();
+	}
+	override bool setHighlightHandle(long handle) {
+		if (handle != highlight_handle) {
+			highlight_handle = handle;
+			return true;
+		} 
+		return false; 
+	}
 	override void select(long handle, bool add_or_remove = false) {}
 	override void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove) {}
 
