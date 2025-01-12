@@ -258,7 +258,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 
 	int text_size = 20;
 	double line_width = 1;
-	double cr,cg,cb;
+	double cr,cg,cb,ca;
 	double rx1,ry1,rx2,ry2;
 	bool rect_valid = false;
 
@@ -418,11 +418,12 @@ class DrawArea : OpenGlWidget, BackendInterface
 		glClearColor(r,g,b,1);
 		glClear(GL_COLOR_BUFFER_BIT);
 	}
-	override void set_color(double r, double g, double b) {
+	override void set_color(double r, double g, double b, double a) {
 		cr=r;
 		cg=g;
 		cb=b;
-		glColor3f(cr,cg,cb);
+		ca=a;
+		glColor4f(cr,cg,cb,ca);
 	}
 	
 	// line drawing
@@ -434,7 +435,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 	}
 	override void vertical_line(double xd, double y1d, double y2d) {
 		glBegin(GL_QUADS);
-		glColor3f(cr,cg,cb);
+		glColor4f(cr,cg,cb,ca);
 		glVertex2f(xd+line_width/2.0,y1d);
 		glVertex2f(xd-line_width/2.0,y1d);
 		glVertex2f(xd-line_width/2.0,y2d);
@@ -443,7 +444,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 	}
 	override void horizontal_line(double yd, double x1d, double x2d) {
 		glBegin(GL_QUADS);
-		glColor3f(cr,cg,cb);
+		glColor4f(cr,cg,cb,ca);
 		glVertex2f(x1d,yd+line_width/2.0);
 		glVertex2f(x1d,yd-line_width/2.0);
 		glVertex2f(x2d,yd-line_width/2.0);
@@ -460,7 +461,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 		if (lo < 1e-6) return;
 
 		glBegin(GL_QUADS);
-			glColor3f(cr,cg,cb);
+			glColor4f(cr,cg,cb,ca);
 			glVertex2f(x1d+line_width*ox/2/lo, y1d+line_width*oy/2/lo);
 			glVertex2f(x2d+line_width*ox/2/lo, y2d+line_width*oy/2/lo);
 			glVertex2f(x2d-line_width*ox/2/lo, y2d-line_width*oy/2/lo);
@@ -478,7 +479,7 @@ class DrawArea : OpenGlWidget, BackendInterface
 	override void fill() {
 		if (!rect_valid) return;
 		glBegin(GL_QUADS);
-		glColor3f(cr,cg,cb);
+		glColor4f(cr,cg,cb,ca);
 		glVertex2f(rx1,ry1);
 		glVertex2f(rx1,ry2);
 		glVertex2f(rx2,ry2);

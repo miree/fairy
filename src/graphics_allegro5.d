@@ -360,11 +360,11 @@ public:
 		color.a = 1;
 		al_clear_to_color(color);
 	}
-	override void set_color(double r, double g, double b) {
+	override void set_color(double r, double g, double b, double a = 1) {
 		color.r = r;
 		color.g = g;
 		color.b = b;
-		color.a = 1;
+		color.a = a;
 	}
 	override void set_line_width(double w) {
 		line_width = w;

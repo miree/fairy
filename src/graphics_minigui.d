@@ -274,8 +274,8 @@ class DrawArea : Widget, BackendInterface
 	override void clear(double r, double g, double b) {
 
 	}
-	override void set_color(double r, double g, double b) {
-		color = Color(cast(int)(r*255), cast(int)(g*255), cast(int)(b*255), 255);
+	override void set_color(double r, double g, double b, double a = 1) {
+		color = Color(cast(int)(r*255), cast(int)(g*255), cast(int)(b*255), cast(int)(a*255));
 		widget_painter.pen = Pen(color, cast(int)line_width, Pen.Style.Solid);
 	}
 	
