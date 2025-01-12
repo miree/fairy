@@ -162,19 +162,21 @@ extern(C) void hist2d_set_bin(int handle, int bin1, int bin2, double value) {
 //	double left;
 //	double right;
 //}
+double[2][] elder_ranges_1D;
 extern(C) int cond1d_create(const char *name,
 							double left,
 							double right,
 							int handle) {
 	//// ignore handle argument (this refers to an exisiting histogram, but our ranges are standalone) 
 	//import std.conv;
-	//int rhandle = cast(int)elder_ranges_1D.length;
+	int rhandle = cast(int)elder_ranges_1D.length;
 	//elder_ranges_1D ~= new Range(left,right);
 	//main_thread.send(MsgRange1dCreate(rhandle, name.to!string, left, right));
 	//sw_1d_gates[rhandle] = StopWatch();
 	//sw_1d_gates[rhandle].start();
 	//return rhandle;
-	return 0;
+	elder_ranges_1D ~= [left,right];
+	return rhandle;
 }
 //struct MsgRange1dChange {
 //	int handle;
@@ -185,8 +187,8 @@ extern(C) void cond1d_get(int handle,
 							double *left,
 							double *right) {
 	//import std.datetime;
-	//*left  = elder_ranges_1D[handle].getValue1();
-	//*right = elder_ranges_1D[handle].getValue2();
+	*left  = elder_ranges_1D[handle][0];
+	*right = elder_ranges_1D[handle][1];
 	//if (sw_1d_gates[handle].peek.total!"msecs" > 100) { // limit the rate of checking for changes
 	//	main_thread.send(MsgRange1dChange(handle,*left,*right));
 	//	sw_1d_gates[handle].reset();
@@ -208,10 +210,15 @@ extern(C) void cond1d_get(int handle,
 //	string name;
 //	immutable(double)[] points;
 //}
+double[4][] elder_ranges_2D;
+
 extern(C) int cond2d_create(const char *name,
 							int num_points,
 							double *points,
 							int handle) {
+	int rhandle = cast(int)elder_ranges_2D.length;
+	elder_ranges_2D ~= [points[0],points[1],points[2],points[3]];
+	return rhandle;
 	//// ignore handle 
 	//import std.conv;
 	//string itemname = name.to!string;
@@ -252,6 +259,8 @@ extern(C) int cond2d_create(const char *name,
 extern(C) void cond2d_get(int handle,
 							int *num_points,
 							double **points) {
+	*num_points = 4;
+	*points = elder_ranges_2D[handle].ptr;
 	//import std.datetime : dur;
 	//import std.datetime.stopwatch;
 	//static StopWatch sw;

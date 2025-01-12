@@ -37,6 +37,7 @@ OBJECTS=\
 	expression.o           \
 	fairy.o                \
 	functions.o            \
+	gate.o                 \
 	graphics.o             \
 	interactive.o          \
 	interactive_demo.o     \

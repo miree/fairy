@@ -7,6 +7,7 @@ static this() {
 	import histogram;
 	import waveform;
 	import functions;
+	import gate;
 	import value;
 	import interactive_demo;
 	import interactive;
@@ -16,6 +17,7 @@ static this() {
 	add_item_factory("histogram.Hist1",                     new Hist1Factory);
 	add_item_factory("histogram.Hist2",                     new Hist2Factory);
 	add_item_factory("functions.Function",                  new FunctionFactory);
+	add_item_factory("gate.Gate1D",                         new Gate1DFactory);
 	add_item_factory("value.Value",                         new ValueFactory);
 	add_item_factory("interactive_demo.Points",             new PointsFactory);
 	add_item_factory("interactive_demo.HierarchicalPoints", new HierarchicalPointsFactory);

@@ -64,6 +64,7 @@ fairy.o: src/fairy.d include/cmdline.di \
  include/item.di \
  include/value.di \
  include/functions.di \
+ include/gate.di \
  include/expression.di \
  include/waveform.di \
  include/histogram.di \
@@ -80,6 +81,13 @@ functions.o: src/functions.d \
  include/transform.di \
  include/serializeJSON.di \
  include/expression.di \
+ include/graphics.di \
+ include/interactive.di \
+ include/item.di
+gate.o: src/gate.d \
+ /usr/lib/gcc/x86_64-pc-linux-gnu/14.2.1/include/d/__builtins.di \
+ include/transform.di \
+ include/serializeJSON.di \
  include/graphics.di \
  include/interactive.di \
  include/item.di
