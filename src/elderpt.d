@@ -745,7 +745,7 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 			elder_pt_controller_unpack(ctrl, iface, evt);
 			elder_pt_controller_process(ctrl, iface);
 		}
-		receiveTimeout(paused?100.msecs:Duration.zero,
+		receiveTimeout((paused||done)?100.msecs:Duration.zero,
 			(MsgPause    msg) { paused = true;  main_thread.send(MsgAck()); },
 			(MsgContinue msg) { paused = false; main_thread.send(MsgAck()); },
 			(MsgStop     msg) { stop   = true;  main_thread.send(MsgAck()); });
