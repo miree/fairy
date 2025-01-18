@@ -899,8 +899,11 @@ string elderpt(string command, string config_file = "analysis.config", string mb
 	import std.concurrency;
 	if (command == "start") {
 		if (elderpt.running) throw new Exception("elderpt already running");
-		elderpt.running = true;
 		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, mbs_file);
+		receive(
+			(MsgAck msg) {elderpt.running = true;},
+			(MsgErr msg) {throw new Exception("elderpt couldn't start");}	
+		);
 	}
 	if (command == "pause") {
 		if (!elderpt.running) throw new Exception("elderpt is not running");

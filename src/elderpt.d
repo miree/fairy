@@ -24,6 +24,7 @@ static ~this() {
 // D bindings for the elderpt C interface
 extern(C) void* elder_pt_interface_create(ElderPT_VisConInterface iface);
 extern(C) void* elder_pt_controller_create(const char *filename, void *iface);
+extern(C) int   elder_pt_controller_errors(void *controller);
 extern(C) void  elder_pt_controller_clear(void *controller);
 extern(C) void  elder_pt_controller_unpack(void *controller, void *iface, void *evt);
 extern(C) void  elder_pt_controller_process(void *controller, void *iface);
@@ -587,6 +588,7 @@ struct MsgPause {}
 struct MsgContinue {}
 struct MsgStop {}
 struct MsgAck {}
+struct MsgErr {}
 //struct MsgStopAck {} // sent in response to MsgStop
 //struct MsgEventsPerSecond {long events;}
 void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filename) {
@@ -652,6 +654,10 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 	}
 	name ~= '\0';
 	void *ctrl = elder_pt_controller_create(name.ptr, iface);
+	if (elder_pt_controller_errors(ctrl) > 0) {
+		main_thread.send(MsgErr());
+		return;
+	}
 
 	scope(exit) { // clean up
 		elder_pt_controller_destroy(ctrl);
@@ -663,6 +669,9 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 	import std.datetime;
 
 	auto evt = elder_pt_event_create();
+
+	main_thread.send(MsgAck()); // main thread is waiting for this to see if everything started up properly
+
 	bool paused = false;
 	bool stop = false;
 	for (uint i; ;++i) {
