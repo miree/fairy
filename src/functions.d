@@ -206,6 +206,7 @@ public:
 		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, fit_params, true);
 		fitter.run();
 		foreach(i,rpar; fitter.result_params) {
+			writeln("par ", i, ": ", fitter.result_params[i], " +- " , fitter.result_errors[i]);
 			if (i<x_idx) {
 				data.fitresult[i] = rpar;
 			} else {
