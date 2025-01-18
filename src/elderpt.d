@@ -671,11 +671,17 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 	auto evt = elder_pt_event_create();
 
 	main_thread.send(MsgAck()); // main thread is waiting for this to see if everything started up properly
+	// from here on the main_thrad is set to state "running". 
+	// This function should only return after main_thread sends MsgStop. If analysis is done (e.g. because file is completed)
+	// the analysis should stay active, doing nothing and check for messages every few milliseconds.
 
 	bool paused = false;
 	bool stop = false;
+	bool done = false;
 	for (uint i; ;++i) {
-		if (!paused) {
+		if (paused||done) {
+			elder_pt_controller_idle(ctrl, iface);
+		} else {
 			auto t = Clock.currTime;
 			uint time_secs = cast(uint)t.toUnixTime;
 			auto timeval = t.toTimeVal;
@@ -689,7 +695,8 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 				int result = f_evt_get_event(mbs_channel, &i_event_header, &i_buffer_header);
 				if (result != GETEVT_SUCCESS) {
 					writeln("end of file");
-					break;
+					done = true;
+					continue;
 				}
 				auto event_header = cast(sMbsEventHeader*) i_event_header;
 				auto buffer_header = cast(sMbsBufferHeader*) i_buffer_header;
@@ -733,7 +740,6 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 				        index += subevent_length;       
 					}
 				}
-
 			}
 			elder_pt_controller_clear(ctrl);
 			elder_pt_controller_unpack(ctrl, iface, evt);

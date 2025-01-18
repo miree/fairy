@@ -891,14 +891,27 @@ string shell(string[] args) {
 version (elderpt) {
 
 @UI_EXPORT("control elderpt thread", 
-	["start pause continue stop",
+	["start restart pause continue stop",
 	 "elderpt configuration file"])
 @trusted
 string elderpt(string command, string config_file = "analysis.config", string mbs_file = null) {
 	import elderpt;
 	import std.concurrency;
 	if (command == "start") {
-		if (elderpt.running) throw new Exception("elderpt already running");
+		if (elderpt.running) throw new Exception("elderpt already running, try \"elderpt stop\" or \"elderpt restart\"");
+		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, mbs_file);
+		receive(
+			(MsgAck msg) {elderpt.running = true;},
+			(MsgErr msg) {throw new Exception("elderpt couldn't start");}	
+		);
+	}
+	if (command == "restart") {
+		if (!elderpt.running) throw new Exception("elderpt is not running");
+		else { // stop first
+			elderpt.tid.send(MsgStop());
+			receive((MsgAck msg) {});
+			elderpt.running = false;
+		}
 		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, mbs_file);
 		receive(
 			(MsgAck msg) {elderpt.running = true;},
