@@ -183,6 +183,10 @@ struct Session {
 		//import std.stdio;
 		//writeln("windows -> ", windows.byKey);
 		import std.array;
+		foreach(name; items.byKey.array) {
+			import ui;
+			remove_item(name);
+		}
 		auto window_names = windows.byKey.array;
 		foreach(name; window_names) {
 			remove_window(name);

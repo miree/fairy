@@ -1029,7 +1029,7 @@ struct MyPlotWidget {
 	}
 
 
-	// mouse wheel
+	// keyboard shortcut
 	extern(C)
 	static void drawing_area_key_pressed_callback(GtkEventControllerKey* self,
 	                                              guint keyval, guint keycode, GdkModifierType state, gpointer user_data) {
