@@ -192,6 +192,7 @@ private:
 	GtkPopoverMenu* menu_popover;
 	GSimpleAction*  menu_action_window_new;
 	GSimpleAction*  menu_action_window_close;
+	GSimpleAction*  menu_action_session_open;
 
 	string[]        new_window_accels;
 	const(char*)[]  new_window_accels_;
@@ -247,9 +248,42 @@ private:
 		g_signal_connect(menu_action_window_close, "activate", &menu_action_window_close_activate_callback, cast(void*)this);
 		g_action_map_add_action(cast(GActionMap*)window, cast(GAction*)menu_action_window_close);
 
+		// open session
+		menu_action_session_open = g_simple_action_new("open_session", null);
+		static extern(C) void on_open_response(GtkDialog* dialog, int response) {
+			import std.stdio, std.conv;
+			stderr.writeln("on_open_response");
+			if (response == GTK_RESPONSE_ACCEPT) {
+				auto chooser = cast(GtkFileChooser*)dialog;
+				GFile* file = gtk_file_chooser_get_file(chooser);
+				string pathname = g_file_get_path(file).to!string;
+				writeln("on_open_response: ", pathname);
+				import ui;
+				ui.session_open(pathname);
+				g_object_unref(file);
+			} else {
+				writeln("no accept");
+			}
+			gtk_window_destroy(cast(GtkWindow*)dialog);
+		}
+		static extern(C) void menu_action_session_open_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			//auto window = cast(MainWindow)user_data;
+			GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
+			auto window = cast(MainWindow)user_data;
+			GtkWidget* dialog = gtk_file_chooser_dialog_new("Open File", window.window, action,
+				                                            "Open", GTK_RESPONSE_ACCEPT,
+				                                            null);
+
+			gtk_window_present(cast(GtkWindow*)dialog);
+			g_signal_connect(dialog, "response", &on_open_response, null);
+		}
+		g_signal_connect(menu_action_session_open, "activate", &menu_action_session_open_activate_callback, cast(void*)this);
+		g_action_map_add_action(cast(GActionMap*)window, cast(GAction*)menu_action_session_open);
+
 		menu_top = cast(GMenu*)g_menu_new();
 		g_menu_append(menu_top, "new window",     "win.new_window");
 		g_menu_append(menu_top, "close window",     "win.close_window");
+		g_menu_append(menu_top, "open session",    "win.open_session");
 
 		menu_popover = cast(GtkPopoverMenu*)gtk_popover_menu_new_from_model(cast(GMenuModel*)menu_top);
 		//gtk_popover_menu_set_position(menu_popover, GTK_POS_BOTTOM);

@@ -78,6 +78,10 @@ void update_window_gui(string window_name) {
 	["new session name, file does not exist a new session is created"])
 string session_open(string session_name) {
 	import fairy, histogram;
+	import std.algorithm;
+	if (session_name.endsWith(".session")) {
+		session_name = session_name[0..$-8];
+	}
 	if (session_name == fairy.session.name) return "session already open";
 
 	if (start_gui) foreach (name; fairy.session.windows.byKey) if (fairy.main_gui !is null) fairy.main_gui.save_window(name);
