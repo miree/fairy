@@ -1,32 +1,20 @@
 VPATH=include src src/mbsapi
 
+# gdc -Iinclude -Isrc -c -o gate.d src/gate.d -MMD `pkg-config gtk4 --cflags` -MF gate.d.dep
+
+
 CFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --cflags` -g -O0
 LDFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --libs` -Wl,-rpath=/home/michael/.local/lib -lX11
 
-all: fairy
+all: includes fairy
 
-
+# translate .d source files into .di interface files
 include/%.di: src/%.d
-	dmd -o- -Isrc -i -H $< -Hd=include || true # for one file dmd gives an error and the " || true " prevents make from quitting in that case
+	dmd -o- -Iinclude -Isrc -i -H $< -Hd=include || true # for one file dmd gives an error and the " || true " prevents make from quitting in that case
 
-%.i: %.c
-	gcc $(CFLAGS) -E $< > $@
-
-include/alsa_import.i: src/alsa_import.c
-	gcc $(CFLAGS) -E $< > $@
-
-include/mbsapi_import.i: src/mbsapi_import.c
-	gcc $(CFLAGS) -E $< > $@
-
-include/gsl_import.i: src/gsl_import.c
-	gcc $(CFLAGS) -E $< > $@
-
-# special case for gtk_import because there are also function bodies and not only declarations
-include/gtk4_import.i: src/gtk4_import.h
-	gcc $(CFLAGS) -E $< > $@
-
+# gtk4_import also has function bodies, so there needs to be an object file created for it (instead of just a .i file)
 gtk4_import.o: src/gtk4_import.c
-	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -c $<
+	gdc -Iinclude -Isrc $(CFLAGS) -fversion=gtk4_native -c $<
 
 OBJECTS=\
 	alsa.o                 \
