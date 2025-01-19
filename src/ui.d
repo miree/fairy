@@ -121,6 +121,10 @@ string session_open(string session_name) {
 	["new session name, file is immediately written"])
 string session_save(string session_name) {
 	import fairy, histogram;
+	import std.algorithm;
+	if (session_name.endsWith(".session")) {
+		session_name = session_name[0..$-8];
+	}
 	fairy.session.name = session_name;
 	fairy.session.write_to_file();
 	return "";

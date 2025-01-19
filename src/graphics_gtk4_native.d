@@ -190,14 +190,22 @@ private:
 	GtkButton*      button_menu_open;
 	GMenu*          menu_top;
 	GtkPopoverMenu* menu_popover;
+	GSimpleAction*  menu_action_fairy_quit;
 	GSimpleAction*  menu_action_window_new;
 	GSimpleAction*  menu_action_window_close;
 	GSimpleAction*  menu_action_session_open;
+	GSimpleAction*  menu_action_session_save;
 
+	string[]        fairy_quit_accels;
+	const(char*)[]  fairy_quit_accels_;
 	string[]        new_window_accels;
 	const(char*)[]  new_window_accels_;
 	string[]        close_window_accels;
 	const(char*)[]  close_window_accels_;
+	string[]        open_session_accels;
+	const(char*)[]  open_session_accels_;
+	string[]        save_session_accels;
+	const(char*)[]  save_session_accels_;
 
 
 	string name; 
@@ -225,6 +233,16 @@ private:
 		///////////////////////////////
 		// main window menu actions
 		///////////////////////////////
+
+		// quit program
+		menu_action_fairy_quit = g_simple_action_new("quit_fairy", null);
+		static extern(C) void menu_action_fairy_quit_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			import ui;
+			ui.quit();
+		}
+		g_signal_connect(menu_action_fairy_quit, "activate", &menu_action_fairy_quit_activate_callback, null);
+		g_action_map_add_action(cast(GActionMap*)window, cast(GAction*)menu_action_fairy_quit);
+
 
 		// create new window
 		menu_action_window_new = g_simple_action_new("new_window", null);
@@ -280,10 +298,45 @@ private:
 		g_signal_connect(menu_action_session_open, "activate", &menu_action_session_open_activate_callback, cast(void*)this);
 		g_action_map_add_action(cast(GActionMap*)window, cast(GAction*)menu_action_session_open);
 
+		// save session
+		menu_action_session_save = g_simple_action_new("save_session", null);
+		static extern(C) void on_session_save_response(GtkDialog* dialog, int response) {
+			import std.stdio, std.conv;
+			stderr.writeln("on_session_save_response");
+			if (response == GTK_RESPONSE_ACCEPT) {
+				auto chooser = cast(GtkFileChooser*)dialog;
+				GFile* file = gtk_file_chooser_get_file(chooser);
+				string pathname = g_file_get_path(file).to!string;
+				writeln("on_session_save_response: ", pathname);
+				import ui;
+				ui.session_save(pathname);
+				g_object_unref(file);
+			} else {
+				writeln("no accept");
+			}
+			gtk_window_destroy(cast(GtkWindow*)dialog);
+		}
+		static extern(C) void menu_action_session_save_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			//auto window = cast(MainWindow)user_data;
+			GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SAVE;
+			auto window = cast(MainWindow)user_data;
+			GtkWidget* dialog = gtk_file_chooser_dialog_new("Open File", window.window, action,
+				                                            "Save", GTK_RESPONSE_ACCEPT,
+				                                            null);
+
+			gtk_window_present(cast(GtkWindow*)dialog);
+			g_signal_connect(dialog, "response", &on_session_save_response, null);
+		}
+		g_signal_connect(menu_action_session_save, "activate", &menu_action_session_save_activate_callback, cast(void*)this);
+		g_action_map_add_action(cast(GActionMap*)window, cast(GAction*)menu_action_session_save);
+
+
 		menu_top = cast(GMenu*)g_menu_new();
 		g_menu_append(menu_top, "new window",     "win.new_window");
 		g_menu_append(menu_top, "close window",     "win.close_window");
 		g_menu_append(menu_top, "open session",    "win.open_session");
+		g_menu_append(menu_top, "save session",    "win.save_session");
+		g_menu_append(menu_top, "quit program",    "win.fairy_quit");
 
 		menu_popover = cast(GtkPopoverMenu*)gtk_popover_menu_new_from_model(cast(GMenuModel*)menu_top);
 		//gtk_popover_menu_set_position(menu_popover, GTK_POS_BOTTOM);
@@ -303,8 +356,14 @@ private:
 		//application.setAccelsForAction("win.new_window", ["<Control>n"]);
 		new_window_accels   = ["<Control>n"];    new_window_accels_ = [ new_window_accels[0].ptr,   null ];
 		close_window_accels = ["<Control>w"];  close_window_accels_ = [ close_window_accels[0].ptr, null ];
+		open_session_accels = ["<Control>o"];  open_session_accels_ = [ open_session_accels[0].ptr, null ];
+		save_session_accels = ["<Control>s"];  save_session_accels_ = [ save_session_accels[0].ptr, null ];
+		fairy_quit_accels   = ["<Control>q"];  fairy_quit_accels_   = [ fairy_quit_accels[0].ptr, null ];
 		gtk_application_set_accels_for_action(app, "win.new_window",   new_window_accels_.ptr);
 		gtk_application_set_accels_for_action(app, "win.close_window", close_window_accels_.ptr);
+		gtk_application_set_accels_for_action(app, "win.open_session", open_session_accels_.ptr);
+		gtk_application_set_accels_for_action(app, "win.save_session", save_session_accels_.ptr);
+		gtk_application_set_accels_for_action(app, "win.quit_fairy",   fairy_quit_accels_.ptr);
 
 
 
