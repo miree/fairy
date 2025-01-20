@@ -615,6 +615,7 @@ struct CanvasPainter {
 		mouse_pos_y = y;
 		mouse_moved = true;
 
+		backend.show_value(double.init, null); // this clears the show_value field
 		if (!draw_selection_box && !select_or_drag.valid) {
 			// this section handles 
 			//   1) the display of the mouse potition in the GUI
@@ -634,7 +635,6 @@ struct CanvasPainter {
 						}	
 					} else {
 						if (itemname !is null && un_highlight(itemname, visualizers)) backend.need_redraw();
-						backend.show_value(double.init, null);
 					}
 				});
 			} else { 
@@ -652,7 +652,7 @@ struct CanvasPainter {
 						if (!values.empty) {
 							backend.show_value(values.front[1], values.front[0]);
 						} else {
-							backend.show_value(double.init, null);
+							//backend.show_value(double.init, null);
 						}
 					} 
 				});
