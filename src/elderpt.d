@@ -624,9 +624,12 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 	enum PUTEVT_CLOSE_ERR  = 105;
 	enum PUTEVT_WRERR      = 106;
 	enum PUTEVT_NOCHANNEL  = 107;
-	
-	import std.stdio;
+	import std.stdio, std.conv;
 	auto mbs_channel = f_evt_control();
+	scope(exit) { 
+		import core.stdc.stdlib;
+		free(mbs_channel); 
+	}
 	if (mbs_filename !is null) {
 		import std.string;
 		char *file_header;
@@ -656,6 +659,7 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 	void *ctrl = elder_pt_controller_create(name.ptr, iface);
 	if (elder_pt_controller_errors(ctrl) > 0) {
 		main_thread.send(MsgErr());
+		f_evt_get_close(mbs_channel);
 		return;
 	}
 
@@ -751,6 +755,7 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 			(MsgStop     msg) { stop   = true;  main_thread.send(MsgAck()); });
 		if (stop) break;
 	}
+	f_evt_get_close(mbs_channel);
 	elder_pt_event_destroy(evt);
 }
 
