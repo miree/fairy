@@ -260,9 +260,11 @@ Session session;
 void run(string[] args) {
 
 	import std.getopt;
+	string execute;
 	auto getopt_result = getopt(args,
 		"session|s", "session name (default = session)", &session.name,
-		"gui|g", "start gui at startup", &start_gui
+		"gui|g",     "start gui at startup", &start_gui,
+		"execute|e", "execute this command after startup", &execute 
 	);	
 
 	import std.stdio, std.algorithm;
@@ -273,6 +275,7 @@ void run(string[] args) {
 
 	import cmdline;
 	auto console_tid = spawn(&cmdline.run_console, thisTid);
+	thisTid.send(cmdline.Command(cast(immutable string)execute, thisTid));
 	loop(args);
 	// cause the cmdline.run_console thread to stop
 	//cmdline.close_stdin(); 
