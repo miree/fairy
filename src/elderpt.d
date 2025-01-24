@@ -634,6 +634,7 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 		import std.string;
 		char *file_header;
 		if (f_evt_get_open(GETEVT_FILE,
+		//if (f_evt_get_open(GETEVT_STREAM,
 			           cast(char*)mbs_filename.dup.toStringz, 
 			           mbs_channel,
 			           &file_header,
@@ -683,6 +684,7 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 	bool stop = false;
 	bool done = false;
 	for (uint i; ;++i) {
+		elder_pt_controller_clear(ctrl);
 		if (paused||done) {
 			elder_pt_controller_idle(ctrl, iface);
 		} else {
@@ -745,7 +747,6 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 					}
 				}
 			}
-			elder_pt_controller_clear(ctrl);
 			elder_pt_controller_unpack(ctrl, iface, evt);
 			elder_pt_controller_process(ctrl, iface);
 		}
