@@ -714,7 +714,7 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 				int event_count         = (event_header.iEventNumber);
 				int event_size          = (event_header.iWords-2)/2;
 				int buffer_sec          = buffer_header.iTimeSpecSec;
-				int buffer_msecs        = buffer_header.iTimeSpecNanoSec/1000000;
+				int buffer_msecs        = buffer_header.iTimeSpecNanoSec; // the name is misleading. These are apparently miliseconds
 				elder_pt_event_clear(evt, i, event_type_low, event_trigger, buffer_sec, buffer_msecs, timestamp);
 				const(uint*)  event_ptr = cast(const(uint*))event_header;
 				//write(i, ": trig=",event_trigger, " subevents: ");
