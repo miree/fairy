@@ -74,6 +74,7 @@ class Gtk4NativeGui : Gui {
 
 	override void add_window(string name, ref CanvasProperties canvas) {
 		main_windows[name] = new MainWindow(name, &canvas, application);
+		main_windows[name].item_view.refresh_string_list();
 	}
 	override void close_window(string name) {
 		if (name in main_windows) {
@@ -506,7 +507,7 @@ struct MyItemView {
 		gtk_widget_queue_draw(cast(GtkWidget*)main_window.plot_widget.drawing_area);
 	}
 
-	void refresh_string_list() {
+	void refresh_string_list(bool expand_parents_of_selected = true) {
 		import std.stdio, std.array, std.algorithm;
 		// remember the expansion state (iterate over all items in the list)
 		for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)treelistmodel); ++i) {
@@ -519,6 +520,21 @@ struct MyItemView {
 				auto node = root_node.find_node(fullname);
 				if (node !is null) node.expanded = gtk_tree_list_row_get_expanded(row)?true:false;
 				//writeln("row ", i,  "(", fullname, "): ", gtk_tree_list_row_get_expanded(row));
+			}
+		}
+
+		// this expands all parents of all shown items in the item_view
+		// the purpose is that when a session is opened, it is obvious which items are shown in the item_view 
+		if (expand_parents_of_selected)
+		{
+			foreach(itemname; main_window.canvas.itemnames) {
+				auto fullitemname = ["fairy"] ~ itemname.split('/');
+				while (fullitemname.length > 0) {
+					import std.conv;
+					auto node = root_node.find_node(fullitemname.join('/').to!string);
+					if (node !is null) node.expanded = true;
+					fullitemname = fullitemname[0..$-1];
+				}
 			}
 		}
 
