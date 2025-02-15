@@ -720,7 +720,7 @@ struct CanvasPainter {
 		if (canvas.color_bar &&
 			x_world <= mouse_transform[0].max && 
 			x_world >= mouse_transform[0].max - mouse_transform[0].width*canvas.color_key_width) {
-			writeln("right click in z-colorbar");
+			//writeln("right click in z-colorbar");
 			if (z_translating_ongoing) {
 				canvas.transform[2].translate_finish();
 				z_translating_ongoing = false;
@@ -742,8 +742,8 @@ struct CanvasPainter {
 		}
 	}
 	void right_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
-		import std.stdio;
-		writeln("right release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift, " z_scaling_ongoing=", z_scaling_ongoing);
+		//import std.stdio;
+		//writeln("right release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift, " z_scaling_ongoing=", z_scaling_ongoing);
 		if (scaling_ongoing) {
 			canvas.transform[0].scale_finish();
 			canvas.transform[1].scale_finish();
@@ -757,7 +757,7 @@ struct CanvasPainter {
 	}
 
 	void mid_button_pressed(int nPress, double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {
-		import std.stdio;
+		//import std.stdio;
 		//writeln("middle click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
 		double x_world = mouse_transform[0].canvas2world(x);
 		if (canvas.color_bar &&
@@ -832,7 +832,7 @@ struct CanvasPainter {
 					if (best_bbox.valid) {
 						foreach(name; canvas.itemnames) {
 							if (cast(Interactive)visualizers[name] is best_bbox.item) {
-								writeln("select or drag on ", name);
+								//writeln("select or drag on ", name);
 							} 
 						}
 						select_or_drag = best_bbox;
