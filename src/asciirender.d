@@ -247,7 +247,7 @@ private:
 	double rect_x1,  rect_x2,  rect_y1,  rect_y2;
 	long   rect_x1i, rect_x2i, rect_y1i, rect_y2i;
 	ubyte color_setting = 0;
-
+	bool transparent = false;
 public:
 
 
@@ -307,6 +307,8 @@ public:
 		color_setting = cast(ubyte)(133-5.0*brightness);
 		if (color_setting > 132) color_setting = 132;
 		if (color_setting < 128) color_setting = 128;
+		if (a == 1) transparent = false;
+		else        transparent = true;
 	}
 	override void set_line_width(double w) {
 		// nothing
@@ -420,6 +422,7 @@ public:
 		draw_rectangle = true;
 	}
 	override void fill() {
+		if (transparent) return;
 		if (draw_rectangle) {
 			foreach(y; rect_y1i..rect_y2i) bitmap[cast(uint)y][cast(uint)rect_x1i..cast(uint)rect_x2i] = color_setting;
 			draw_rectangle = false;
