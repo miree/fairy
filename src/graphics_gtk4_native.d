@@ -1242,9 +1242,9 @@ struct MyPlotWidget {
 		check_log_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
 		check_log_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
 		check_log_z = cast(GtkCheckButton*)gtk_check_button_new_with_label("Z");
-		gtk_check_button_set_active(check_log_x, canvas.autoscale[0]);
-		gtk_check_button_set_active(check_log_y, canvas.autoscale[1]);
-		gtk_check_button_set_active(check_log_z, canvas.autoscale[2]);
+		gtk_check_button_set_active(check_log_x, canvas.transform[0].logscale);
+		gtk_check_button_set_active(check_log_y, canvas.transform[1].logscale);
+		gtk_check_button_set_active(check_log_z, canvas.transform[2].logscale);
 		extern(C) static void check_log_x_toggled(GtkToggleButton* self,  gpointer user_data) {
 			ui.logscale(*(cast(string*)user_data), 'x', gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}

@@ -322,6 +322,7 @@ public:
 		if (t[0].logscale && (gate.data.left < 0 || gate.data.right < 0)) {
 			return;
 		}
+		
 		import std.algorithm;
 		if (x2 < x1) swap(x1,x2);
 
