@@ -270,11 +270,28 @@ string funct(string name, string definition, string[] parameters = null, string 
 
 @UI_EXPORT("create a 1D gate",
 	["left limit", 
-	 "right limit"])
+	 "right limit",
+	 "x|y"])
 @trusted
-string gate1d(string name, double  min, double max, int direction = 0) {
+string gate1d(string name, double  min, double max, char direction = 'x') {
 	import fairy, gate;
-	fairy.session.add_item(name, new Gate1D(min,max));
+	if (direction != 'x' && direction != 'y') {
+		throw new Exception("direction must be x or y");
+	}
+	int dir = (direction=='x')?0:1;
+	fairy.session.add_item(name, new Gate1D(min,max,dir));
+	return "";
+}
+
+@UI_EXPORT("create a 2D gate",
+	["left limit", 
+	 "right limit",
+	 "bottom limit",
+	 "top limit"])
+@trusted
+string gate2d(string name, double  xmin, double xmax, double ymin, double ymax) {
+	import fairy, gate;
+	fairy.session.add_item(name, new Gate2D(xmin,xmax,ymin,ymax));
 	return "";
 }
 
