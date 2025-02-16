@@ -702,32 +702,72 @@ public:
 
 			if (t[0].logscale) {
 				import std.math;
-				if ((handle & 0x1) || ((selected_handle != -1) && (selected_handle & 0x1))) if (gate.data.xmin > 0) gate.xmin_delta = gate.data.xmin*exp(deltax) - gate.data.xmin;
-				if ((handle & 0x2) || ((selected_handle != -1) && (selected_handle & 0x2))) if (gate.data.xmax > 0) gate.xmax_delta = gate.data.xmax*exp(deltax) - gate.data.xmax;
+				if (((highlight_handle != -1) && (highlight_handle & 0x1)) || ((selected_handle != -1) && (selected_handle & 0x1))) if (gate.data.xmin > 0) gate.xmin_delta = gate.data.xmin*exp(deltax) - gate.data.xmin;
+				if (((highlight_handle != -1) && (highlight_handle & 0x2)) || ((selected_handle != -1) && (selected_handle & 0x2))) if (gate.data.xmax > 0) gate.xmax_delta = gate.data.xmax*exp(deltax) - gate.data.xmax;
 			} else {
-				if ((handle & 0x1) || ((selected_handle != -1) && (selected_handle & 0x1))) gate.xmin_delta = deltax;
-				if ((handle & 0x2) || ((selected_handle != -1) && (selected_handle & 0x2))) gate.xmax_delta = deltax;
+				if (((highlight_handle != -1) && (highlight_handle & 0x1)) || ((selected_handle != -1) && (selected_handle & 0x1))) gate.xmin_delta = deltax;
+				if (((highlight_handle != -1) && (highlight_handle & 0x2)) || ((selected_handle != -1) && (selected_handle & 0x2))) gate.xmax_delta = deltax;
 			}
 
 			if (t[1].logscale) {
 				import std.math;
-				if ((handle & 0x4) || ((selected_handle != -1) && (selected_handle & 0x4))) if (gate.data.ymin > 0) gate.ymin_delta = gate.data.ymin*exp(deltay) - gate.data.ymin;
-				if ((handle & 0x8) || ((selected_handle != -1) && (selected_handle & 0x8))) if (gate.data.ymax > 0) gate.ymax_delta = gate.data.ymax*exp(deltay) - gate.data.ymax;
+				if (((highlight_handle != -1) && (highlight_handle & 0x4)) || ((selected_handle != -1) && (selected_handle & 0x4))) if (gate.data.ymin > 0) gate.ymin_delta = gate.data.ymin*exp(deltay) - gate.data.ymin;
+				if (((highlight_handle != -1) && (highlight_handle & 0x8)) || ((selected_handle != -1) && (selected_handle & 0x8))) if (gate.data.ymax > 0) gate.ymax_delta = gate.data.ymax*exp(deltay) - gate.data.ymax;
 			} else {
-				if ((handle & 0x4) || ((selected_handle != -1) && (selected_handle & 0x4))) gate.ymin_delta = deltay;
-				if ((handle & 0x8) || ((selected_handle != -1) && (selected_handle & 0x8))) gate.ymax_delta = deltay;
+				if (((highlight_handle != -1) && (highlight_handle & 0x4)) || ((selected_handle != -1) && (selected_handle & 0x4))) gate.ymin_delta = deltay;
+				if (((highlight_handle != -1) && (highlight_handle & 0x8)) || ((selected_handle != -1) && (selected_handle & 0x8))) gate.ymax_delta = deltay;
 			}
 
 			if (end) {
-				if ((handle & 0x1) || ((selected_handle != -1) && (selected_handle & 0x1))) gate.data.xmin += gate.xmin_delta;
-				if ((handle & 0x2) || ((selected_handle != -1) && (selected_handle & 0x2))) gate.data.xmax += gate.xmax_delta;
+				if (((highlight_handle != -1) && (highlight_handle & 0x1)) || ((selected_handle != -1) && (selected_handle & 0x1))) gate.data.xmin += gate.xmin_delta;
+				if (((highlight_handle != -1) && (highlight_handle & 0x2)) || ((selected_handle != -1) && (selected_handle & 0x2))) gate.data.xmax += gate.xmax_delta;
 				gate.xmin_delta = 0;
 				gate.xmax_delta = 0;
 
-				if ((handle & 0x4) || ((selected_handle != -1) && (selected_handle & 0x4))) gate.data.ymin += gate.ymin_delta;
-				if ((handle & 0x8) || ((selected_handle != -1) && (selected_handle & 0x8))) gate.data.ymax += gate.ymax_delta;
+				if (((highlight_handle != -1) && (highlight_handle & 0x4)) || ((selected_handle != -1) && (selected_handle & 0x4))) gate.data.ymin += gate.ymin_delta;
+				if (((highlight_handle != -1) && (highlight_handle & 0x8)) || ((selected_handle != -1) && (selected_handle & 0x8))) gate.data.ymax += gate.ymax_delta;
 				gate.ymin_delta = 0;
 				gate.ymax_delta = 0;
+
+				import std.algorithm;
+				if (gate.data.xmin > gate.data.xmax) {
+					swap(gate.data.xmin, gate.data.xmax);
+					if ((highlight_handle&0x3) == 0x1) {
+						highlight_handle &= ~0x3;
+						highlight_handle |= 0x2;
+					}
+					else if ((highlight_handle&0x3) == 0x2) {
+						highlight_handle &= ~0x3;
+						highlight_handle |= 0x1;
+					}
+					if ((selected_handle&0x3) == 0x1) {
+						selected_handle &= ~0x3;
+						selected_handle |= 0x2;
+					}
+					else if ((selected_handle&0x3) == 0x2) {
+						selected_handle &= ~0x3;
+						selected_handle |= 0x1;
+					}
+				}
+				if (gate.data.ymin > gate.data.ymax) {
+					swap(gate.data.ymin, gate.data.ymax);
+					if ((highlight_handle&0xc) == 0x4) {
+						highlight_handle &= ~0xc;
+						highlight_handle |= 0x8;
+					}
+					else if ((highlight_handle&0xc) == 0x8) {
+						highlight_handle &= ~0xc;
+						highlight_handle |= 0x4;
+					}
+					if ((selected_handle&0xc) == 0x4) {
+						selected_handle &= ~0xc;
+						selected_handle |= 0x8;
+					}
+					else if ((selected_handle&0xc) == 0x8) {
+						selected_handle &= ~0xc;
+						selected_handle |= 0x4;
+					}
+				}
 			}
 		}
 
@@ -783,8 +823,8 @@ public:
 		//writeln("-----------------");
 		//writeln(outer_xmin, " ", xmin, " ", xmax, " ", outer_xmax);
 		//writeln(outer_ymin, " ", ymin, " ", ymax, " ", outer_ymax);
-		double mouse_x = mouse_world_x;
-		double mouse_y = mouse_world_y;
+		double mouse_x = t[0].log(mouse_world_x);
+		double mouse_y = t[1].log(mouse_world_y);
 		//writeln(mouse_x, " ", mouse_y);
 
 		import std.algorithm;
@@ -851,39 +891,78 @@ public:
 
 
 	override void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove) {
-		//if (gate.data.direction == 1) {
-		//	select_box_y(x1,y1,x2,y2,t,add,remove);
-		//	return;
-		//}
-
-		////import std.stdio;
-		////writeln("box: ", x1, " ", y1, " ", x2, " ", y2, "add=", add, "  remove=", remove);
-		//if (t[0].logscale && (gate.data.min < 0 || gate.data.max < 0)) {
-		//	return;
-		//}
+		//import std.stdio;
+		//writeln("box: ", x1, " ", y1, " ", x2, " ", y2, "add=", add, "  remove=", remove);
+		if (t[0].logscale && (gate.data.xmin < 0 || gate.data.xmax < 0)) {
+			return;
+		}
+		if (t[1].logscale && (gate.data.ymin < 0 || gate.data.ymax < 0)) {
+			return;
+		}
 		
-		//import std.algorithm;
-		//if (x2 < x1) swap(x1,x2);
+		double xmin_canvas = t[0].world2canvas(t[0].log(gate.data.xmin));
+		double xmax_canvas = t[0].world2canvas(t[0].log(gate.data.xmax));
+		double ymin_canvas = t[1].world2canvas(t[1].log(gate.data.ymin));
+		double ymax_canvas = t[1].world2canvas(t[1].log(gate.data.ymax));
 
-		//double min_canvas = t[0].world2canvas(t[0].log(gate.data.min));
-		//double max_canvas = t[0].world2canvas(t[0].log(gate.data.max));
+		import std.algorithm;
+		if (x2 < x1) swap(x1,x2);
+		if (y2 < y1) swap(y1,y2);
 
-		//int pattern = 0;
+
+		int pattern = 0;
+
+		// left side inside or intersecting box
+		if (x1 < xmin_canvas && x2 > xmin_canvas) {
+			if (!(ymin_canvas < y1 && ymax_canvas < y1)) {
+				if (!(ymin_canvas > y2 && ymax_canvas > y2)) {
+					pattern |= 0x1;
+				}
+			}
+		}
+
+		// right side inside or intersecting box
+		if (x1 < xmax_canvas && x2 > xmax_canvas) {
+			if (!(ymin_canvas < y1 && ymax_canvas < y1)) {
+				if (!(ymin_canvas > y2 && ymax_canvas > y2)) {
+					pattern |= 0x2;
+				}
+			}
+		}
+
+		// bottom side inside or intersecting
+		if (y1 < ymin_canvas && y2 > ymin_canvas) {
+			if (!(xmin_canvas < x1 && xmax_canvas < x1)) {
+				if (!(xmin_canvas > x2 && xmax_canvas > x2)) {
+					pattern |= 0x4;
+				}
+			}
+		}
+		// bottom side inside or intersecting
+		if (y1 < ymax_canvas && y2 > ymax_canvas) {
+			if (!(xmin_canvas < x1 && xmax_canvas < x1)) {
+				if (!(xmin_canvas > x2 && xmax_canvas > x2)) {
+					pattern |= 0x8;
+				}
+			}
+		}
 		
 		//if (min_canvas > x1 && min_canvas < x2) pattern |= 1;
 		//if (max_canvas > x1 && max_canvas < x2) pattern |= 2;
 
-		//if (selected_handle == -1) selected_handle = 0;
-		//if (add) {
-		//	selected_handle |= pattern;
-		//}
-		//else if (remove) {
-		//	selected_handle &= ~pattern;
-		//}
-		//else {
-		//	selected_handle = pattern;
-		//}
-		//if (selected_handle == 0) selected_handle = -1;
+
+
+		if (selected_handle == -1) selected_handle = 0;
+		if (add) {
+			selected_handle |= pattern;
+		}
+		else if (remove) {
+			selected_handle &= ~pattern;
+		}
+		else {
+			selected_handle = pattern;
+		}
+		if (selected_handle == 0) selected_handle = -1;
 
 	}
 
