@@ -535,7 +535,7 @@ public:
 		catch(Exception e) writeln("Function deserialize error: ", e.msg);
 	}
 	override JSONValue toJSON()  { return serialize(data); }
-	override string get_type()  { return "gate.Gate1D"; }
+	override string get_type()  { return "gate.Gate2D"; }
 	override void reset() {}
 	override ulong getVersion() { return item_version; }
 	override void overrideVersion(ulong new_version) { item_version = new_version; }
@@ -602,53 +602,48 @@ public:
 		d.rectangle(x1,y1,x2,y2);
 		d.fill();
 
-		//switch (highlight_handle) {
-		//	case 3:
-		//		d.set_color(0.6,0.6,1);
-		//		d.set_line_width(6);
-		//		if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-		//		d.vertical_line(x1, bottom, top);
-		//		d.stroke();
-		//		d.set_color(0.6,0.6,1);
-		//		if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-		//		d.vertical_line(x2, bottom, top);
-		//		d.stroke();
-		//	break;
-		//	case 1:
-		//		d.set_color(0.6,0.6,1);
-		//		d.set_line_width(6);
-		//		if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-		//		d.vertical_line(x1, bottom, top);
-		//		d.stroke();
-		//		d.set_color(0.0,0.0,1);
-		//		d.set_line_width(3);
-		//		if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-		//		d.vertical_line(x2, bottom, top);
-		//		d.stroke();
-		//	break;
-		//	case 2:
-		//		d.set_color(0.6,0.6,1);
-		//		d.set_line_width(6);
-		//		if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-		//		d.vertical_line(x2, bottom, top);
-		//		d.stroke();
-		//		d.set_color(0.0,0.0,1);
-		//		d.set_line_width(3);
-		//		if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-		//		d.vertical_line(x1, bottom, top);
-		//		d.stroke();
-		//	break;
-		//	default:
-		//		d.set_color(0.0,0.0,1);
-		//		d.set_line_width(3);
-		//		if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-		//		d.vertical_line(x1, bottom, top);
-		//		d.stroke();
-		//		d.set_color(0.0,0.0,1);
-		//		if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-		//		d.vertical_line(x2, bottom, top);
-		//		d.stroke();
-		//}
+		for(uint i = 0; i < 4; ++i) {
+			bool is_highlighted = ((highlight_handle!=-1) && (highlight_handle&(1<<i)))?true:false;
+			bool is_selected    = ((selected_handle!=-1) && (selected_handle &(1<<i)))?true:false;
+			d.set_color(0.0,0.0,1);
+			d.set_line_width(3);
+			if (is_highlighted) { d.set_color(0.6,0.6,1); d.set_line_width(6); }
+			if (is_selected)    { d.set_color(1.0,0.0,0); d.set_line_width(6); }
+			switch(i) {
+				case 0:   d.vertical_line(x1,y1,y2); break;
+				case 1:   d.vertical_line(x2,y1,y2); break;
+				case 2: d.horizontal_line(y1,x1,x2); break;
+				case 3: d.horizontal_line(y2,x1,x2); break;
+				default: break;
+			}
+			d.stroke();
+		}
+		//double boundsx1,boundsx2,boundsx3,boundsx4;
+		//boundaries(xmin,xmax,t[0],boundsx1,boundsx2,boundsx3,boundsx4);
+		//d.set_color(0,0.4,0);
+		//d.set_line_width(2);
+		//d.vertical_line(t[0].world2canvas(boundsx1),t[1].world2canvas(t[1].min),t[1].world2canvas(t[1].max));
+		//d.stroke();
+		//d.vertical_line(t[0].world2canvas(boundsx2),t[1].world2canvas(t[1].min),t[1].world2canvas(t[1].max));
+		//d.stroke();
+		//d.vertical_line(t[0].world2canvas(boundsx3),t[1].world2canvas(t[1].min),t[1].world2canvas(t[1].max));
+		//d.stroke();
+		//d.vertical_line(t[0].world2canvas(boundsx4),t[1].world2canvas(t[1].min),t[1].world2canvas(t[1].max));
+		//d.stroke();
+
+		//double boundsy1,boundsy2,boundsy3,boundsy4;
+		//boundaries(ymin,ymax,t[1],boundsy1,boundsy2,boundsy3,boundsy4);
+		//d.set_color(0.4,0,0);
+		//d.set_line_width(2);
+		//d.horizontal_line(t[1].world2canvas(boundsy1),t[0].world2canvas(t[0].min),t[0].world2canvas(t[0].max));
+		//d.stroke();
+		//d.horizontal_line(t[1].world2canvas(boundsy2),t[0].world2canvas(t[0].min),t[0].world2canvas(t[0].max));
+		//d.stroke();
+		//d.horizontal_line(t[1].world2canvas(boundsy3),t[0].world2canvas(t[0].min),t[0].world2canvas(t[0].max));
+		//d.stroke();
+		//d.horizontal_line(t[1].world2canvas(boundsy4),t[0].world2canvas(t[0].min),t[0].world2canvas(t[0].max));
+		//d.stroke();
+
 	}
 	override double getValue(double x, double y) { return 0.0; }
 	override bool get_leftright(out double[2] minmax, in Transform[3] t)  {
@@ -697,119 +692,133 @@ public:
 		return result;			
 	}
 	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
-		//if (handle != -1 || selected_handle != -1) {
-		//	double delta;
-		//	if (gate.data.direction == 0) delta = t[0].canvas2world_delta(x_canvas - x_canvas_start);
-		//	else                          delta = t[1].canvas2world_delta(y_canvas - y_canvas_start);
 
-		//	if (t[gate.data.direction].logscale) {
-		//		import std.math;
-		//		if (highlight_handle == 3 || highlight_handle == 1 || selected_handle == 3 || selected_handle == 1) {
-		//			gate.min_delta = gate.data.min*exp(delta) - gate.data.min;
-		//		}
-		//		if (highlight_handle == 3 || highlight_handle == 2 || selected_handle == 3 || selected_handle == 2) {
-		//			gate.max_delta = gate.data.max*exp(delta) - gate.data.max;
-		//		}
-		//	} else {
-		//		if (highlight_handle == 3 || highlight_handle == 1 || selected_handle == 3 || selected_handle == 1) {
-		//			gate.min_delta = delta;
-		//		}
-		//		if (highlight_handle == 3 || highlight_handle == 2 || selected_handle == 3 || selected_handle == 2) {
-		//			gate.max_delta = delta;
-		//		}
-		//	}
-		//	if (end) {
-		//		if (highlight_handle == 3 || highlight_handle == 1 || selected_handle == 3 || selected_handle == 1) {
-		//			gate.data.min += gate.min_delta;
-		//		}
-		//		if (highlight_handle == 3 || highlight_handle == 2 || selected_handle == 3 || selected_handle == 2) {
-		//			gate.data.max += gate.max_delta;
-		//		}
-		//		gate.min_delta = 0;
-		//		gate.max_delta = 0;
-		//		if (gate.data.min > gate.data.max) {
-		//			import std.algorithm;
-		//			swap(gate.data.min, gate.data.max);
+		if (handle != -1 || selected_handle != -1) {
+			//import std.stdio;
+			//writeln("drag handle = ", handle, "   selected_handle = ", selected_handle);
 
-		//			     if (highlight_handle == 1) highlight_handle = 2;
-		//			else if (highlight_handle == 2) highlight_handle = 1;
-					
-		//			     if (selected_handle == 1) selected_handle = 2;
-		//			else if (selected_handle == 2) selected_handle = 1;
-		//		}
-		//	}
-		//}
+			double deltax = t[0].canvas2world_delta(x_canvas - x_canvas_start);
+			double deltay = t[1].canvas2world_delta(y_canvas - y_canvas_start);
+
+			if (t[0].logscale) {
+				import std.math;
+				if ((handle & 0x1) || ((selected_handle != -1) && (selected_handle & 0x1))) if (gate.data.xmin > 0) gate.xmin_delta = gate.data.xmin*exp(deltax) - gate.data.xmin;
+				if ((handle & 0x2) || ((selected_handle != -1) && (selected_handle & 0x2))) if (gate.data.xmax > 0) gate.xmax_delta = gate.data.xmax*exp(deltax) - gate.data.xmax;
+			} else {
+				if ((handle & 0x1) || ((selected_handle != -1) && (selected_handle & 0x1))) gate.xmin_delta = deltax;
+				if ((handle & 0x2) || ((selected_handle != -1) && (selected_handle & 0x2))) gate.xmax_delta = deltax;
+			}
+
+			if (t[1].logscale) {
+				import std.math;
+				if ((handle & 0x4) || ((selected_handle != -1) && (selected_handle & 0x4))) if (gate.data.ymin > 0) gate.ymin_delta = gate.data.ymin*exp(deltay) - gate.data.ymin;
+				if ((handle & 0x8) || ((selected_handle != -1) && (selected_handle & 0x8))) if (gate.data.ymax > 0) gate.ymax_delta = gate.data.ymax*exp(deltay) - gate.data.ymax;
+			} else {
+				if ((handle & 0x4) || ((selected_handle != -1) && (selected_handle & 0x4))) gate.ymin_delta = deltay;
+				if ((handle & 0x8) || ((selected_handle != -1) && (selected_handle & 0x8))) gate.ymax_delta = deltay;
+			}
+
+			if (end) {
+				if ((handle & 0x1) || ((selected_handle != -1) && (selected_handle & 0x1))) gate.data.xmin += gate.xmin_delta;
+				if ((handle & 0x2) || ((selected_handle != -1) && (selected_handle & 0x2))) gate.data.xmax += gate.xmax_delta;
+				gate.xmin_delta = 0;
+				gate.xmax_delta = 0;
+
+				if ((handle & 0x4) || ((selected_handle != -1) && (selected_handle & 0x4))) gate.data.ymin += gate.ymin_delta;
+				if ((handle & 0x8) || ((selected_handle != -1) && (selected_handle & 0x8))) gate.data.ymax += gate.ymax_delta;
+				gate.ymin_delta = 0;
+				gate.ymax_delta = 0;
+			}
+		}
+
 	}
 
+
+	void boundaries(double min_world, double max_world, in Transform t, out double world_outer_min, out double world_min, out double world_max, out double world_outer_max) const {
+		import std.algorithm, std.math;
+		double canvas_min, canvas_max;
+		import std.stdio;
+
+		if (t.logscale && min_world < 0) canvas_min = double.init;
+		else                             canvas_min = t.world2canvas(t.log(min_world));
+		if (t.logscale && max_world < 0) canvas_max = double.init;
+		else                             canvas_max = t.world2canvas(t.log(max_world));
+
+		double canvas_midpoint = 0.5*(canvas_min+canvas_max);
+		double min_width = 10;
+		double factor = 1;
+		if (canvas_min > canvas_max) factor = -1;
+		//writeln("canvas_min: ", canvas_min, " canvas_max: ", canvas_max, " factor: ", factor);
+		
+		if (factor*(canvas_max - canvas_min) < min_width) {
+			canvas_min = canvas_midpoint - factor*min_width/2;
+			canvas_max = canvas_midpoint + factor*min_width/2;
+		}
+		double canvas_outer_min = canvas_min - factor*min_width;
+		double canvas_outer_max = canvas_max + factor*min_width;
+
+		double margin = abs(factor*(canvas_max-canvas_min)) - 5*min_width;
+		if (margin <      0   ) margin = 0;
+		if (margin > min_width) margin = min_width;
+		canvas_min       += factor*margin/2;
+		canvas_outer_min += factor*margin/2;
+		canvas_max       -= factor*margin/2;
+		canvas_outer_max -= factor*margin/2; 
+
+		world_outer_min = t.canvas2world(canvas_outer_min);
+		world_min       = t.canvas2world(canvas_min);
+		world_max       = t.canvas2world(canvas_max);
+		world_outer_max = t.canvas2world(canvas_outer_max);
+
+	}
 	override BoundingBox interactMouseMotion(double mouse_world_x, double mouse_world_y, in Transform[3] t) { 
 
-		//double mouse_world;
-		//if (gate.data.direction == 0) mouse_world = mouse_world_x;
-		//else                          mouse_world = mouse_world_y;
+		double outer_xmin, xmin, xmax, outer_xmax;
+		double outer_ymin, ymin, ymax, outer_ymax;
 
-		//import std.algorithm, std.math;
-		//// outer   inner   outer
-		////   |   |      |   |
-		////   | L |  C   | R |   <== three regions min,Center,max
-		////   |   |      |   |
-		//if (t[gate.data.direction].logscale && (gate.data.min < 0 || gate.data.max < 0)) {
-		//	// in this case one part of the gate is guaranteed to be outside the visible canvas
-		//	// we do not support moving the gate under that circumstances 
-		//	return BoundingBox();
-		//}
+		boundaries(gate.data.xmin, gate.data.xmax, t[0], outer_xmin, xmin, xmax, outer_xmax);
+		boundaries(gate.data.ymin, gate.data.ymax, t[1], outer_ymin, ymin, ymax, outer_ymax);
 
-		//// here we know that both edges of the gate are visible
-		//double canvas_min = t[gate.data.direction].world2canvas(t[gate.data.direction].log(gate.data.min));
-		//double canvas_max = t[gate.data.direction].world2canvas(t[gate.data.direction].log(gate.data.max));
-		//if (gate.data.direction == 1) swap(canvas_min, canvas_max);
-		////import std.stdio;
-		////writeln(":::: ", gate.data.min, " ", canvas_min, " ", gate.data.max, " ", canvas_max, " ", mouse_world);
-		//const double min_width = 10; // we give the user at least that many pixels to grab on
-		//if (canvas_max-canvas_min < min_width) {
-		//	double canvas_midpoint = 0.5*(canvas_min+canvas_max);
-		//	canvas_min = canvas_midpoint-min_width/2;
-		//	canvas_max = canvas_midpoint+min_width/2;
-		//}
-		//double canvas_outer_min = canvas_min-min_width;
-		//double canvas_outer_max = canvas_max+min_width;
-		//import std.math;
-		//double margin = abs((canvas_max-canvas_min)) - 5*min_width;
-		//if (margin <      0   ) margin = 0;
-		//if (margin > min_width) margin = min_width;
-		//canvas_min       += margin/2;
-		//canvas_outer_min += margin/2; 
-		//canvas_max       -= margin/2;
-		//canvas_outer_max -= margin/2; 
+		//import std.stdio;
+		//writeln("-----------------");
+		//writeln(outer_xmin, " ", xmin, " ", xmax, " ", outer_xmax);
+		//writeln(outer_ymin, " ", ymin, " ", ymax, " ", outer_ymax);
+		double mouse_x = mouse_world_x;
+		double mouse_y = mouse_world_y;
+		//writeln(mouse_x, " ", mouse_y);
 
-		//// move back to world coordinates
-		//if (gate.data.direction == 1) {
-		//	swap(canvas_min, canvas_max);
-		//	swap(canvas_outer_min, canvas_outer_max);
-		//}
-		//double min       = t[gate.data.direction].exp(t[gate.data.direction].canvas2world(canvas_min)); 
-		//double max       = t[gate.data.direction].exp(t[gate.data.direction].canvas2world(canvas_max)); 
-		//double outer_min = t[gate.data.direction].exp(t[gate.data.direction].canvas2world(canvas_outer_min)); 
-		//double outer_max = t[gate.data.direction].exp(t[gate.data.direction].canvas2world(canvas_outer_max)); 
+		import std.algorithm;
+		if (outer_xmin < mouse_x && xmin >= mouse_x   &&   outer_ymin < mouse_y && ymin >= mouse_y) {
+			return BoundingBox(outer_xmin, outer_ymin, xmin, ymin, min(xmin-outer_xmin,ymin-outer_ymin), this, (1<<0)|(1<<2));
+		}
+		if (xmin < mouse_x && xmax >= mouse_x   &&   outer_ymin < mouse_y && ymin >= mouse_y) {
+			return BoundingBox(xmin,       outer_ymin, xmax, ymin, min(xmax-xmin,ymin-outer_ymin), this, (1<<2));
+		}
+		if (xmax < mouse_x && outer_xmax >= mouse_x   &&   outer_ymin < mouse_y && ymin >= mouse_y) {
+			return BoundingBox(xmax,       outer_ymin, outer_xmax, ymin, min(outer_xmax-xmax,ymin-outer_ymin), this, (1<<1)|(1<<2));
+		}
 
+		if (outer_xmin < mouse_x && xmin >= mouse_x   &&   ymin < mouse_y && ymax >= mouse_y) {
+			return BoundingBox(outer_xmin, ymin, xmin, ymax, min(xmin-outer_xmin,ymax-ymin), this, (1<<0));
+		}
+		if (xmin < mouse_x && xmax >= mouse_x   &&   ymin < mouse_y && ymax >= mouse_y) {
+			return BoundingBox(xmin,       ymin, xmax, ymax, min(xmax-xmin,ymax-ymin), this, 0xf);
+		}
+		if (xmax < mouse_x && outer_xmax >= mouse_x   &&   ymin < mouse_y && ymax >= mouse_y) {
+			return BoundingBox(xmax,       ymin, outer_xmax, ymax, min(outer_xmax-xmax,ymax-ymin), this, (1<<1));
+		}
 
-		////import std.stdio;
-		////writeln(":::: ", outer_min, " ", min, " ", max, " ", outer_max, "   ", mouse_world_x);
-		//if (mouse_world > min && mouse_world < max)  // Center region
-		//{
-		//	if (gate.data.direction == 0) return BoundingBox(min, t[1].min, max, t[1].max, max-min, this, 3);
-		//	else                          return BoundingBox(t[0].min, min, t[1].max, max, max-min, this, 3);
-		//} 
-		//else if (mouse_world > outer_min && mouse_world < min) 
-		//{
-		//	if (gate.data.direction == 0) return BoundingBox(outer_min, t[1].min, min, t[1].max, outer_min-min, this, 1);			
-		//	else                          return BoundingBox(t[0].min, outer_min, t[0].max, min, outer_min-min, this, 1);			
-		//}
-		//else if (mouse_world > max && mouse_world < outer_max) 
-		//{
-		//	if (gate.data.direction == 0) return BoundingBox(max, t[1].min, outer_max, t[1].max, outer_max-max, this, 2);
-		//	else                          return BoundingBox(t[0].min, max, t[0].max, outer_max, outer_max-max, this, 2);
-		//}
-		return BoundingBox(); 
+		if (outer_xmin < mouse_x && xmin >= mouse_x   &&   ymax < mouse_y && outer_ymax >= mouse_y) {
+			return BoundingBox(outer_xmin, ymax, xmin, outer_ymax, min(xmin-outer_xmin,outer_ymax-ymax), this, (1<<0)|(1<<3));
+		}
+		if (xmin < mouse_x && xmax >= mouse_x   &&   ymax < mouse_y && outer_ymax >= mouse_y) {
+			return BoundingBox(xmin,       ymax, xmax, outer_ymax, min(xmax-xmin,outer_ymax-ymax), this, (1<<3));
+		}
+		if (xmax < mouse_x && outer_xmax >= mouse_x   &&   ymax < mouse_y && outer_ymax >= mouse_y) {
+			return BoundingBox(xmax,       ymax, outer_xmax, outer_ymax, min(outer_xmax-xmax,outer_ymax-ymax), this, (1<<1)|(1<<3));
+		}
+
+		return BoundingBox();
 	}
 	override bool setHighlightHandle(long handle) {
 		if (handle != highlight_handle) {
