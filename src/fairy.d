@@ -275,7 +275,7 @@ void run(string[] args) {
 
 	import cmdline;
 	auto console_tid = spawn(&cmdline.run_console, thisTid);
-	thisTid.send(cmdline.Command(cast(immutable string)execute, thisTid));
+	if (execute.length)	thisTid.send(cmdline.Command(cast(immutable string)execute, thisTid));
 	loop(args);
 	// cause the cmdline.run_console thread to stop
 	//cmdline.close_stdin(); 

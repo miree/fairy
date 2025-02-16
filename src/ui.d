@@ -272,9 +272,9 @@ string funct(string name, string definition, string[] parameters = null, string 
 	["left limit", 
 	 "right limit"])
 @trusted
-string gate1d(string name, double  left, double right) {
+string gate1d(string name, double  min, double max, int direction = 0) {
 	import fairy, gate;
-	fairy.session.add_item(name, new Gate1D(left,right));
+	fairy.session.add_item(name, new Gate1D(min,max));
 	return "";
 }
 

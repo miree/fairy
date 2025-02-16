@@ -56,19 +56,66 @@ public:
 		++item_version;
 	}
 
-	void fill(double position, double value = 1.0) {
+	void fill(double position, double value = 1.0, bool expand = false) {
 		++item_version;
 		ulong idx = cast(ulong)(1.0*data.bins.length*(position - data.left)/(data.right-data.left));
 		//import std.stdio; writeln("fill pos ", idx);
-		     if (idx < 0)                 data.underflow += value;
-		else if (idx >= data.bins.length) data.overflow  += value;
-		else {
-			if (data.bins[cast(uint)idx] is double.init) {
-				data.bins[cast(uint)idx] = value;
+		if (expand) {
+			//import std.stdio;
+			//writeln("histogram is filled in expand mode");
+			if (idx < 0) {
+				//writeln("underflow => need to expand left = ", data.left, " right = ", data.right);
+				data.left = data.left - (data.right-data.left); // double the size
+				//writeln("             expanded       left = ", data.left, " right = ", data.right);
+				for(uint i = 0; i < data.bins.length/2; ++i) {
+					long nfrom1 = cast(long)data.bins.length-2*(i+1);
+					long nfrom2 = cast(long)data.bins.length-2*(i+1)+1;
+					long nto    = cast(long)data.bins.length-(i+1);
+					double sum = data.bins[cast(uint)nfrom1];
+					if (nfrom2 >= 0) sum += data.bins[cast(uint)nfrom2];
+					data.bins[nto] = sum;
+				}
+				for(uint i = 0; i < data.bins.length/2; ++i) {
+					data.bins[i] = double.init;
+				}
+				fill(position,value,expand);
+			} else if (idx >= data.bins.length) {
+				//writeln("overflow => need to expand left = ", data.left, " right = ", data.right);
+				data.right = data.right + (data.right-data.left); // double the size
+				//writeln("                  expanded left = ", data.left, " right = ", data.right);
+				for(uint i = 0; i < data.bins.length/2; ++i) {
+					uint nfrom1 = 2*i;
+					uint nfrom2 = 2*i+1;
+					uint nto    = i;
+					double sum = data.bins[nfrom1];
+					if (nfrom2 < data.bins.length) sum += data.bins[nfrom2];
+					data.bins[nto] = sum;
+				}
+				for(uint i = 0; i < data.bins.length/2; ++i) {
+					data.bins[data.bins.length-(i+1)] = double.init;
+				}
+				fill(position,value,expand);
 			} else {
-				data.bins[cast(uint)idx] += value;
-			} 
+				if (data.bins[cast(uint)idx] is double.init) {
+					data.bins[cast(uint)idx] = value;
+				} else {
+					data.bins[cast(uint)idx] += value;
+				} 
+			}
+
+		} else {
+			     if (idx < 0)                 data.underflow += value;
+			else if (idx >= data.bins.length) data.overflow  += value;
+			else {
+				if (data.bins[cast(uint)idx] is double.init) {
+					data.bins[cast(uint)idx] = value;
+				} else {
+					data.bins[cast(uint)idx] += value;
+				} 
+			}
+
 		}
+
 	}
 
 	void set_bin(int bin, double value) {

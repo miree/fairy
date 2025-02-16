@@ -65,6 +65,7 @@ string fix_name(string itemname) {
 
 import histogram;
 Hist1[] elder_histograms_1D;
+bool[] elder_histograms_1D_is_smart;
 int elder_histograms_1D_count;
 struct MsgHist1dCreate {
 	string name;
@@ -80,10 +81,18 @@ extern(C) int hist1d_create(const char *name,
 	import std.conv;
 	int handle = elder_histograms_1D_count++;
 	string itemname = fix_name(name.to!string);
+	import std.string;
+	bool is_smart = itemname.endsWith("_smart");
 	if (elder_histograms_1D.length <= handle) {
+		//import std.stdio;
+		//writeln(itemname, " is smart");
 		elder_histograms_1D.length = handle+1;
 	}
+	if (elder_histograms_1D_is_smart.length <= handle) {
+		elder_histograms_1D_is_smart.length = handle+1;
+	}
 	elder_histograms_1D[handle] = new Hist1(n_bins, left, right);
+	elder_histograms_1D_is_smart[handle] = is_smart;
 	main_thread.send(MsgHist1dCreate(itemname, cast(shared Hist1)(elder_histograms_1D[handle])));
 	return handle;
 }
@@ -96,7 +105,7 @@ extern(C) int hist1d_create(const char *name,
 
 extern(C) void hist1d_fill(int handle, double value) {
 	if (handle < elder_histograms_1D.length) {
-		elder_histograms_1D[handle].fill(value);
+		elder_histograms_1D[handle].fill(value, 1.0, elder_histograms_1D_is_smart[handle]);
 	}
 }
 extern(C) void hist1d_set_bin(int handle, int bin, double value) {
@@ -175,7 +184,7 @@ extern(C) int cond1d_create(const char *name,
 							int handle) {
 	import std.conv;
 	int rhandle = cast(int)elder_ranges_1D.length;
-	elder_ranges_1D ~= new Gate1D(left,right);
+	elder_ranges_1D ~= new Gate1D(left,right,0);
 	string itemname = fix_name(name.to!string);
 	main_thread.send(MsgGate1DCreate(itemname, cast(shared Gate1D)elder_ranges_1D[rhandle]));
 	return rhandle;
@@ -189,8 +198,8 @@ extern(C) void cond1d_get(int handle,
 							double *left,
 							double *right) {
 	//import std.datetime;
-	*left  = elder_ranges_1D[handle].data.left;
-	*right = elder_ranges_1D[handle].data.right;
+	*left  = elder_ranges_1D[handle].data.min;
+	*right = elder_ranges_1D[handle].data.max;
 	//if (sw_1d_gates[handle].peek.total!"msecs" > 100) { // limit the rate of checking for changes
 	//	main_thread.send(MsgRange1dChange(handle,*left,*right));
 	//	sw_1d_gates[handle].reset();
