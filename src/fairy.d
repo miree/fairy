@@ -387,6 +387,11 @@ void handle_elderpt_MsgGate1DCreate(MsgGate1DCreate msg) {
 	import item, gate;
 	fairy.session.add_item(msg.name, cast(Gate1D)msg.gate, NameCollisionPolicy.replace);
 }
+@trusted
+void handle_elderpt_MsgGate2DCreate(MsgGate2DCreate msg) {
+	import item, gate;
+	fairy.session.add_item(msg.name, cast(Gate2D)msg.gate, NameCollisionPolicy.replace);
+}
 
 
 }
@@ -428,7 +433,8 @@ bool iterate(uint timeout_ms) {
 		while (receiveTimeout(dur!"msecs"(0),
 			&handle_elderpt_MsgHist1dCreate,
 			&handle_elderpt_MsgHist2dCreate,
-			&handle_elderpt_MsgGate1DCreate
+			&handle_elderpt_MsgGate1DCreate,
+			&handle_elderpt_MsgGate2DCreate
 		)) {}
 	}
 	while (receiveTimeout(dur!"msecs"(0),

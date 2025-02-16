@@ -221,14 +221,23 @@ extern(C) void cond1d_get(int handle,
 //	string name;
 //	immutable(double)[] points;
 //}
-double[4][] elder_ranges_2D;
-
+Gate2D[] elder_ranges_2D;
+double[4][] elder_range_points_2D;
+struct MsgGate2DCreate {
+	string name;
+	shared Gate2D gate;
+}
 extern(C) int cond2d_create(const char *name,
 							int num_points,
 							double *points,
 							int handle) {
+	import std.conv;
 	int rhandle = cast(int)elder_ranges_2D.length;
-	elder_ranges_2D ~= [points[0],points[1],points[2],points[3]];
+	elder_ranges_2D ~= new Gate2D(points[0],points[1],points[2],points[3]);
+	elder_range_points_2D ~= [points[0],points[1],points[2],points[3]];
+	string itemname = fix_name(name.to!string);
+	main_thread.send(MsgGate2DCreate(itemname, cast(shared Gate2D)elder_ranges_2D[rhandle]));
+
 	return rhandle;
 	//// ignore handle 
 	//import std.conv;
@@ -271,7 +280,11 @@ extern(C) void cond2d_get(int handle,
 							int *num_points,
 							double **points) {
 	*num_points = 4;
-	*points = elder_ranges_2D[handle].ptr;
+	elder_range_points_2D[handle][0] = elder_ranges_2D[handle].data.xmin;
+	elder_range_points_2D[handle][1] = elder_ranges_2D[handle].data.xmax;
+	elder_range_points_2D[handle][2] = elder_ranges_2D[handle].data.ymin;
+	elder_range_points_2D[handle][3] = elder_ranges_2D[handle].data.ymax;
+	*points = elder_range_points_2D[handle].ptr;
 	//import std.datetime : dur;
 	//import std.datetime.stopwatch;
 	//static StopWatch sw;
