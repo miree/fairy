@@ -337,7 +337,7 @@ private:
 		g_menu_append(menu_top, "close window",     "win.close_window");
 		g_menu_append(menu_top, "open session",    "win.open_session");
 		g_menu_append(menu_top, "save session",    "win.save_session");
-		g_menu_append(menu_top, "quit program",    "win.fairy_quit");
+		g_menu_append(menu_top, "quit program",    "win.quit_fairy");
 
 		menu_popover = cast(GtkPopoverMenu*)gtk_popover_menu_new_from_model(cast(GMenuModel*)menu_top);
 		//gtk_popover_menu_set_position(menu_popover, GTK_POS_BOTTOM);
