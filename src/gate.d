@@ -94,53 +94,19 @@ public:
 		d.rectangle(left,y1,right,y2);
 		d.fill();
 
-		switch (highlight_handle) {
-			case 3:
-				d.set_color(0.6,0.6,1);
-				d.set_line_width(6);
-				if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-				d.horizontal_line(y1, left, right);
-				d.stroke();
-				d.set_color(0.6,0.6,1);
-				if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-				d.horizontal_line(y2, left, right);
-				d.stroke();
-			break;
-			case 1:
-				d.set_color(0.6,0.6,1);
-				d.set_line_width(6);
-				if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-				d.horizontal_line(y1, left, right);
-				d.stroke();
-				d.set_color(0.0,0.0,1);
-				d.set_line_width(3);
-				if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-				d.horizontal_line(y2, left, right);
-				d.stroke();
-			break;
-			case 2:
-				d.set_color(0.6,0.6,1);
-				d.set_line_width(6);
-				if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-				d.horizontal_line(y2, left, right);
-				d.stroke();
-				d.set_color(0.0,0.0,1);
-				d.set_line_width(3);
-				if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-				d.horizontal_line(y1, left, right);
-				d.stroke();
-			break;
-			default:
-				d.set_color(0.0,0.0,1);
-				d.set_line_width(3);
-				if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-				d.horizontal_line(y1, left, right);
-				d.stroke();
-				d.set_color(0.0,0.0,1);
-				if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-				d.horizontal_line(y2, left, right);
-				d.stroke();
-		}
+		d.set_line_width(2);
+		if ((highlight_handle != -1) && (highlight_handle & 0x1)) d.set_line_width(4);
+		d.set_color(0,0,1); 
+		if ((selected_handle != -1) && (selected_handle  & 0x1)) d.set_color(1,0,0);
+		d.horizontal_line(y1, left, right);
+		d.stroke();
+
+		d.set_line_width(2);
+		if ((highlight_handle != -1) && (highlight_handle & 0x2)) d.set_line_width(4);
+		d.set_color(0,0,1); 
+		if ((selected_handle != -1) && (selected_handle  & 0x2)) d.set_color(1,0,0);
+		d.horizontal_line(y2, left, right);
+		d.stroke();
 	}
 
 	override void draw(BackendInterface d, in Transform[3] t) const	{
@@ -169,53 +135,20 @@ public:
 		d.rectangle(x1,bottom,x2,top);
 		d.fill();
 
-		switch (highlight_handle) {
-			case 3:
-				d.set_color(0.6,0.6,1);
-				d.set_line_width(6);
-				if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-				d.vertical_line(x1, bottom, top);
-				d.stroke();
-				d.set_color(0.6,0.6,1);
-				if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-				d.vertical_line(x2, bottom, top);
-				d.stroke();
-			break;
-			case 1:
-				d.set_color(0.6,0.6,1);
-				d.set_line_width(6);
-				if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-				d.vertical_line(x1, bottom, top);
-				d.stroke();
-				d.set_color(0.0,0.0,1);
-				d.set_line_width(3);
-				if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-				d.vertical_line(x2, bottom, top);
-				d.stroke();
-			break;
-			case 2:
-				d.set_color(0.6,0.6,1);
-				d.set_line_width(6);
-				if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-				d.vertical_line(x2, bottom, top);
-				d.stroke();
-				d.set_color(0.0,0.0,1);
-				d.set_line_width(3);
-				if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-				d.vertical_line(x1, bottom, top);
-				d.stroke();
-			break;
-			default:
-				d.set_color(0.0,0.0,1);
-				d.set_line_width(3);
-				if (selected_handle == 3 || selected_handle == 1) d.set_color(1,0,0);
-				d.vertical_line(x1, bottom, top);
-				d.stroke();
-				d.set_color(0.0,0.0,1);
-				if (selected_handle == 3 || selected_handle == 2) d.set_color(1,0,0);
-				d.vertical_line(x2, bottom, top);
-				d.stroke();
-		}
+		d.set_line_width(2);
+		if ((highlight_handle != -1) && (highlight_handle & 0x1)) d.set_line_width(4);
+		d.set_color(0,0,1); 
+		if ((selected_handle != -1) && (selected_handle  & 0x1)) d.set_color(1,0,0);
+		d.vertical_line(x1, bottom, top);
+		d.stroke();
+
+		d.set_line_width(2);
+		if ((highlight_handle != -1) && (highlight_handle & 0x2)) d.set_line_width(4);
+		d.set_color(0,0,1); 
+		if ((selected_handle != -1) && (selected_handle  & 0x2)) d.set_color(1,0,0);
+		d.vertical_line(x2, bottom, top);
+		d.stroke();
+
 	}
 	override double getValue(double x, double y) { return 0.0; }
 	override bool get_leftright(out double[2] minmax, in Transform[3] t)  {
@@ -605,10 +538,10 @@ public:
 		for(uint i = 0; i < 4; ++i) {
 			bool is_highlighted = ((highlight_handle!=-1) && (highlight_handle&(1<<i)))?true:false;
 			bool is_selected    = ((selected_handle!=-1) && (selected_handle &(1<<i)))?true:false;
-			d.set_color(0.0,0.0,1);
-			d.set_line_width(3);
-			if (is_highlighted) { d.set_color(0.6,0.6,1); d.set_line_width(6); }
-			if (is_selected)    { d.set_color(1.0,0.0,0); d.set_line_width(6); }
+			d.set_color(0,0,1);
+			d.set_line_width(2);
+			if (is_highlighted) { d.set_line_width(4); }
+			if (is_selected)    { d.set_color(1,0,0);  }
 			switch(i) {
 				case 0:   d.vertical_line(x1,y1,y2); break;
 				case 1:   d.vertical_line(x2,y1,y2); break;
