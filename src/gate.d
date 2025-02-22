@@ -707,10 +707,8 @@ public:
 		double canvas_min, canvas_max;
 		import std.stdio;
 
-		if (t.logscale && min_world < 0) canvas_min = double.init;
-		else                             canvas_min = t.world2canvas(t.log(min_world));
-		if (t.logscale && max_world < 0) canvas_max = double.init;
-		else                             canvas_max = t.world2canvas(t.log(max_world));
+		canvas_min = t.world2canvas(t.log(min_world));
+		canvas_max = t.world2canvas(t.log(max_world));
 
 		double canvas_midpoint = 0.5*(canvas_min+canvas_max);
 		double min_width = 10;
