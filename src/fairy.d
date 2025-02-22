@@ -19,6 +19,7 @@ static this() {
 	add_item_factory("functions.Function",                  new FunctionFactory);
 	add_item_factory("gate.Gate1D",                         new Gate1DFactory);
 	add_item_factory("gate.Gate2D",                         new Gate2DFactory);
+	add_item_factory("gate.PolyGate",                       new PolyGateFactory);
 	add_item_factory("value.Value",                         new ValueFactory);
 	add_item_factory("interactive_demo.Points",             new PointsFactory);
 	add_item_factory("interactive_demo.HierarchicalPoints", new HierarchicalPointsFactory);

@@ -901,3 +901,183 @@ public:
 
 
 
+
+
+
+
+
+
+import item;
+import std.json;
+import serializeJSON;
+import graphics;
+
+class PolyGateFactory : ItemFactory {
+	override Item create(ref JSONValue json) {
+		import std.stdio;
+		return new PolyGate(json);
+	}
+}
+class PolyGate : Visual, Item
+{
+public:
+	struct Data {
+		@SERIALIZE double[2][] points;
+	}
+	this(double[2][] ps) {
+		data.points   = ps.dup;
+		deltas.length = data.points.length;
+		foreach(ref d; deltas) d = [0.0, 0.0];
+	}
+	this(ref JSONValue json) {
+		import std.stdio;
+		try{
+			data = deserialize!Data(json);
+			deltas.length = data.points.length;
+			foreach(ref d; deltas) d = [0.0, 0.0];
+		} catch(Exception e) {
+			writeln("ERROR in PolyGate.this(ref JSONValue json)", e.msg);
+		} 
+	}
+	override JSONValue toJSON() { 
+		return serialize(data); 
+	}
+	override string get_type()  {
+		return "gate.PolyGate";
+	}
+	override void reset() {
+	}
+	override ulong getVersion() {
+		return item_version;
+	}
+	override void overrideVersion(ulong new_version) {
+		item_version = new_version;
+	}
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) 
+	{
+		return new PolyGateVisualizer(this, item_version);
+	}
+
+	bool inside(double x, double y) {
+		bool is_inside = false;
+		double[2] p1 = data.points[$-1];
+		foreach(p; data.points) {
+			double[2] p2 = p;
+			if ( ((p2[1] > y) != (p1[1] > y)) &&
+			     (x < (p1[0] - p2[0]) * (y - p2[1]) / (p1[1] - p2[1]) + p2[0]) ) {
+			    is_inside = !is_inside;
+			}
+			p1 = p2;
+		}
+		return is_inside;
+	}
+
+
+private:
+	Data data;
+	ulong item_version;
+	double[2][] deltas; // not part of stored data, but part of interactive appearance
+}
+
+import interactive;
+
+class PolyGateVisualizer : Visualizer,  Interactive
+{
+	bool closest_point_on_line(out double x, out double y, // 
+		                       double ax, double ay, // beginning of line
+		                       double bx, double by, // end of line
+		                       double mx, double my) // test point
+	{
+		import std.math;
+		double ux=mx-ax;
+		double uy=my-ay;
+		double vx=bx-ax;
+		double vy=by-ay;
+		double lu = sqrt(ux*ux+uy*uy);
+		double lv = sqrt(vx*vx+vy*vy);
+		if (lu < 1e-10 || lv < 1e-10) {
+			return false;
+		}
+		double p = (ux*vx+uy*vy)/lv/lv;
+		if (p >= 0 && p <= 1) {
+			x = ax+p*vx;
+			y = ay+p*vy;
+			return true;
+		}
+		return false;
+	}
+	unittest {
+		import std.stdio;
+
+		double cx,cy;
+		closest_point_on_line(cx,cy, 0,0, 1,0, 0.5,0);
+		writeln("cx=", cx, "  cy=",cy);
+		closest_point_on_line(cx,cy, 0,0, 1,0, 0.5,1);
+		writeln("cx=", cx, "  cy=",cy);
+		closest_point_on_line(cx,cy, 0,0, 1,1, 1,0);
+		writeln("cx=", cx, "  cy=",cy);
+
+		writeln("closest_point_on_line test done");
+
+	}
+
+
+public:
+
+
+	this(PolyGate g, ulong itemversion){
+		super(itemversion, 2);
+		gate = g;
+	}
+	import graphics, transform;
+
+	override BoundingBox interactMouseMotion(double x, double y, in Transform[3] t) {
+		return BoundingBox();
+	}
+	override bool setHighlightHandle(long handle) {
+		return false;
+	}
+
+	// change selection of element with handle
+	// if add_or_remove is true, the element is added/removed from selected set depending if it is already in the set or not
+	// if handle is -1 the selected set is emptied.
+	override void select(long handle, bool add_or_remove) {
+	}
+	
+	override void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove) {
+	}
+
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+	}
+
+	override void draw(BackendInterface d, in Transform[3] t) const  
+	{
+		import std.algorithm;
+
+		import std.stdio;
+		writeln("polygate draw ", gate.data.points);
+
+		for (int i = 0; i < gate.data.points.length; ++i) {
+			int iplus1 = i+1;
+			if (iplus1 == gate.data.points.length) iplus1 = 0;
+			double x1 = t[0].world2canvas(t[0].log(gate.data.points[i][0]));
+			double y1 = t[1].world2canvas(t[1].log(gate.data.points[i][1]));
+			double x2 = t[0].world2canvas(t[0].log(gate.data.points[iplus1][0]));
+			double y2 = t[1].world2canvas(t[1].log(gate.data.points[iplus1][1]));
+
+			writeln("point ", i, " ", x1, " ", y1, " ", x2, " ", y2);
+			const int POINTSIZE=3;
+			const int SELECTED_POITNSIZE=5;
+			d.set_color(0,0,1);
+			d.rectangle(x1-POINTSIZE,y1-POINTSIZE, x1+POINTSIZE,y1+POINTSIZE);
+			d.fill();
+
+			d.set_line_width(2);
+			d.line(x1,y1,x2,y2);
+			d.stroke();
+		}
+	}
+
+protected:
+	PolyGate gate;
+}
