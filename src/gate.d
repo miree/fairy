@@ -211,10 +211,10 @@ public:
 			if (t[gate.data.direction].logscale) {
 				import std.math;
 				if (highlight_handle == 3 || highlight_handle == 1 || selected_handle == 3 || selected_handle == 1) {
-					gate.min_delta = gate.data.min*exp(delta) - gate.data.min;
+					if (gate.data.min > 0) gate.min_delta = gate.data.min*exp(delta) - gate.data.min;
 				}
 				if (highlight_handle == 3 || highlight_handle == 2 || selected_handle == 3 || selected_handle == 2) {
-					gate.max_delta = gate.data.max*exp(delta) - gate.data.max;
+					if (gate.data.max > 0) gate.max_delta = gate.data.max*exp(delta) - gate.data.max;
 				}
 			} else {
 				if (highlight_handle == 3 || highlight_handle == 1 || selected_handle == 3 || selected_handle == 1) {
@@ -258,11 +258,6 @@ public:
 		//   |   |      |   |
 		//   | L |  C   | R |   <== three regions min,Center,max
 		//   |   |      |   |
-		if (t[gate.data.direction].logscale && (gate.data.min < 0 || gate.data.max < 0)) {
-			// in this case one part of the gate is guaranteed to be outside the visible canvas
-			// we do not support moving the gate under that circumstances 
-			return BoundingBox();
-		}
 
 		// here we know that both edges of the gate are visible
 		double canvas_min = t[gate.data.direction].world2canvas(t[gate.data.direction].log(gate.data.min));
