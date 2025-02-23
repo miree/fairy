@@ -462,6 +462,20 @@ struct CanvasPainter {
 				color_grid_numbers(backend, canvas, canvas.color_key_width);
 			}	
 			if (draw_selection_box) draw_selection_box_helper();
+			
+			// help debugging BoundingBoxes in the selection process
+			if (select_or_drag.valid) {
+				double cx1 = canvas.transform[0].world2canvas(select_or_drag.x1);
+				double cy1 = canvas.transform[1].world2canvas(select_or_drag.y1);
+				double cx2 = canvas.transform[0].world2canvas(select_or_drag.x2);
+				double cy2 = canvas.transform[1].world2canvas(select_or_drag.y2);
+				import std.stdio;
+				writeln("bounding box: ", cx1, " ", cy1, "    ", cx2, " ", cy2);
+				backend.set_color(0,0.5,0);
+				backend.set_line_width(2);
+				backend.rectangle(cx1,cy1,cx2,cy2); 
+				backend.stroke();
+			}
 		} else { 
 			// grid mode
 			// find number of rows and columns

@@ -250,8 +250,8 @@ public:
 	override BoundingBox interactMouseMotion(double mouse_world_x, double mouse_world_y, in Transform[3] t) { 
 
 		double mouse_world;
-		if (gate.data.direction == 0) mouse_world = mouse_world_x;
-		else                          mouse_world = mouse_world_y;
+		if (gate.data.direction == 0) mouse_world = t[0].log(mouse_world_x);
+		else                          mouse_world = t[1].log(mouse_world_y);
 
 		import std.algorithm, std.math;
 		// outer   inner   outer
@@ -287,10 +287,10 @@ public:
 			swap(canvas_min, canvas_max);
 			swap(canvas_outer_min, canvas_outer_max);
 		}
-		double min       = t[gate.data.direction].exp(t[gate.data.direction].canvas2world(canvas_min)); 
-		double max       = t[gate.data.direction].exp(t[gate.data.direction].canvas2world(canvas_max)); 
-		double outer_min = t[gate.data.direction].exp(t[gate.data.direction].canvas2world(canvas_outer_min)); 
-		double outer_max = t[gate.data.direction].exp(t[gate.data.direction].canvas2world(canvas_outer_max)); 
+		double min       = (t[gate.data.direction].canvas2world(canvas_min)); 
+		double max       = (t[gate.data.direction].canvas2world(canvas_max)); 
+		double outer_min = (t[gate.data.direction].canvas2world(canvas_outer_min)); 
+		double outer_max = (t[gate.data.direction].canvas2world(canvas_outer_max)); 
 
 
 		//import std.stdio;
@@ -979,10 +979,17 @@ private:
 	double[2][] deltas; // not part of stored data, but part of interactive appearance
 }
 
+
+
+
+
+
 import interactive;
 
 class PolyGateVisualizer : Visualizer,  Interactive
 {
+private:
+
 	bool closest_point_on_line(out double x, out double y, // 
 		                       double ax, double ay, // beginning of line
 		                       double bx, double by, // end of line
@@ -1021,9 +1028,13 @@ class PolyGateVisualizer : Visualizer,  Interactive
 
 	}
 
+private:
+	PolyGate gate;
+	// the following indices 
+	long[] selected;
+	long highlight_handle = -1;
 
 public:
-
 
 	this(PolyGate g, ulong itemversion){
 		super(itemversion, 2);
@@ -1031,31 +1042,60 @@ public:
 	}
 	import graphics, transform;
 
-	override BoundingBox interactMouseMotion(double x, double y, in Transform[3] t) {
-		return BoundingBox();
-	}
-	override bool setHighlightHandle(long handle) {
-		return false;
-	}
-
-	// change selection of element with handle
-	// if add_or_remove is true, the element is added/removed from selected set depending if it is already in the set or not
-	// if handle is -1 the selected set is emptied.
-	override void select(long handle, bool add_or_remove) {
-	}
-	
-	override void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove) {
-	}
-
-	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
-	}
-
-	override void draw(BackendInterface d, in Transform[3] t) const  
+	override double getValue(double x, double y) { return 0.0; }
+	override bool get_leftright(out double[2] minmax, in Transform[3] t)  {
+		double left, right;
+		foreach(point; gate.data.points) {
+			if (left is double.init || left > point[0]) {
+				left = point[0];
+			}
+			if (right is double.init || right < point[0]) {
+				right = point[0];
+			}
+		}
+		minmax[0] = left;
+		minmax[1] = right;
+		return true;
+	}	
+	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) 
 	{
-		import std.algorithm;
+		double bottom, top;
+		double[2] leftright;
+		get_leftright(leftright, t);
+		bool result = false;
+		foreach (point; gate.data.points) {
+			if ((point[0] >= lr[0] && point[0] <= lr[1]) ||
+				(t[0].min >= leftright[0] && t[0].min <= leftright[1]) ||
+				(t[0].max >= leftright[0] && t[0].max <= leftright[1])) 
+			{
+				if (bottom is double.init || bottom >= point[1]) {
+					bottom = point[1];
+				}
+				if (top is double.init || top <= point[1]) {
+					top = point[1];
+				}
+				result = true;
+			}
+		}
+		if (result) {
+			bt[0] = bottom;
+			bt[1] = top;
+		}
+		return result;
+	}
 
-		import std.stdio;
-		writeln("polygate draw ", gate.data.points);
+
+	override BoundingBox interactMouseMotion(double x_world, double y_world, in Transform[3] t) {
+		long highlighted = -1;
+		double x_canvas = t[0].world2canvas(t[0].log(x_world));
+		double y_canvas = t[1].world2canvas(t[1].log(y_world));
+
+		double DISTANCE = 10;
+		import std.math;
+
+		double xmin,xmax,ymin,ymax;
+
+		double min_distance;
 
 		for (int i = 0; i < gate.data.points.length; ++i) {
 			int iplus1 = i+1;
@@ -1065,19 +1105,211 @@ public:
 			double x2 = t[0].world2canvas(t[0].log(gate.data.points[iplus1][0]));
 			double y2 = t[1].world2canvas(t[1].log(gate.data.points[iplus1][1]));
 
-			writeln("point ", i, " ", x1, " ", y1, " ", x2, " ", y2);
-			const int POINTSIZE=3;
-			const int SELECTED_POITNSIZE=5;
+			if (xmin is double.init || xmin > t[0].log(gate.data.points[i][0])) xmin = t[0].log(gate.data.points[i][0]);
+			if (ymin is double.init || ymin > t[1].log(gate.data.points[i][1])) ymin = t[1].log(gate.data.points[i][1]);
+			if (xmax is double.init || xmax < t[0].log(gate.data.points[i][0])) xmax = t[0].log(gate.data.points[i][0]);
+			if (ymax is double.init || ymax < t[1].log(gate.data.points[i][1])) ymax = t[1].log(gate.data.points[i][1]);
+
+			BoundingBox bb1,bb2,bbline;
+
+			double x_line, y_line;
+			double distance;
+			if (closest_point_on_line(x_line, y_line, x1,y1, x2,y2, x_canvas,y_canvas)) {
+				double dx = x_line - x_canvas;
+				double dy = y_line - y_canvas;
+				distance = sqrt(dx*dx+dy*dy);
+				if (distance < DISTANCE) {
+					// indices are: [0... length-1] => points ; [length...2*length-1] => lines ; [2*length] => all
+					highlighted = gate.data.points.length+i;
+					bbline = BoundingBox(t[0].canvas2world(x1),t[1].canvas2world(y1),t[0].canvas2world(x2),t[1].canvas2world(y2), distance, this, highlighted);
+				}
+			}
+
+			import std.algorithm;
+			if (abs(x1-x_canvas) < DISTANCE && abs(y1-y_canvas) < DISTANCE) {
+				highlighted = i;
+				bb1 = BoundingBox(t[0].canvas2world(x1-DISTANCE),t[1].canvas2world(y1+DISTANCE), t[0].canvas2world(x1+DISTANCE),t[1].canvas2world(y1-DISTANCE), min(t[0].canvas2world_delta(DISTANCE),t[1].canvas2world_delta(DISTANCE)), this, highlighted);
+			}
+
+			if (abs(x2-x_canvas) < DISTANCE && abs(y2-y_canvas) < DISTANCE) {
+				highlighted = iplus1;
+				bb1 = BoundingBox(t[0].canvas2world(x2-DISTANCE),t[1].canvas2world(y2+DISTANCE), t[0].canvas2world(x2+DISTANCE),t[1].canvas2world(y2-DISTANCE), min(t[0].canvas2world_delta(DISTANCE),t[1].canvas2world_delta(DISTANCE)), this, highlighted);
+			}
+
+			if (bb2.valid && bb2.valid) {
+				if (bb1.distance < bb2.distance) return bb1;
+				else                             return bb2;
+			}
+			if (bb1.valid) {
+				return bb1;
+			}
+			if (bb2.valid) {
+				return bb2;
+			}
+			if (bbline.valid) {
+				return bbline;
+			}
+		}
+
+		if (gate.inside(x_world,y_world)) {
+			import std.algorithm;
+			highlighted = 2*gate.data.points.length;
+			return BoundingBox(xmin,ymin, xmax,ymax, min(abs(xmax-xmin),abs(ymax-ymin)), this, highlighted);
+		}
+
+		return BoundingBox();
+	}
+	override bool setHighlightHandle(long handle) {
+		if (handle != highlight_handle) {
+			highlight_handle = handle;
+			return true;
+		} 
+		return false; 
+	}
+
+	// change selection of element with handle
+	// if add_or_remove is true, the element is added/removed from selected set depending if it is already in the set or not
+	// if handle is -1 the selected set is emptied.
+	override void select(long handle, bool add_or_remove) {
+		//import std.algorithm;
+		//if (add_or_remove) {
+		//	if (selected.canFind(handle)) {
+		//		auto idx = selected.indexOf(handle);
+
+		//	}
+		//}
+	}
+	
+	override void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove) {
+	}
+
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+		if (handle != -1) {
+			double deltax = t[0].canvas2world_delta(x_canvas - x_canvas_start);
+			double deltay = t[1].canvas2world_delta(y_canvas - y_canvas_start);
+			if (handle >= 0 && handle < gate.data.points.length) // point drag
+			{
+				if (!t[0].logscale && !t[1].logscale) {
+					if (end) {
+						gate.data.points[handle][0] += deltax;
+						gate.data.points[handle][1] += deltay;
+						gate.deltas[handle][0] = 0;
+						gate.deltas[handle][1] = 0;
+					} else {
+						gate.deltas[handle][0] = deltax;
+						gate.deltas[handle][1] = deltay;
+					}
+				}
+			}
+			if (handle >= gate.data.points.length && handle < 2*gate.data.points.length) // line drag
+			{
+				if (!t[0].logscale && !t[1].logscale) {
+					long i = handle - gate.data.points.length;
+					long iplus1 = i+1;
+					if (iplus1 == gate.data.points.length) iplus1 = 0;
+					if (end) {
+						gate.data.points[i][0] += deltax;
+						gate.data.points[i][1] += deltay;
+						gate.data.points[iplus1][0] += deltax;
+						gate.data.points[iplus1][1] += deltay;
+						gate.deltas[i][0] = 0;
+						gate.deltas[i][1] = 0;
+						gate.deltas[iplus1][0] = 0;
+						gate.deltas[iplus1][1] = 0;
+					} else {
+						gate.deltas[i][0] = deltax;
+						gate.deltas[i][1] = deltay;
+						gate.deltas[iplus1][0] = deltax;
+						gate.deltas[iplus1][1] = deltay;
+					}
+				}
+			}
+			if (handle == 2*gate.data.points.length) // drag entire polygon
+			{
+				for (long i = 0; i < gate.data.points.length; ++i) {
+					if (end) {
+						gate.data.points[i][0] += deltax;
+						gate.data.points[i][1] += deltay;
+						gate.deltas[i][0] = 0;
+						gate.deltas[i][1] = 0;
+					} else {
+						gate.deltas[i][0] = deltax;
+						gate.deltas[i][1] = deltay;
+					}
+				}
+			}
+		}
+	}
+
+	override void draw(BackendInterface d, in Transform[3] t) const  
+	{
+		import std.algorithm;
+
+		import std.stdio;
+		//writeln("polygate draw ", gate.data.points);
+
+		// determine the center point (mean value) of all points
+		double xsum = 0.0;
+		double ysum = 0.0;
+		for (int i = 0; i < gate.data.points.length; ++i) {
+			double x1 = t[0].world2canvas(t[0].log(gate.deltas[i][0] + gate.data.points[i][0]));
+			double y1 = t[1].world2canvas(t[1].log(gate.deltas[i][1] + gate.data.points[i][1]));
+			xsum += x1;
+			ysum += y1;
+		}
+		double xcenter = xsum / gate.data.points.length;
+		double ycenter = ysum / gate.data.points.length;
+		double Rmax = 0;
+
+
+		for (int i = 0; i < gate.data.points.length; ++i) {
+			int iplus1 = i+1;
+			if (iplus1 == gate.data.points.length) iplus1 = 0;
+			double x1 = t[0].world2canvas(t[0].log(gate.deltas[i][0]      + gate.data.points[i][0]));
+			double y1 = t[1].world2canvas(t[1].log(gate.deltas[i][1]      + gate.data.points[i][1]));
+			double x2 = t[0].world2canvas(t[0].log(gate.deltas[iplus1][0] + gate.data.points[iplus1][0]));
+			double y2 = t[1].world2canvas(t[1].log(gate.deltas[iplus1][1] + gate.data.points[iplus1][1]));
+
+			// maximum radius (measured from center point)
+			import std.math;
+			double dx = xcenter - x1;
+			double dy = ycenter - y1;
+			double R = sqrt(dx*dx + dy*dy);
+			if (Rmax < R) {
+				Rmax = R;
+			}
+
+			//writeln("point ", i, " ", x1, " ", y1, " ", x2, " ", y2);
+			int POINTSIZE=3;
+			import std.algorithm;
+			if (highlight_handle == i || highlight_handle == gate.data.points.length*2) POINTSIZE = 6;
 			d.set_color(0,0,1);
 			d.rectangle(x1-POINTSIZE,y1-POINTSIZE, x1+POINTSIZE,y1+POINTSIZE);
 			d.fill();
 
-			d.set_line_width(2);
+			if (highlight_handle == i+gate.data.points.length || highlight_handle == gate.data.points.length*2) d.set_line_width(4);
+			else                                                                                                d.set_line_width(2);
 			d.line(x1,y1,x2,y2);
 			d.stroke();
 		}
+
+		//// draw outer circle
+		//Rmax = min(Rmax,30);
+		//int Npoints = 32;
+		//double x0 = xcenter + Rmax;
+		//double y0 = ycenter + 0;
+		//for (int i = 1 ; i <= Npoints; ++i) {
+		//	d.set_line_width(2);
+		//	d.set_color(0.8,0.8,1);
+		//	import std.math;
+		//	double x1 = xcenter + Rmax*cos(2.0*PI*i/Npoints);
+		//	double y1 = ycenter - Rmax*sin(2.0*PI*i/Npoints);
+		//	d.line(x0,y0, x1,y1);
+		//	d.stroke();
+		//	x0 = x1;
+		//	y0 = y1;
+		//}
+
 	}
 
-protected:
-	PolyGate gate;
 }
