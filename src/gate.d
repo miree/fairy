@@ -1171,74 +1171,145 @@ public:
 	// if add_or_remove is true, the element is added/removed from selected set depending if it is already in the set or not
 	// if handle is -1 the selected set is emptied.
 	override void select(long handle, bool add_or_remove) {
-		//import std.algorithm;
-		//if (add_or_remove) {
-		//	if (selected.canFind(handle)) {
-		//		auto idx = selected.indexOf(handle);
+		import std.algorithm;
+		
+		if (handle == -1) {
+			selected.length = 0;
+			return;
+		} 
 
-		//	}
-		//}
-	}
-	
-	override void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove) {
-	}
-
-	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
-		if (handle != -1) {
-			double deltax = t[0].canvas2world_delta(x_canvas - x_canvas_start);
-			double deltay = t[1].canvas2world_delta(y_canvas - y_canvas_start);
-			if (handle >= 0 && handle < gate.data.points.length) // point drag
-			{
-				if (!t[0].logscale && !t[1].logscale) {
-					if (end) {
-						gate.data.points[handle][0] += deltax;
-						gate.data.points[handle][1] += deltay;
-						gate.deltas[handle][0] = 0;
-						gate.deltas[handle][1] = 0;
+		if (add_or_remove) {
+			if (handle >= 0 && handle < gate.data.points.length) {
+				if (selected.canFind(handle)) {
+					if (selected.length == 1) {
+						selected.length = 0;
 					} else {
-						gate.deltas[handle][0] = deltax;
-						gate.deltas[handle][1] = deltay;
+						auto idx = selected.countUntil(handle);
+						selected.remove!(SwapStrategy.unstable)(idx);
+						selected = selected[0..$-1];
 					}
+				} else {
+					if (!selected.canFind(handle)) selected ~= handle;				
 				}
 			}
-			if (handle >= gate.data.points.length && handle < 2*gate.data.points.length) // line drag
-			{
-				if (!t[0].logscale && !t[1].logscale) {
-					long i = handle - gate.data.points.length;
-					long iplus1 = i+1;
-					if (iplus1 == gate.data.points.length) iplus1 = 0;
-					if (end) {
-						gate.data.points[i][0] += deltax;
-						gate.data.points[i][1] += deltay;
-						gate.data.points[iplus1][0] += deltax;
-						gate.data.points[iplus1][1] += deltay;
-						gate.deltas[i][0] = 0;
-						gate.deltas[i][1] = 0;
-						gate.deltas[iplus1][0] = 0;
-						gate.deltas[iplus1][1] = 0;
+			if (handle >= gate.data.points.length && handle < 2*gate.data.points.length) { // line 
+				{
+				import std.stdio;
+				writeln("selected: ", selected);
+				}
+				long i = handle - gate.data.points.length;
+				long iplus1 = i+1;
+				if (iplus1 == gate.data.points.length) iplus1 = 0;
+				if (selected.canFind(i) && selected.canFind(iplus1)) { // remove both
+					if (selected.length == 2) {
+						selected.length = 0;
 					} else {
-						gate.deltas[i][0] = deltax;
-						gate.deltas[i][1] = deltay;
-						gate.deltas[iplus1][0] = deltax;
-						gate.deltas[iplus1][1] = deltay;
+						auto idx = selected.countUntil(i);
+						selected.remove!(SwapStrategy.unstable)(idx);
+						selected = selected[0..$-1];
+						idx = selected.countUntil(iplus1);
+						selected.remove!(SwapStrategy.unstable)(idx);
+						selected = selected[0..$-1];
 					}
+				} else {
+					if (!selected.canFind(i)) selected ~= i;
+					if (!selected.canFind(iplus1)) selected ~= iplus1;
 				}
 			}
-			if (handle == 2*gate.data.points.length) // drag entire polygon
-			{
+			if (handle == 2*gate.data.points.length) { // all points
+				bool select_all = false;
 				for (long i = 0; i < gate.data.points.length; ++i) {
-					if (end) {
-						gate.data.points[i][0] += deltax;
-						gate.data.points[i][1] += deltay;
-						gate.deltas[i][0] = 0;
-						gate.deltas[i][1] = 0;
-					} else {
-						gate.deltas[i][0] = deltax;
-						gate.deltas[i][1] = deltay;
+					if (!selected.canFind(i)) {
+						selected.length = 0;
+						for (long j = 0; j < gate.data.points.length; ++j) {
+							selected ~= j;
+						}
+						select_all = true;
+						break;
 					}
+				}
+				if (!select_all) {
+					selected.length = 0;
+				}
+			}
+		} else {
+			if (handle >= 0 && handle < gate.data.points.length) {
+				selected.length = 0;
+				if (!selected.canFind(handle)) selected ~= handle;
+			}
+			if (handle >= gate.data.points.length && handle < 2*gate.data.points.length) {
+				long i = handle - gate.data.points.length;
+				long iplus1 = i+1;
+				if (iplus1 == gate.data.points.length) iplus1 = 0;
+				selected.length = 0;
+				if (!selected.canFind(i))      selected ~= i;
+				if (!selected.canFind(iplus1)) selected ~= iplus1;
+			}
+			if (handle == 2*gate.data.points.length) { // all points
+				selected.length = 0;
+				for (long i = 0 ; i < gate.data.points.length; ++i) {
+					selected ~= i;
 				}
 			}
 		}
+
+	}
+	
+	override void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove) {
+		import std.algorithm;
+		if (x2 < x1) swap(x1,x2);
+		if (y2 < y1) swap(y1,y2);
+		if (!add && !remove) {
+			selected.length = 0;
+		}
+		for (long i = 0; i < gate.data.points.length; ++i) {
+			double x_canvas = t[0].world2canvas(t[0].log(gate.data.points[i][0]));
+			double y_canvas = t[1].world2canvas(t[1].log(gate.data.points[i][1]));
+			if (x1 <= x_canvas && x2 >= x_canvas && y1 <= y_canvas && y2 >= y_canvas) {
+				if (remove) {
+					if (selected.canFind(i)) {
+						if (selected.length == 1) selected.length = 0;
+						else {
+							long idx = selected.countUntil(i);
+							selected.remove!(SwapStrategy.unstable)(idx);
+							selected = selected[0..$-1];
+						}
+					}
+				} else {
+					selected ~= i;
+				}
+			}
+		}
+
+	}
+
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+		import std.algorithm;
+		double deltax = t[0].canvas2world_delta(x_canvas - x_canvas_start);
+		double deltay = t[1].canvas2world_delta(y_canvas - y_canvas_start);
+		//for (long i = 0 ; i < selected.length; ++i) {
+		for (long i = 0 ; i < gate.data.points.length; ++i) {
+			bool needs_to_be_dragged = false;
+			if (highlight_handle == 2*gate.data.points.length) needs_to_be_dragged = true; // entire polygon is highlighted
+			if (highlight_handle == i || selected.canFind(i)) needs_to_be_dragged = true;  // single point highlighted or selected
+			long iminus1 = (i==0)?(gate.data.points.length-1):(i-1);
+			if (highlight_handle == gate.data.points.length+iminus1 || highlight_handle == gate.data.points.length+i) needs_to_be_dragged = true; // line highlighted
+			if (needs_to_be_dragged) {
+				if (!t[0].logscale && !t[1].logscale) {
+					if (end) {
+						gate.data.points[i][0] += deltax;
+						gate.data.points[i][1] += deltay;
+						gate.deltas[i][0] = 0;
+						gate.deltas[i][1] = 0;
+					} else {
+						gate.deltas[i][0] = deltax;
+						gate.deltas[i][1] = deltay;
+					}
+				}
+
+			}				
+		}
+
 	}
 
 	override void draw(BackendInterface d, in Transform[3] t) const  
@@ -1284,11 +1355,14 @@ public:
 			import std.algorithm;
 			if (highlight_handle == i || highlight_handle == gate.data.points.length*2) POINTSIZE = 6;
 			d.set_color(0,0,1);
+			if (selected.canFind(i)) d.set_color(1,0,0);
 			d.rectangle(x1-POINTSIZE,y1-POINTSIZE, x1+POINTSIZE,y1+POINTSIZE);
 			d.fill();
 
 			if (highlight_handle == i+gate.data.points.length || highlight_handle == gate.data.points.length*2) d.set_line_width(4);
 			else                                                                                                d.set_line_width(2);
+			d.set_color(0,0,1);
+			if (selected.canFind(i) && selected.canFind(iplus1)) d.set_color(1,0,0);
 			d.line(x1,y1,x2,y2);
 			d.stroke();
 		}
