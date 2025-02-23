@@ -1193,10 +1193,6 @@ public:
 				}
 			}
 			if (handle >= gate.data.points.length && handle < 2*gate.data.points.length) { // line 
-				{
-				import std.stdio;
-				writeln("selected: ", selected);
-				}
 				long i = handle - gate.data.points.length;
 				long iplus1 = i+1;
 				if (iplus1 == gate.data.points.length) iplus1 = 0;
