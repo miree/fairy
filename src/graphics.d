@@ -714,7 +714,19 @@ struct CanvasPainter {
 					}
 				}
 			} else {
-				select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, canvas.transform);
+				ulong grid_idx = 0;
+				foreach(idx, transform; grid_transforms) {
+					if (idx >= 0 && idx < canvas.itemnames.length) {
+						auto vis = canvas.itemnames[idx] in visualizers;
+						if (vis) {
+							auto interact = cast(Interactive)(*vis);
+							if (interact && (interact is select_or_drag.item)) {
+								grid_idx = idx;
+							}
+						}
+					}
+				}
+				select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[grid_idx]);
 			}
 			backend.need_redraw();
 		}
