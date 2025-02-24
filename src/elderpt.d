@@ -222,23 +222,55 @@ extern(C) void cond1d_get(int handle,
 //	immutable(double)[] points;
 //}
 Gate2D[] elder_ranges_2D;
-double[4][] elder_range_points_2D;
+double[][] elder_range_points_2D;
 struct MsgGate2DCreate {
 	string name;
 	shared Gate2D gate;
+}
+
+PolyGate[] elder_polygons;
+double[][] elder_polygate_points;
+struct MsgPolyGateCreate {
+	string name;
+	shared PolyGate gate;
 }
 extern(C) int cond2d_create(const char *name,
 							int num_points,
 							double *points,
 							int handle) {
-	import std.conv;
-	int rhandle = cast(int)elder_ranges_2D.length;
-	elder_ranges_2D ~= new Gate2D(points[0],points[1],points[2],points[3]);
-	elder_range_points_2D ~= [points[0],points[1],points[2],points[3]];
-	string itemname = fix_name(name.to!string);
-	main_thread.send(MsgGate2DCreate(itemname, cast(shared Gate2D)elder_ranges_2D[rhandle]));
 
-	return rhandle;
+	if (num_points == 4) {
+		import std.conv;
+		int rhandle = cast(int)elder_ranges_2D.length;
+		elder_ranges_2D ~= new Gate2D(points[0],points[1],points[2],points[3]);
+		elder_range_points_2D ~= [points[0],points[1],points[2],points[3]];
+		string itemname = fix_name(name.to!string);
+		main_thread.send(MsgGate2DCreate(itemname, cast(shared Gate2D)elder_ranges_2D[rhandle]));
+
+		elder_polygons        ~= null;
+		elder_polygate_points ~= null;
+		return rhandle;
+	}
+
+	if (num_points > 4) {
+		import std.conv;
+		int rhandle = cast(int)elder_polygons.length;
+		double[2][] new_polygate_points;
+		double[] new_elder_polygate_points;
+		for (long i = 0; i < num_points/2; ++i) {
+			new_polygate_points ~= [points[2*i],points[2*i+1]];
+			new_elder_polygate_points ~= points[2*i];
+			new_elder_polygate_points ~= points[2*i+1];
+		}
+		elder_polygate_points ~= new_elder_polygate_points;
+		elder_polygons ~= new PolyGate(new_polygate_points);
+		string itemname = fix_name(name.to!string);
+		main_thread.send(MsgPolyGateCreate(itemname, cast(shared PolyGate)elder_polygons[rhandle]));
+
+		elder_ranges_2D       ~= null;
+		elder_range_points_2D ~= null;
+		return rhandle;
+	}
 	//// ignore handle 
 	//import std.conv;
 	//string itemname = name.to!string;
@@ -279,12 +311,24 @@ extern(C) int cond2d_create(const char *name,
 extern(C) void cond2d_get(int handle,
 							int *num_points,
 							double **points) {
-	*num_points = 4;
-	elder_range_points_2D[handle][0] = elder_ranges_2D[handle].data.xmin;
-	elder_range_points_2D[handle][1] = elder_ranges_2D[handle].data.xmax;
-	elder_range_points_2D[handle][2] = elder_ranges_2D[handle].data.ymin;
-	elder_range_points_2D[handle][3] = elder_ranges_2D[handle].data.ymax;
-	*points = elder_range_points_2D[handle].ptr;
+	if (elder_ranges_2D[handle] !is null) {
+		*num_points = 4;
+		elder_range_points_2D[handle][0] = elder_ranges_2D[handle].data.xmin;
+		elder_range_points_2D[handle][1] = elder_ranges_2D[handle].data.xmax;
+		elder_range_points_2D[handle][2] = elder_ranges_2D[handle].data.ymin;
+		elder_range_points_2D[handle][3] = elder_ranges_2D[handle].data.ymax;
+		*points = elder_range_points_2D[handle].ptr;
+	} 
+
+	if (elder_polygons[handle] !is null) {
+		elder_polygate_points[handle].length = 0;
+		foreach(point; elder_polygons[handle].data.points) {
+			elder_polygate_points[handle] ~= point[0];
+			elder_polygate_points[handle] ~= point[1];
+		}
+		*num_points = cast(int)elder_polygate_points[handle].length;
+		*points = elder_polygate_points[handle].ptr;
+	}
 	//import std.datetime : dur;
 	//import std.datetime.stopwatch;
 	//static StopWatch sw;

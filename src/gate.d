@@ -973,10 +973,10 @@ public:
 	}
 
 
-private:
 	Data data;
 	ulong item_version;
 	double[2][] deltas; // not part of stored data, but part of interactive appearance
+private:
 }
 
 
