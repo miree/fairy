@@ -873,7 +873,7 @@ struct CanvasPainter {
 		mouse_moved = false;
 	}
 	void left_button_released(int nPress, double x, double y, bool ctrl = false, bool shift = false) {
-		import std.stdio;
+		//import std.stdio;
 		//writeln("left release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift, "    mouse_moved=", mouse_moved);
 
 		// dragging interactive elements
@@ -936,9 +936,9 @@ struct CanvasPainter {
 			import std.algorithm;
 			if (select_or_drag.valid) {
 				if (ctrl) {
-					select_or_drag.item.select(select_or_drag.handle, true);
+					select_or_drag.item.select(select_or_drag.handle, true, shift);
 				} else {
-					select_one(select_or_drag, canvas.itemnames, visualizers);
+					select_one(select_or_drag, canvas.itemnames, visualizers, shift);
 				}
 			} else {
 				select_one(BoundingBox(), canvas.itemnames, visualizers); // unselect all if mouse was not over an interactive element

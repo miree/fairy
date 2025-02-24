@@ -319,7 +319,7 @@ public:
 		} 
 		return false; 
 	}
-	override void select(long handle, bool add_or_remove = false) {
+	override void select(long handle, bool add_or_remove = false, bool action = false) {
 		//import std.stdio;
 		//writeln("handle ", handle, " was selected  (selected_handle=",selected_handle,")  add_or_remove = ", add_or_remove);
 		if (add_or_remove) {
@@ -793,7 +793,7 @@ public:
 		} 
 		return false; 
 	}
-	override void select(long handle, bool add_or_remove = false) {
+	override void select(long handle, bool add_or_remove = false, bool action = false) {
 		//import std.stdio;
 		//writeln("handle ", handle, " was selected  (selected_handle=",selected_handle,")  add_or_remove = ", add_or_remove);
 		if (add_or_remove) {
@@ -1167,16 +1167,86 @@ public:
 		return false; 
 	}
 
+	void add_or_remove_point(long handle) {
+		// remove a point 
+		if (handle >= 0 && handle < gate.data.points.length) {
+			if (gate.data.points.length <= 3) return; // polygon cannot have less than 3 points!
+			long previous_length = gate.data.points.length;
+
+			import std.algorithm;
+			double[2][] new_points;
+			double[2][] new_deltas;
+			foreach(idx, point; gate.data.points) {
+				if (idx != handle) {
+					new_points ~= point;
+					new_deltas ~= gate.deltas[idx];
+				}
+			}
+			gate.data.points = new_points;
+			gate.deltas      = new_deltas;
+			highlight_handle = gate.data.points.length + handle - 1;
+			if (highlight_handle == 2*gate.data.points.length) highlight_handle = gate.data.points.length;
+			if (highlight_handle < gate.data.points.length) highlight_handle = 2*gate.data.points.length-1;
+
+			// repair the selection
+			foreach(ref sel; selected) {
+				if (sel >= 0 && sel < previous_length) { // this was a selected point
+					if (sel > handle) sel -= 1;
+				}
+			}
+			return;
+		}
+		// insert a point on the middle of the highlighted line segment
+		if (handle >= gate.data.points.length && handle < 2*gate.data.points.length) {
+			long previous_length = gate.data.points.length;
+			long insert_after_idx = handle - gate.data.points.length;
+			long insert_before_idx = insert_after_idx+1;
+			if (insert_before_idx == gate.data.points.length) insert_before_idx = 0;
+			double[2]   additional_point = 0.5*(gate.data.points[insert_after_idx][]+gate.data.points[insert_before_idx][]);
+			double[2][] new_points;
+			double[2][] new_deltas;
+			foreach(idx, point; gate.data.points) {
+				new_points ~= point;
+				new_deltas ~= gate.deltas[idx];
+				if (idx == insert_after_idx) {
+					new_points ~= additional_point;
+					new_deltas ~= [0,0];
+				}
+			}
+			gate.data.points = new_points;
+			gate.deltas      = new_deltas;
+			highlight_handle = insert_after_idx + 1; // then new point is highlighted;
+
+			bool point_before_was_selected = false;
+			bool point_after_was_selected = false;
+			// repair the selection
+			foreach(ref sel; selected) {
+				if (sel == insert_before_idx) point_before_was_selected = true;
+				if (sel == insert_after_idx) point_after_was_selected = true;
+				if (sel >= 0 && sel < previous_length) { // this was a selected point
+					if (sel > insert_after_idx) sel += 1;
+				}
+			}
+			if (point_before_was_selected && point_after_was_selected) selected ~= insert_after_idx+1;
+			return;
+		}
+	}
+
 	// change selection of element with handle
 	// if add_or_remove is true, the element is added/removed from selected set depending if it is already in the set or not
 	// if handle is -1 the selected set is emptied.
-	override void select(long handle, bool add_or_remove) {
+	override void select(long handle, bool add_or_remove = false, bool action = false) {
 		import std.algorithm;
 		
 		if (handle == -1) {
 			selected.length = 0;
 			return;
 		} 
+
+		if (action) {
+			add_or_remove_point(handle);
+			return;
+		}
 
 		if (add_or_remove) {
 			if (handle >= 0 && handle < gate.data.points.length) {

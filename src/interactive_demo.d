@@ -152,7 +152,7 @@ public:
 	// change selection of element with handle
 	// if add_or_remove is true, the element is added/removed from selected set depending if it is already in the set or not
 	// if handle is -1 the selected set is emptied.
-	override void select(long handle, bool add_or_remove) {
+	override void select(long handle, bool add_or_remove = false, bool action = false) {
 		import std.algorithm;
 		import std.stdio;
 		writeln("select ", handle, " ", add_or_remove);
@@ -441,7 +441,7 @@ public:
 	// change selection of element with handle
 	// if add_or_remove is true, the element is added/removed from selected set depending if it is already in the set or not
 	// if handle is -1 the selected set is emptied.
-	override void select(long handle, bool add_or_remove) {
+	override void select(long handle, bool add_or_remove = false, bool action = false) {
 
 	}
 	

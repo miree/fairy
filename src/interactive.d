@@ -11,7 +11,7 @@ interface Interactive {
 	bool setHighlightHandle(long handle);
 	// if an interactive element was selected (e.g. in the GUI) this function should be called to tell the 
 	// Interactive about it (so that it can draw it differently).
-	void select(long handle, bool add_or_remove = false);
+	void select(long handle, bool add_or_remove = false, bool action = false);
 	// selection with a box (box points are canvas coordinates), the add flag decide if the points inside the box should be added or removed
 	void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove);
 	// an interactive element is dragged by calling this function with x and y being in canvas coordinates 
@@ -162,13 +162,13 @@ bool un_highlight(string key, Visualizer[string] container) {
 	}
 	return need_redraw;
 }
-void select_one(BoundingBox select_this_one, string[] keys, Visualizer[string] container) {
+void select_one(BoundingBox select_this_one, string[] keys, Visualizer[string] container, bool action = false) {
 	import std.algorithm, std.array;
 	keys.map!(key=>key in container).filter!(vis=>vis)
 	    .map!(vis=>cast(Interactive)(*vis)).filter!(vis=>vis)
 	    .each!((interactive){
 	    	if ((interactive is select_this_one.item)) {
-	    		select_this_one.item.select(select_this_one.handle);
+	    		select_this_one.item.select(select_this_one.handle, false, action);
 	    	} else {
 	    		interactive.select(-1);
 	    	}
@@ -411,7 +411,7 @@ public:
 	// change selection of element with handle
 	// if add_or_remove is true, the element is added/removed from selected set depending if it is already in the set or not
 	// if handle is -1 the selected set is emptied.
-	override void select(long handle, bool add_or_remove) {
+	override void select(long handle, bool add_or_remove = false, bool action = false) {
 		import std.algorithm;
 		import std.stdio;
 		move_indices.length = 0; // reset the move indices
