@@ -1211,7 +1211,11 @@ public:
 					binsy /= 2;
 				}
 
+				if (t[0].logscale) dw+=0.5; // to avoid small visible gaps between the tiles
+				if (t[1].logscale) dh-=0.5; // to avoid small visible gaps between the tiles
+
 				d.draw_bitmap(handle, _sx1,_sy1,_sw,_sh, dx,dy,dw,dh);
+
 				//d.set_line_width(1);
 				//d.set_color(1,0,0);
 				//d.rectangle(dx,dy,dx+dw,dy+dh);
