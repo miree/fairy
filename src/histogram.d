@@ -1167,9 +1167,9 @@ public:
 				double t_h = t_y2-t_y1;//(h_t-h_b)/Ny;
 
 				double e_x1 = t[0].exp(t_x1);
-				double e_y1 = t[0].exp(t_y1);
+				double e_y1 = t[1].exp(t_y1);
 				double e_x2 = t[0].exp(t_x2);
-				double e_y2 = t[0].exp(t_y2);
+				double e_y2 = t[1].exp(t_y2);
 
 				double iix1 = (e_x1-_left  )*Nx/(_right-_left);
 				double iiy1 = (e_y1-_bottom)*Ny/(_top-_bottom);
