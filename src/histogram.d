@@ -1008,6 +1008,7 @@ public:
 		rgb |= cast(uint)(0xff*c)<<16;
 	}
 
+	@trusted
 	void generate_rgb_data(in double[] data, ulong width, ulong height, 
 		                   double zmin, double zmax,
 		                   ulong stride, uint[] rgb_data, uint[] log_rgb_data) const
@@ -1015,7 +1016,9 @@ public:
 		import std.stdio;
 		//writeln("gererating rgb data: ", zmin, " ", zmax);
 		import std.math;
-		foreach(ulong y; 0..height) {
+		import std.parallelism;
+		import std.range;
+		foreach(ulong y; iota(0,height).parallel) { // employ a bit of parallelism here. A ~ 1.7x speed improvement was measured on an i7 4770
 			foreach(ulong x; 0..width) {
 				ulong idx = y*width+x;
 				auto bin = data[cast(uint)idx];
@@ -1058,7 +1061,7 @@ public:
 		int  ydepth  = 2; // 1 refers to the original pixel buffer, 2 is the first mipmap, 3 is the second mipmap, and so on ...
 		while(cast(int)height/ydepth) {
 			ulong deltayoffset = cast(int)height/ydepth;
-			foreach(ulong y; 0..deltayoffset) {
+			foreach(ulong y; iota(0,deltayoffset).parallel) { // employ a bit of parallelism here. A ~ 1.7x speed improvement was measured on an i7 4770
 				foreach(ulong x; 0..width) {
 					ulong idx = y*width+x;
 					auto rgb_data_idx = (yoffset    +y    )*stride + (x);
