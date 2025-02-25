@@ -6,6 +6,13 @@ import std.json;
 import serializeJSON;
 
 
+void set_gate_color(BackendInterface d) {
+	d.set_color(0,7,0);
+}
+void set_gate_color_selected(BackendInterface d) {
+	d.set_color(4,7,4);
+}
+
 class Gate1DFactory : ItemFactory {
 	override Item create(ref JSONValue json) {
 		import std.stdio;
@@ -96,14 +103,14 @@ public:
 
 		d.set_line_width(2);
 		if ((highlight_handle != -1) && (highlight_handle & 0x1)) d.set_line_width(4);
-		d.set_color(0,0,1); 
+		d.set_gate_color(); 
 		if ((selected_handle != -1) && (selected_handle  & 0x1)) d.set_color(1,0,0);
 		d.horizontal_line(y1, left, right);
 		d.stroke();
 
 		d.set_line_width(2);
 		if ((highlight_handle != -1) && (highlight_handle & 0x2)) d.set_line_width(4);
-		d.set_color(0,0,1); 
+		d.set_gate_color(); 
 		if ((selected_handle != -1) && (selected_handle  & 0x2)) d.set_color(1,0,0);
 		d.horizontal_line(y2, left, right);
 		d.stroke();
@@ -137,14 +144,14 @@ public:
 
 		d.set_line_width(2);
 		if ((highlight_handle != -1) && (highlight_handle & 0x1)) d.set_line_width(4);
-		d.set_color(0,0,1); 
+		d.set_gate_color(); 
 		if ((selected_handle != -1) && (selected_handle  & 0x1)) d.set_color(1,0,0);
 		d.vertical_line(x1, bottom, top);
 		d.stroke();
 
 		d.set_line_width(2);
 		if ((highlight_handle != -1) && (highlight_handle & 0x2)) d.set_line_width(4);
-		d.set_color(0,0,1); 
+		d.set_gate_color(); 
 		if ((selected_handle != -1) && (selected_handle  & 0x2)) d.set_color(1,0,0);
 		d.vertical_line(x2, bottom, top);
 		d.stroke();
@@ -533,7 +540,7 @@ public:
 		for(uint i = 0; i < 4; ++i) {
 			bool is_highlighted = ((highlight_handle!=-1) && (highlight_handle&(1<<i)))?true:false;
 			bool is_selected    = ((selected_handle!=-1) && (selected_handle &(1<<i)))?true:false;
-			d.set_color(0,0,1);
+			d.set_gate_color();
 			d.set_line_width(2);
 			if (is_highlighted) { d.set_line_width(4); }
 			if (is_selected)    { d.set_color(1,0,0);  }
@@ -1173,7 +1180,7 @@ public:
 			if (gate.data.points.length <= 3) return; // polygon cannot have less than 3 points!
 			long previous_length = gate.data.points.length;
 
-			import std.algorithm;
+			import std.algorithm, std.array;
 			double[2][] new_points;
 			double[2][] new_deltas;
 			foreach(idx, point; gate.data.points) {
@@ -1188,12 +1195,20 @@ public:
 			if (highlight_handle == 2*gate.data.points.length) highlight_handle = gate.data.points.length;
 			if (highlight_handle < gate.data.points.length) highlight_handle = 2*gate.data.points.length-1;
 
+			// if removed point was selected
+			if (selected.canFind(handle)) {
+				auto idx = selected.countUntil(handle);
+				selected.remove!(SwapStrategy.unstable)(idx);
+				selected = selected[0..$-1];
+			}
 			// repair the selection
 			foreach(ref sel; selected) {
 				if (sel >= 0 && sel < previous_length) { // this was a selected point
 					if (sel > handle) sel -= 1;
 				}
 			}
+			// remove potential duplicates in selected
+			selected = selected.sort.uniq.array;
 			return;
 		}
 		// insert a point on the middle of the highlighted line segment
@@ -1420,14 +1435,14 @@ public:
 			int POINTSIZE=3;
 			import std.algorithm;
 			if (highlight_handle == i || highlight_handle == gate.data.points.length*2) POINTSIZE = 6;
-			d.set_color(0,0,1);
+			d.set_gate_color();
 			if (selected.canFind(i)) d.set_color(1,0,0);
 			d.rectangle(x1-POINTSIZE,y1-POINTSIZE, x1+POINTSIZE,y1+POINTSIZE);
 			d.fill();
 
 			if (highlight_handle == i+gate.data.points.length || highlight_handle == gate.data.points.length*2) d.set_line_width(4);
 			else                                                                                                d.set_line_width(2);
-			d.set_color(0,0,1);
+			d.set_gate_color();
 			if (selected.canFind(i) && selected.canFind(iplus1)) d.set_color(1,0,0);
 			d.line(x1,y1,x2,y2);
 			d.stroke();
