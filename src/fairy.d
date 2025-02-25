@@ -372,33 +372,43 @@ void remove_window(string name) {
 
 version (elderpt) {
 
-import elderpt;
-@trusted
-void handle_elderpt_MsgHist1dCreate(MsgHist1dCreate msg) {
-	import item, histogram;
-	fairy.session.add_item(msg.name, cast(Hist1)msg.hist, NameCollisionPolicy.replace);
-}
-@trusted
-void handle_elderpt_MsgHist2dCreate(MsgHist2dCreate msg) {
-	import item, histogram;
-	fairy.session.add_item(msg.name, cast(Hist2)msg.hist, NameCollisionPolicy.replace);
-}
-@trusted
-void handle_elderpt_MsgGate1DCreate(MsgGate1DCreate msg) {
-	import item, gate;
-	fairy.session.add_item(msg.name, cast(Gate1D)msg.gate, NameCollisionPolicy.replace);
-}
-@trusted
-void handle_elderpt_MsgGate2DCreate(MsgGate2DCreate msg) {
-	import item, gate;
-	fairy.session.add_item(msg.name, cast(Gate2D)msg.gate, NameCollisionPolicy.replace);
-}
-@trusted
-void handle_elderpt_MsgPolyGateCreate(MsgPolyGateCreate msg) {
-	import item, gate;
-	fairy.session.add_item(msg.name, cast(PolyGate)msg.gate, NameCollisionPolicy.replace);
-}
+	import elderpt;
+	// add a module destructor that ensures the termination 
+	// of elderpt thread before the application goes down.
+	@trusted
+	static ~this() {
+		import std.concurrency;
+		if (elderpt.running) {
+			elderpt.tid.send(elderpt.MsgStop());
+			receive((elderpt.MsgAck msg) {});
+		}
+	}
 
+	@trusted
+	void handle_elderpt_MsgHist1dCreate(MsgHist1dCreate msg) {
+		import item, histogram;
+		fairy.session.add_item(msg.name, cast(Hist1)msg.hist, NameCollisionPolicy.replace);
+	}
+	@trusted
+	void handle_elderpt_MsgHist2dCreate(MsgHist2dCreate msg) {
+		import item, histogram;
+		fairy.session.add_item(msg.name, cast(Hist2)msg.hist, NameCollisionPolicy.replace);
+	}
+	@trusted
+	void handle_elderpt_MsgGate1DCreate(MsgGate1DCreate msg) {
+		import item, gate;
+		fairy.session.add_item(msg.name, cast(Gate1D)msg.gate, NameCollisionPolicy.replace);
+	}
+	@trusted
+	void handle_elderpt_MsgGate2DCreate(MsgGate2DCreate msg) {
+		import item, gate;
+		fairy.session.add_item(msg.name, cast(Gate2D)msg.gate, NameCollisionPolicy.replace);
+	}
+	@trusted
+	void handle_elderpt_MsgPolyGateCreate(MsgPolyGateCreate msg) {
+		import item, gate;
+		fairy.session.add_item(msg.name, cast(PolyGate)msg.gate, NameCollisionPolicy.replace);
+	}
 
 }
 
@@ -421,7 +431,6 @@ void handle_audiodaq_Error(MsgError msg) {
 	audiodaq.running = false;
 	audiodaq.paused = false;
 }
-
 
 @trusted
 // return false in case of timeout
