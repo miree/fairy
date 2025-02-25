@@ -1434,7 +1434,7 @@ public:
 			//writeln("point ", i, " ", x1, " ", y1, " ", x2, " ", y2);
 			int POINTSIZE=3;
 			import std.algorithm;
-			if (highlight_handle == i || highlight_handle == gate.data.points.length*2) POINTSIZE = 6;
+			if (highlight_handle == i /*|| highlight_handle == gate.data.points.length*2*/) POINTSIZE = 6;
 			d.set_gate_color();
 			if (selected.canFind(i)) d.set_color(1,0,0);
 			d.rectangle(x1-POINTSIZE,y1-POINTSIZE, x1+POINTSIZE,y1+POINTSIZE);

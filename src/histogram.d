@@ -1147,7 +1147,7 @@ public:
 		int Ny = 1;
 		if (t[0].logscale) Nx = 30;
 		if (t[1].logscale) Ny = 30;
-		if (t[2].logscale && t[1].logscale) {Nx = 20; Ny = 20;}
+		if (t[0].logscale && t[1].logscale) {Nx = 20; Ny = 20;}
 
 		// more advanced tiling (linear sizing of tiles in canvas space)
 		foreach (ix; 0..Nx) {
