@@ -7,10 +7,10 @@ import serializeJSON;
 
 
 void set_gate_color(BackendInterface d) {
-	d.set_color(0,7,0);
+	d.set_color(0,0.7,0);
 }
 void set_gate_color_selected(BackendInterface d) {
-	d.set_color(4,7,4);
+	d.set_color(0.4,0.7,0.4);
 }
 
 class Gate1DFactory : ItemFactory {
@@ -218,10 +218,10 @@ public:
 			if (t[gate.data.direction].logscale) {
 				import std.math;
 				if (highlight_handle == 3 || highlight_handle == 1 || selected_handle == 3 || selected_handle == 1) {
-					if (gate.data.min > 0) gate.min_delta = gate.data.min*exp(delta) - gate.data.min;
+					gate.min_delta = gate.data.min*exp(delta) - gate.data.min;
 				}
 				if (highlight_handle == 3 || highlight_handle == 2 || selected_handle == 3 || selected_handle == 2) {
-					if (gate.data.max > 0) gate.max_delta = gate.data.max*exp(delta) - gate.data.max;
+					gate.max_delta = gate.data.max*exp(delta) - gate.data.max;
 				}
 			} else {
 				if (highlight_handle == 3 || highlight_handle == 1 || selected_handle == 3 || selected_handle == 1) {
@@ -637,8 +637,8 @@ public:
 
 			if (t[0].logscale) {
 				import std.math;
-				if (((highlight_handle != -1) && (highlight_handle & 0x1)) || ((selected_handle != -1) && (selected_handle & 0x1))) if (gate.data.xmin > 0) gate.xmin_delta = gate.data.xmin*exp(deltax) - gate.data.xmin;
-				if (((highlight_handle != -1) && (highlight_handle & 0x2)) || ((selected_handle != -1) && (selected_handle & 0x2))) if (gate.data.xmax > 0) gate.xmax_delta = gate.data.xmax*exp(deltax) - gate.data.xmax;
+				if (((highlight_handle != -1) && (highlight_handle & 0x1)) || ((selected_handle != -1) && (selected_handle & 0x1))) gate.xmin_delta = gate.data.xmin*exp(deltax) - gate.data.xmin;
+				if (((highlight_handle != -1) && (highlight_handle & 0x2)) || ((selected_handle != -1) && (selected_handle & 0x2))) gate.xmax_delta = gate.data.xmax*exp(deltax) - gate.data.xmax;
 			} else {
 				if (((highlight_handle != -1) && (highlight_handle & 0x1)) || ((selected_handle != -1) && (selected_handle & 0x1))) gate.xmin_delta = deltax;
 				if (((highlight_handle != -1) && (highlight_handle & 0x2)) || ((selected_handle != -1) && (selected_handle & 0x2))) gate.xmax_delta = deltax;
@@ -646,8 +646,8 @@ public:
 
 			if (t[1].logscale) {
 				import std.math;
-				if (((highlight_handle != -1) && (highlight_handle & 0x4)) || ((selected_handle != -1) && (selected_handle & 0x4))) if (gate.data.ymin > 0) gate.ymin_delta = gate.data.ymin*exp(deltay) - gate.data.ymin;
-				if (((highlight_handle != -1) && (highlight_handle & 0x8)) || ((selected_handle != -1) && (selected_handle & 0x8))) if (gate.data.ymax > 0) gate.ymax_delta = gate.data.ymax*exp(deltay) - gate.data.ymax;
+				if (((highlight_handle != -1) && (highlight_handle & 0x4)) || ((selected_handle != -1) && (selected_handle & 0x4))) gate.ymin_delta = gate.data.ymin*exp(deltay) - gate.data.ymin;
+				if (((highlight_handle != -1) && (highlight_handle & 0x8)) || ((selected_handle != -1) && (selected_handle & 0x8))) gate.ymax_delta = gate.data.ymax*exp(deltay) - gate.data.ymax;
 			} else {
 				if (((highlight_handle != -1) && (highlight_handle & 0x4)) || ((selected_handle != -1) && (selected_handle & 0x4))) gate.ymin_delta = deltay;
 				if (((highlight_handle != -1) && (highlight_handle & 0x8)) || ((selected_handle != -1) && (selected_handle & 0x8))) gate.ymax_delta = deltay;
@@ -1107,10 +1107,14 @@ public:
 		for (int i = 0; i < gate.data.points.length; ++i) {
 			int iplus1 = i+1;
 			if (iplus1 == gate.data.points.length) iplus1 = 0;
-			double x1 = t[0].world2canvas(t[0].log(gate.data.points[i][0]));
-			double y1 = t[1].world2canvas(t[1].log(gate.data.points[i][1]));
-			double x2 = t[0].world2canvas(t[0].log(gate.data.points[iplus1][0]));
-			double y2 = t[1].world2canvas(t[1].log(gate.data.points[iplus1][1]));
+			double x1w = gate.data.points[i][0];
+			double y1w = gate.data.points[i][1];
+			double x2w = gate.data.points[iplus1][0];
+			double y2w = gate.data.points[iplus1][1];
+			double x1 = t[0].world2canvas(t[0].log(x1w));
+			double y1 = t[1].world2canvas(t[1].log(y1w));
+			double x2 = t[0].world2canvas(t[0].log(x2w));
+			double y2 = t[1].world2canvas(t[1].log(y2w));
 
 			if (xmin is double.init || xmin > t[0].log(gate.data.points[i][0])) xmin = t[0].log(gate.data.points[i][0]);
 			if (ymin is double.init || ymin > t[1].log(gate.data.points[i][1])) ymin = t[1].log(gate.data.points[i][1]);
@@ -1121,9 +1125,9 @@ public:
 
 			double x_line, y_line;
 			double distance;
-			if (closest_point_on_line(x_line, y_line, x1,y1, x2,y2, x_canvas,y_canvas)) {
-				double dx = x_line - x_canvas;
-				double dy = y_line - y_canvas;
+			if (closest_point_on_line(x_line, y_line, x1w,y1w, x2w,y2w, x_world,y_world)) {
+				double dx = t[0].world2canvas(t[0].log(x_line)) - x_canvas;
+				double dy = t[1].world2canvas(t[1].log(y_line)) - y_canvas;
 				distance = sqrt(dx*dx+dy*dy);
 				if (distance < DISTANCE) {
 					// indices are: [0... length-1] => points ; [length...2*length-1] => lines ; [2*length] => all
@@ -1376,18 +1380,33 @@ public:
 			long iminus1 = (i==0)?(gate.data.points.length-1):(i-1);
 			if (highlight_handle == gate.data.points.length+iminus1 || highlight_handle == gate.data.points.length+i) needs_to_be_dragged = true; // line highlighted
 			if (needs_to_be_dragged) {
-				if (!t[0].logscale && !t[1].logscale) {
-					if (end) {
+				import std.math;
+				if (end) {
+					if (t[0].logscale) {
+						gate.data.points[i][0] += gate.data.points[i][0]*(exp(deltax) - 1);;
+					} else {
 						gate.data.points[i][0] += deltax;
+					}
+					gate.deltas[i][0] = 0;
+					if (t[1].logscale) {
+						gate.data.points[i][1] += gate.data.points[i][1]*(exp(deltay) - 1);
+					} else {
 						gate.data.points[i][1] += deltay;
-						gate.deltas[i][0] = 0;
-						gate.deltas[i][1] = 0;
+					}
+					gate.deltas[i][1] = 0;
+				} else {
+					if (t[0].logscale) {
+						gate.deltas[i][0] = gate.data.points[i][0]*(exp(deltax) - 1);
 					} else {
 						gate.deltas[i][0] = deltax;
+					}
+					if (t[1].logscale) {
+						gate.deltas[i][1] = gate.data.points[i][1]*(exp(deltay) - 1);
+					} else {
 						gate.deltas[i][1] = deltay;
+						
 					}
 				}
-
 			}				
 		}
 
@@ -1444,8 +1463,28 @@ public:
 			else                                                                                                d.set_line_width(2);
 			d.set_gate_color();
 			if (selected.canFind(i) && selected.canFind(iplus1)) d.set_color(1,0,0);
-			d.line(x1,y1,x2,y2);
-			d.stroke();
+			if (t[0].logscale || t[1].logscale) {
+				double x1w = gate.deltas[i][0]      + gate.data.points[i][0];
+				double y1w = gate.deltas[i][1]      + gate.data.points[i][1];
+				double x2w = gate.deltas[iplus1][0] + gate.data.points[iplus1][0];
+				double y2w = gate.deltas[iplus1][1] + gate.data.points[iplus1][1];
+				
+				double x1c = t[0].world2canvas(t[0].log(x1w));
+				double y1c = t[1].world2canvas(t[1].log(y1w));
+				const int N = 30;
+				for (int k = 0; k < N; ++k) {
+					double eps = (k+1.0)/N;
+					double x2c = t[0].world2canvas(t[0].log(x2w*eps+x1w*(1.0-eps)));
+					double y2c = t[1].world2canvas(t[1].log(y2w*eps+y1w*(1.0-eps)));
+					d.line(x1c,y1c,x2c,y2c);
+					d.stroke();
+					x1c = x2c;
+					y1c = y2c;
+				}
+			} else {
+				d.line(x1,y1,x2,y2);
+				d.stroke();
+			}
 		}
 
 		//// draw outer circle
