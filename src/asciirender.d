@@ -421,6 +421,9 @@ public:
 
 		draw_rectangle = true;
 	}
+	override void polygon(double[2][] points) {
+		// not implemented
+	}
 	override void fill() {
 		if (transparent) return;
 		if (draw_rectangle) {

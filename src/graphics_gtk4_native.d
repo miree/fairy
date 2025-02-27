@@ -1418,7 +1418,7 @@ struct MyPlotWidget {
 		gtk_box_append(controls_box, cast(GtkWidget*)sep4);
 
 
-		gtk_widget_set_size_request(cast(GtkWidget*)mouse_pos, 700, 20);
+		gtk_widget_set_size_request(cast(GtkWidget*)mouse_pos, 600, 20);
 		gtk_drawing_area_set_draw_func(mouse_pos, &mousePosDrawFunc, cast(void*)cairo_backend, null);
 		gtk_box_append(controls_box, cast(GtkWidget*)mouse_pos);
 		import std.string;
@@ -1604,9 +1604,16 @@ class CairoBackend : BackendInterface
 		cairo_move_to(cr, x1, y1);
 		cairo_line_to(cr, x2, y2);
 	}
-	void rectangle(double x1, double y1, double x2, double y2)
+	override void rectangle(double x1, double y1, double x2, double y2)
 	{
 		cairo_rectangle(cr, x1,y1, x2-x1, y2-y1);
+	}
+	override void polygon(double[2][] xys) {
+		foreach(i,xy;xys) {
+			if (!i) cairo_move_to(cr, xy[0], xy[1]);
+			else    cairo_line_to(cr, xy[0], xy[1]);
+		}
+		cairo_line_to(cr, xys[0][0], xys[0][1]);
 	}
 	override void fill() {
 		cairo_fill(cr);

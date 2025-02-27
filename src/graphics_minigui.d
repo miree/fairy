@@ -320,6 +320,9 @@ class DrawArea : Widget, BackendInterface
 		rect_y2 = y2d;
 		rect_valid = true;
 	}
+	override void polygon(double[2][] xys) {
+		// not implemented yet
+	}	
 	override void fill() {
 		if (!rect_valid) return;
 		import std.algorithm;

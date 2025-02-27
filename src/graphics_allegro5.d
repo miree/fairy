@@ -389,6 +389,9 @@ public:
 		rect_x2 = x2;
 		rect_y2 = y2;
 	}
+	override void polygon(double[2][] xys) {
+		// not implemented yet
+	}
 	override void fill() {
 		if (draw_rectangle) {
 			al_draw_filled_rectangle(rect_x1,rect_y1, rect_x2,rect_y2, color);

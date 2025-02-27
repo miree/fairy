@@ -1,12 +1,7 @@
 module graphics_gtk;
 @trusted:
 
-version(gtk3) {
-	pragma(lib, "gtkd-3");
-} 
-version(gtk4) {
-	pragma(lib, "gtkd-4");
-} 
+pragma(lib, "gtkd-4");
 
 
 import graphics;
@@ -43,25 +38,25 @@ class GtkGui : Gui {
 		GdkRectangle rect;
 		window.window_toplevel_box.getAllocation(rect);
 		window.canvas.width  = rect.width;
-		version(gtk4) {
+		//version(gtk4) {
 			window.canvas.height = rect.height+56;
-		}
-		version(gtk3) {
-			window.canvas.height = rect.height;
-			int x,y;
-			window.getPosition(x, y);
-			window.canvas.xpos = x;
-			window.canvas.ypos = y;
-		}
+		//}
+		//version(gtk3) {
+		//	window.canvas.height = rect.height;
+		//	int x,y;
+		//	window.getPosition(x, y);
+		//	window.canvas.xpos = x;
+		//	window.canvas.ypos = y;
+		//}
 	}
 	override void remove_item(string name) {
 		foreach(window; main_windows) {
-			window.item_view.removeItem(name);
+			//window.item_view.removeItem(name);
 		}
 	}
 	override void add_item(string name) {
 		foreach(window; main_windows) {
-			window.item_view.addItem(name, null);
+			//window.item_view.addItem(name, null);
 		}
 	}
 	override void update_from_canvas(string name) {
@@ -127,37 +122,20 @@ class GtkGui : Gui {
 	}
 }
 
-// some gtk3/gtk4 compatibility/convenience functions
-version(gtk3) 
-{
-	import gtk.Widget;
-	void setChild(ParentWidget, ChildWidget)(ParentWidget p, ChildWidget ch) {
-		p.add(ch);
-	}
 
-	// get int and string out of a treestore iterator
-	import gtk.TreeStore, gtk.TreeIter;
-	int getInt(TreeStore store , TreeIter iter, int column) {
-		return store.getValue(iter,column).getInt();
-	}
-	string getString(TreeStore store , TreeIter iter, int column) {
-		return store.getValue(iter,column).getString();
-	}
-} 
-version(gtk4) {
-	// get int and string out of a treestore iterator
-	import gtk.TreeStore, gtk.TreeIter, gobject.Value;
-	int getInt(TreeStore store , TreeIter iter, int column) {
-		auto out_value = new Value;
-		store.getValue(iter, column, out_value);
-		return out_value.get!int();
-	}
-	string getString(TreeStore store , TreeIter iter, int column) {
-		auto out_value = new Value;
-		store.getValue(iter, column, out_value);
-		return out_value.get!string();
-	}
+// get int and string out of a treestore iterator
+import gtk.TreeStore, gtk.TreeIter, gobject.Value;
+int getInt(TreeStore store , TreeIter iter, int column) {
+	auto out_value = new Value;
+	store.getValue(iter, column, out_value);
+	return out_value.get!int();
 }
+string getString(TreeStore store , TreeIter iter, int column) {
+	auto out_value = new Value;
+	store.getValue(iter, column, out_value);
+	return out_value.get!string();
+}
+
 
 
 string fixWindowsPaths(string path) {
@@ -196,13 +174,8 @@ private:
 	import gtk.ScrolledWindow;
 	import gtk.PopoverMenu;
 	import gtk.Popover;
-	//version(gtk3) {
-		import gio.Menu;
-		import gio.MenuItem;
-	//}
-	//version(gtk4) {
-	//	import gio.MenuItem;
-	//}
+	import gio.Menu;
+	import gio.MenuItem;
 
 	const int min_width  = 600;
 	const int min_height = 400;
@@ -216,13 +189,13 @@ private:
 	HeaderBar header_bar;
 		Button open_menu;
 			Menu menu_top;
-				version(gtk3) { Popover menu_popover; }
-				version(gtk4) { PopoverMenu menu_popover; }
+				PopoverMenu menu_popover; 
 		Button open_soundscope;
 		Label  header_title;
 	Paned workspace;
 		ScrolledWindow item_view_scrolled_window;
-			ItemView item_view;
+			//ItemView item_view;
+			MyItemView item_view;
 		PlotWidget plot_widget;
 
 	SimpleAction new_window;
@@ -248,8 +221,8 @@ public:
 
 	void update_from_canvas() {
 		assert(item_view !is null);
-		item_view.sync_with_session();
-		item_view.sync_with_canvas(canvas);
+		//item_view.sync_with_session();
+		//item_view.sync_with_canvas(canvas);
 		plot_widget.sync_with_canvas(canvas);
 	}
 
@@ -261,9 +234,6 @@ public:
 		import std.algorithm;
 		width  = (canvas_properties.width >0)?max(canvas_properties.width , min_width):min_width;
 		height = (canvas_properties.height>0)?max(canvas_properties.height, min_height):min_height;
-		version(gtk3) {
-			move(canvas.xpos, canvas.ypos);
-		}
 
 		import ui;
 
@@ -294,13 +264,8 @@ public:
 					if (response == ResponseType.OK) {
 						import std.algorithm, std.path, std.file, std.string, std.stdio;
 						auto cwd = getcwd().fixWindowsPaths;
-						version(gtk3) {
-							auto filename = (cast(FileChooserDialog)dialog).getFilenames().toArray!string[0].fixWindowsPaths().chompPrefix(cwd~"/");
-						}
-						version(gtk4) {
-							auto filename = (cast(FileChooserDialog)dialog).getFile().getPath().fixWindowsPaths().chompPrefix(cwd~"/");
-							import std.stdio; writeln("filename=", filename);
-						}
+						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath().fixWindowsPaths().chompPrefix(cwd~"/");
+						import std.stdio; writeln("filename=", filename);
 						if (filename.endsWith(".session")) { filename = filename[0..$-8]; }
 						import ui;
 						session_save(filename);
@@ -331,13 +296,8 @@ public:
 					if (response == ResponseType.OK) {
 						import std.algorithm, std.path, std.file, std.string, std.stdio;
 						auto cwd = getcwd().fixWindowsPaths;
-						version(gtk3) {
-							auto filename = (cast(FileChooserDialog)dialog).getFilenames().toArray!string[0].fixWindowsPaths().chompPrefix(cwd~"/");
-						}
-						version(gtk4) {
-							auto filename = (cast(FileChooserDialog)dialog).getFile().getPath().fixWindowsPaths().chompPrefix(cwd~"/");
-							import std.stdio; writeln("filename=", filename);
-						}
+						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath().fixWindowsPaths().chompPrefix(cwd~"/");
+						import std.stdio; writeln("filename=", filename);
 						if (filename.endsWith(".session")) { filename = filename[0..$-8]; }
 						// execute the command with a short delay to make sure the dialog window is closed before the action is executed
 						open_session_timeout = new Timeout(100, delegate bool() {
@@ -363,49 +323,49 @@ public:
 
 		expand_all_selected = new SimpleAction("expand_all", null);
 		expand_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
-			item_view.expand_all_selected();
+			//item_view.expand_all_selected();
 		});
 		addAction(expand_all_selected);
 
 		show_all_selected = new SimpleAction("show_all_selected", null);
 		show_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
-			item_view.show_all_selected();
+			//item_view.show_all_selected();
 		});
 		addAction(show_all_selected);
 
 		show_all_recursive = new SimpleAction("show_all_recursive", null);
 		show_all_recursive.addOnActivate(delegate(Variant var, SimpleAction action) {
-			item_view.show_all_recursive();
+			//item_view.show_all_recursive();
 		});
 		addAction(show_all_recursive);
 
 		hide_all_selected = new SimpleAction("hide_all_selected", null);
 		hide_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
-			item_view.hide_all_selected();
+			//item_view.hide_all_selected();
 		});
 		addAction(hide_all_selected);
 
 		hide_all_recursive = new SimpleAction("hide_all_recursive", null);
 		hide_all_recursive.addOnActivate(delegate(Variant var, SimpleAction action) {
-			item_view.hide_all_recursive();
+			//item_view.hide_all_recursive();
 		});
 		addAction(hide_all_recursive);
 
 		reset_all_selected = new SimpleAction("reset_all_selected", null);
 		reset_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
-			item_view.reset_all_selected();
+			//item_view.reset_all_selected();
 		});
 		addAction(reset_all_selected);
 
 		reset_all_recursive = new SimpleAction("reset_all_recursive", null);
 		reset_all_recursive.addOnActivate(delegate(Variant var, SimpleAction action) {
-			item_view.reset_all_recursive();
+			//item_view.reset_all_recursive();
 		});
 		addAction(reset_all_recursive);
 
 		remove_all_selected = new SimpleAction("remove_selected", null);
 		remove_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
-			item_view.remove_all_selected();
+			//item_view.remove_all_selected();
 		});
 		addAction(remove_all_selected);
 
@@ -423,28 +383,14 @@ public:
 		header_bar = new HeaderBar;
 		// add title to header bar
 		header_title = new Label("fairy - " ~ window_name);
-		version(gtk4) { 
-			header_bar.setTitleWidget(header_title); 
-			header_bar.setShowTitleButtons(false); // to match gtk3 behavior
-		}
-		version(gtk3) { 
-			header_bar.setTitle("fairy - " ~ window_name); 
-		}
+		header_bar.setTitleWidget(header_title); 
+		header_bar.setShowTitleButtons(false); // to match gtk3 behavior
 
 		// add menu and other buttons to title bar
 		open_menu    = new Button();
 		//close_window = new Button();
-		version(gtk3) {
-			import gtk.Image, gtk.c.types;
-			auto open_image = new Image;
-			open_image.setFromIconName("open-menu-symbolic", IconSize.LARGE_TOOLBAR);
-			open_menu.setImage(open_image);
-			header_bar.setShowCloseButton(true);		
-		}
-		version(gtk4) { 
-			open_menu.setIconName("open-menu-symbolic"); 
-			header_bar.setShowTitleButtons(true);
-		}
+		open_menu.setIconName("open-menu-symbolic"); 
+		header_bar.setShowTitleButtons(true);
 
 		//header_bar.packEnd(close_window);
 		header_bar.packStart(open_menu);
@@ -457,16 +403,9 @@ public:
 		menu_top.append("save session as", "win.save_session_as");
 		menu_top.append("open session",    "win.open_session");
 		menu_top.append("quit",            "win.quit");
-		version(gtk3) { 
-			menu_popover = new Popover(open_menu); 
-			menu_popover.bindModel(menu_top, null);
-			//menu_popover.setHasArrow(false); // how to remove the arrow?
-		}
-		version(gtk4) { 
-			menu_popover = new PopoverMenu(menu_top); 
-			menu_popover.setParent(open_menu);
-			//menu_popover.setHasArrow(false);
-		}
+
+		menu_popover = new PopoverMenu(menu_top); 
+		menu_popover.setParent(open_menu);
 		menu_popover.setPosition(PositionType.BOTTOM);
 		open_menu.addOnClicked((Button button) => menu_popover.setVisible(true));
 
@@ -484,10 +423,11 @@ public:
 		plot_widget = new PlotWidget(canvas_properties, window_name);//(area, window_name);
 		plot_widget.setHexpand(true);
 
-		item_view = new ItemView(plot_widget, this);
+		//item_view = new ItemView(plot_widget, this);
+		item_view = new MyItemView;
 
-		item_view.sync_with_session();
-		item_view.sync_with_canvas(canvas);
+		//item_view.sync_with_session();
+		//item_view.sync_with_canvas(canvas);
 
 		item_view_scrolled_window = new ScrolledWindow();
 		item_view_scrolled_window.setPropagateNaturalWidth(true);
@@ -496,85 +436,47 @@ public:
 
 		workspace = new Paned(GtkOrientation.HORIZONTAL);
 		workspace.setPosition(200);
-		version (gtk3) {
-			workspace.add(item_view_scrolled_window, plot_widget);
-			//add(workspace);
-		} 
-		version(gtk4) {
-			workspace.setStartChild(item_view_scrolled_window);
-			workspace.setResizeStartChild(false);
-			workspace.setShrinkStartChild(true);
-			workspace.setEndChild(plot_widget);
-			workspace.setResizeEndChild(true);
-			workspace.setShrinkEndChild(false);
-		}
-		version(gtk3) {
-			addOnHide((Widget) {
-				import fairy;
-				try {
-					if ((name in GtkGui.main_windows) !is null) GtkGui.main_windows.remove(name);
-					fairy.session.close_window(name);
-				} catch (Exception e) {
-					// nothing
-					// we land here if the close was executed from command line 
-					// then fairy.sesssion.close_window is executed once called from command line
-					// and again if the window gets a Destroy-notification
-				}
-			});
-		}
-		version(gtk4) {
-			setHideOnClose(true);
-			addOnHide((Widget) {
-				import fairy;
-				try {
-					if ((name in GtkGui.main_windows) !is null) GtkGui.main_windows.remove(name);
-					fairy.session.close_window(name);
-				} catch (Exception e) {
-					// nothing
-					// we land here if the close was executed from command line 
-					// then fairy.sesssion.close_window is executed once called from command line
-					// and again if the window gets a Hide-notification
-				}
-			});
-		}
+		workspace.setStartChild(item_view_scrolled_window);
+		workspace.setResizeStartChild(false);
+		workspace.setShrinkStartChild(true);
+		workspace.setEndChild(plot_widget);
+		workspace.setResizeEndChild(true);
+		workspace.setShrinkEndChild(false);
+		setHideOnClose(true);
+		addOnHide((Widget) {
+			import fairy;
+			try {
+				if ((name in GtkGui.main_windows) !is null) GtkGui.main_windows.remove(name);
+				fairy.session.close_window(name);
+			} catch (Exception e) {
+				// nothing
+				// we land here if the close was executed from command line 
+				// then fairy.sesssion.close_window is executed once called from command line
+				// and again if the window gets a Hide-notification
+			}
+		});
 		addOnRealize((Widget) {
-			version (gtk3) {
-				import std.stdio;
-				getDefaultSize(width,height);
-			} 
-			version(gtk4) {
-				import std.stdio;
-				bool mdrawFuncaximized = isMaximized();
-				getDefaultSize(width,height);
-				import gdk.Display, gdk.MonitorGdk;
-				auto monitors = Display.getDefault().getMonitors();
-				//writeln("monitors size=", monitors.getNItems());
-				auto monitor = new MonitorGdk( cast(GdkMonitor*)monitors.getItem(0) );
-				GdkRectangle rect;
-				monitor.getGeometry(rect);
-				//writeln("rect ", rect);
-			}		
+			import std.stdio;
+			bool mdrawFuncaximized = isMaximized();
+			getDefaultSize(width,height);
+			import gdk.Display, gdk.MonitorGdk;
+			auto monitors = Display.getDefault().getMonitors();
+			//writeln("monitors size=", monitors.getNItems());
+			auto monitor = new MonitorGdk( cast(GdkMonitor*)monitors.getItem(0) );
+			GdkRectangle rect;
+			monitor.getGeometry(rect);
 		});
 
-		version(gtk3) {
-			addOnKeyPress(delegate bool(GdkEventKey* e, Widget w) { // the action to perform if that menu entry is selected
-				handle_keyboard_shortcut(e.keyval);
-				return true; // don't propagate
-				//return false; // propagate
-			});
-		}
-		version(gtk4) {
-			event_controller_key = new EventControllerKey();
-			event_controller_key.addOnKeyPressed(delegate bool(uint keyval, uint keycode, GdkModifierType mod, EventControllerKey controller) {
-				handle_keyboard_shortcut(keyval);
-				return true; // don't propagate further				
-			});
-			this.addController(event_controller_key);
-			
-			item_view.setFocusable(false);  // prevent other widgets from stealing the key press events 
-			plot_widget.setFocusable(false);// (see https://docs.gtk.org/gtk4/input-handling.html)
 
-		}
+		event_controller_key = new EventControllerKey();
+		event_controller_key.addOnKeyPressed(delegate bool(uint keyval, uint keycode, GdkModifierType mod, EventControllerKey controller) {
+			handle_keyboard_shortcut(keyval);
+			return true; // don't propagate further				
+		});
+		this.addController(event_controller_key);
+		
+		//item_view.setFocusable(false);  // prevent other widgets from stealing the key press events 
+		plot_widget.setFocusable(false);// (see https://docs.gtk.org/gtk4/input-handling.html)
 
 		window_toplevel_box.append(header_bar);
 		window_toplevel_box.append(workspace);
@@ -617,11 +519,87 @@ public:
 
 }
 
+
+
+import gtk.ColumnView;
+class MyItemView : ColumnView {
+import gtk.StringList, gtk.TreeListModel, gtk.ListItem, gtk.SignalListItemFactory, gtk.MultiSelection, gtk.ColumnViewColumn;
+public:
+	this() {
+		import std.stdio;
+		list = new StringList([]);
+		list.append("item1");
+		list.append("item2");
+		model = new TreeListModel(list, false, false, &create_list, cast(void*)this, null);
+		factory = new SignalListItemFactory();
+		factory.addOnSetup(
+			delegate void(ListItem item, SignalListItemFactory factory) {
+				import gtk.TreeExpander, gtk.Box, gtk.CheckButton, gtk.Label;
+				auto expander = new TreeExpander;
+				auto box = new Box(GtkOrientation.HORIZONTAL, 8);
+				auto check = new CheckButton;
+				auto label = new Label("");
+				box.append(check);
+				box.append(label);
+				expander.setChild(box);
+				item.setChild(expander);
+			});
+		factory.addOnBind(
+			delegate void(ListItem item, SignalListItemFactory factory) {
+				import gtk.TreeExpander, gtk.Box, gtk.CheckButton, gtk.Label, gtk.TreeListRow, gtk.StringObject;
+				auto expander = cast(TreeExpander)item.getChild();
+				auto box      = cast(Box)         expander.getChild();
+				auto check    = cast(CheckButton) box.getFirstChild();
+				auto label    = cast(Label)       check.getNextSibling();
+				auto row      = cast(TreeListRow) item.getItem();
+				auto str      = cast(StringObject)row.getItem();
+				label.setText(str.getString());
+				expander.setListRow(row);
+			});
+		selection = new MultiSelection(model);
+		super(selection);
+		column = new ColumnViewColumn("111",factory);
+		appendColumn(column);
+	}
+
+private:
+	extern(C) 
+	static GListModel* create_list(void* item, void* user_data) {
+		auto self = cast(MyItemView)user_data;
+		import gtk.StringList, gtk.TreeListModel, gtk.StringObject;
+		import std.typecons;
+		string str = scoped!StringObject(cast(GtkStringObject*) item).getString;
+		auto list = new StringList(cast(string[])null);
+		       if (str == "item1")   { list.append("item1_a");
+		                               list.append("item1_b");
+		                               list.append("item1_c");
+		} else if (str == "item2")   { list.append("item2_x");
+		                               list.append("item2_y");
+		                               list.append("item2_z");
+		} else if (str == "item1_a") { list.append("item1_a_x");
+		                               list.append("item1_a_y");
+		                               list.append("item1_a_z");
+		}
+		return cast(GListModel*)list.getStringListStruct;
+	}
+
+private:
+	StringList list;
+	TreeListModel model;
+	SignalListItemFactory factory;
+	MultiSelection selection;
+	ColumnViewColumn column;
+}
+
+
+
+
+
 import gtk.TreeStore, gtk.TreeView, gtk.TreeIter;
 
 class ItemView : TreeView {
 
-	version(gtk4) { // GtkD-3 has this as convenience function (not a genuine gtk function) that is missing in GtkD-4
+	//version(gtk4) { // GtkD-3 has this as convenience function (not a genuine gtk function) that is missing in GtkD-4
 		TreeIter[] getSelectedIters() {
 			import gtk.TreePath;
 			TreeIter[] iters;
@@ -636,7 +614,7 @@ class ItemView : TreeView {
 			}
 			return iters;
 		}
-	}
+	//}
 
 	PlotWidget plotwidget;
 	MainWindow main_window;
@@ -651,18 +629,18 @@ class ItemView : TreeView {
 	TreeStore treestore;
 
 
-	version(gtk3) {
-		import gtk.Menu, gtk.MenuItem;
-		Menu popup_menu;
-	}
-	version(gtk4) {
+	//version(gtk3) {
+	//	import gtk.Menu, gtk.MenuItem;
+	//	Menu popup_menu;
+	//}
+	//version(gtk4) {
 		import gtk.PopoverMenu, gtk.Popover;
 		import gio.Menu, gio.MenuItem;
 		import gtk.GestureClick;
 		GestureClick right_click;
 		Menu menu;
 		PopoverMenu popup_menu;
-	}
+	//}
 
 	void expand_all_selected() {
 		foreach(selected_iter; getSelectedIters()) {
@@ -781,12 +759,8 @@ class ItemView : TreeView {
 			import gtk.TreePath, gtk.TreeIter;
 			import std.typecons;
 			auto path = scoped!TreePath(p); // p is something like "2:4:1"
-			version(gtk3) {
-				auto iter = scoped!TreeIter(treestore, path);
-			} else {
-				TreeIter iter;
-				treestore.getIter(iter, path);
-			}
+			TreeIter iter;
+			treestore.getIter(iter, path);
 			// recursively toggle children (only if iter is not an acutal item)
 			auto is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
 			bool active = switch_iter(treestore, iter, plotwidget); 
@@ -804,11 +778,7 @@ class ItemView : TreeView {
 				path_parts = path_parts[0..$-1];
 				p = path_parts.join(':');
 				path = scoped!TreePath(p);
-				version(gtk3) {
-					iter = scoped!TreeIter(treestore, path);
-				} else {
-					treestore.getIter(iter, path);
-				}
+				treestore.getIter(iter, path);
 				is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
 				if (!is_item) {
 					struct Children {
@@ -850,55 +820,30 @@ class ItemView : TreeView {
 		getSelection().setMode(GtkSelectionMode.MULTIPLE);
 
 
-		version(gtk3) {
-			popup_menu = new Menu;
-			popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
-			popup_menu.append( new MenuItem( (m) => show_all_recursive(),  "show recursive", "show selected items and their children"));
-			popup_menu.append( new MenuItem( (m) => hide_all_recursive(),  "hide recursive", "hide selected items and their children"));
-			popup_menu.append( new MenuItem( (m) => reset_all_recursive(), "reset recursive", "reset selected items and their children"));
-			popup_menu.append( new MenuItem( (m) => show_all_selected(),   "show", "show selected items"));
-			popup_menu.append( new MenuItem( (m) => hide_all_selected(),   "hide", "hide only selected items"));
-			popup_menu.append( new MenuItem( (m) => reset_all_selected(),  "reset", "reset selected items and"));
-			popup_menu.append( new MenuItem( (m) => remove_all_selected(), "remove", "remove selected items"));
-			addOnButtonPress(
-				delegate bool(GdkEventButton* e, Widget w) {
-					if (e.button == 3)	{
-						popup_menu.popup(e.button, e.time);
-						popup_menu.showAll(); 
-						return true;
-					}
-					w.onButtonPressEvent(e); 
-					return false;
-				} 
-			);
-		}
+		menu = new Menu;
+		menu.append("expand recursive", "win.expand_all");
+		menu.append("show recursive",   "win.show_all_recursive");
+		menu.append("hide recursive",   "win.hide_all_recursive");
+		menu.append("reset recursive",  "win.reset_all_recursive");
+		menu.append("show",             "win.show_all_selected");
+		menu.append("hide",             "win.hide_all_selected");
+		menu.append("reset",            "win.reset_all_selected");
+		menu.append("remove",           "win.remove_selected");
 
-		version(gtk4) {
-			menu = new Menu;
-			menu.append("expand recursive", "win.expand_all");
-			menu.append("show recursive",   "win.show_all_recursive");
-			menu.append("hide recursive",   "win.hide_all_recursive");
-			menu.append("reset recursive",  "win.reset_all_recursive");
-			menu.append("show",             "win.show_all_selected");
-			menu.append("hide",             "win.hide_all_selected");
-			menu.append("reset",            "win.reset_all_selected");
-			menu.append("remove",           "win.remove_selected");
-
-			popup_menu = new PopoverMenu(menu); 
-			right_click = new GestureClick;
-			addController(right_click);
-			right_click.setButton(BUTTON_SECONDARY); 
-			right_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
-				import std.stdio; writeln("right click");
-				auto w = cast(ItemView)g.getWidget();
-				w.popup_menu.setParent(w);
-				auto rect = GdkRectangle(cast(int)x, cast(int)y, 4,4);
-				w.popup_menu.setPointingTo(&rect);
-				w.popup_menu.setHasArrow(false);
-				w.popup_menu.setPosition(PositionType.BOTTOM);
-				w.popup_menu.setVisible(true);
-			});
-		}
+		popup_menu = new PopoverMenu(menu); 
+		right_click = new GestureClick;
+		addController(right_click);
+		right_click.setButton(BUTTON_SECONDARY); 
+		right_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
+			import std.stdio; writeln("right click");
+			auto w = cast(ItemView)g.getWidget();
+			w.popup_menu.setParent(w);
+			auto rect = GdkRectangle(cast(int)x, cast(int)y, 4,4);
+			w.popup_menu.setPointingTo(&rect);
+			w.popup_menu.setHasArrow(false);
+			w.popup_menu.setPosition(PositionType.BOTTOM);
+			w.popup_menu.setVisible(true);
+		});
 	}
 
 	void show_visualizer(string item_name) {
@@ -1107,7 +1052,7 @@ class ItemView : TreeView {
 			}
 			import app, ui;
 			foreach(windowname, window; GtkGui.main_windows) {
-				window.item_view.removePathNames(remove_paths);
+				//window.item_view.removePathNames(remove_paths);
 			}
 		}
 	}
@@ -1144,14 +1089,6 @@ class ItemView : TreeView {
 
 }
 
-// gtk3 compatibility function.
-version(gtk3) {
-	import gtk.Box;
-	void append(ChildWidget)(Box box, ChildWidget child) {
-		box.add(child);
-	}
-} 
-
 
 import gtk.Box;
 class PlotWidget : Box {
@@ -1163,15 +1100,10 @@ class PlotWidget : Box {
 	Box      controls;
 	ScrolledWindow controls_scrolled_window; // controls are quite wide, so they are contained in a scrolled window
 
-	// all the control elements
-	version(gtk3) {
-		import gtk.RadioButton;
-		alias CheckOrRadioButton = RadioButton;
-		alias CheckOrToggleButton = ToggleButton;
-	} else {
-		alias CheckOrRadioButton = CheckButton;
-		alias CheckOrToggleButton = CheckButton;
-	}
+
+	alias CheckOrRadioButton = CheckButton;
+	alias CheckOrToggleButton = CheckButton;
+
 	CheckButton check_autorefresh;
 	Button      button_refresh;
 	Label       autoscale_label;
@@ -1195,23 +1127,11 @@ class PlotWidget : Box {
 	CheckButton check_colorbar;
 	CheckOrRadioButton radio_overlay, radio_rowmajor, radio_colmajor; // grouped to form a gtk3 RadioButton
 	SpinButton  spin_n_columns;
-	version(gtk3) {
-		Box         mouse_pos_box;
-		Label       mouse_pos;
-		Box         mouse_pos_value_box;
-		Label       mouse_pos_value;
-	} else {
-		MousePos    mouse_pos_display;
-		double[3] mouse_pos;
-		double    mouse_value;
-		string    mouse_itemname;
-	}
+	Box         mouse_pos_box;
+	Label       mouse_pos;
+	Box         mouse_pos_value_box;
+	Label       mouse_pos_value;
 
-	version(gtk3) {
-		void append(ChildWidget)(ChildWidget ch) {
-			add(ch);
-		}
-	}
 
 	void sync_with_canvas(CanvasProperties *canvas) {
 		check_autorefresh.setActive(canvas.autorefresh);
@@ -1324,13 +1244,13 @@ class PlotWidget : Box {
 		radio_overlay  = new CheckOrRadioButton("overlay");
 		radio_rowmajor = new CheckOrRadioButton("rows");
 		radio_colmajor = new CheckOrRadioButton("columns");
-		version(gtk3){ 
-			radio_colmajor.joinGroup(radio_overlay);
-			radio_rowmajor.joinGroup(radio_overlay);
-		} else {
+		//version(gtk3){ 
+		//	radio_colmajor.joinGroup(radio_overlay);
+		//	radio_rowmajor.joinGroup(radio_overlay);
+		//} else {
 			radio_colmajor.setGroup(radio_overlay);
 			radio_rowmajor.setGroup(radio_overlay);
-		}
+		//}
 		if (canvas.display_mode == DisplayMode.overlay) radio_overlay.setActive(true);
 		if (canvas.display_mode == DisplayMode.rows)    radio_rowmajor.setActive(true);
 		if (canvas.display_mode == DisplayMode.columns) radio_colmajor.setActive(true);
@@ -1348,8 +1268,6 @@ class PlotWidget : Box {
 
 //		///////////////////////////////////////////////////////
 
-		version(gtk3){ 
-
 		mouse_pos = new Label("  x=0\n  y=0");
 		mouse_pos.setJustify(GtkJustification.LEFT);
 		mouse_pos_box = new Box(GtkOrientation.HORIZONTAL, 0);
@@ -1360,9 +1278,7 @@ class PlotWidget : Box {
 		mouse_pos_value_box = new Box(GtkOrientation.HORIZONTAL, 0);
 		mouse_pos_value_box.setSizeRequest(150,0);
 		mouse_pos_value_box.append(mouse_pos_value);
-		} else {
-			mouse_pos_display = new MousePos(this);
-		}
+
 
 
 		///////////////////////////////////////////////
@@ -1428,105 +1344,26 @@ class PlotWidget : Box {
 		controls.append(row_col_radios);
 
 		controls.append(new Separator(GtkOrientation.VERTICAL));
-		version (gtk3) {
-			controls.append(mouse_pos_box);
-			controls.append(mouse_pos_value_box);
-		} else {
-			controls.append(mouse_pos_display);
-		}
+		controls.append(mouse_pos_box);
+		controls.append(mouse_pos_value_box);
 
 	}
 
 	void setMousePosLabel(double x, double y) {
-		version (gtk3) {
-			import std.format;
-			auto label = format("  x=%g\n  y=%g", x,y);
-			mouse_pos.setLabel(label);
-			mouse_pos.setJustify(GtkJustification.LEFT);
-		} else {
-			mouse_pos[0] = x;
-			mouse_pos[1] = y;
-			mouse_pos_display.queueDraw();
-		}
+		import std.format;
+		//auto label = format("  x=%g\n  y=%g", x,y);
+		//mouse_pos.setLabel(label);
+		//mouse_pos.setJustify(GtkJustification.LEFT);
 	}
 	void setMousePosLabelValue(double value, string name) {
-		version (gtk3) {
-			import std.format;
-			if (name !is null && name != "") {
-				auto label = format(" %s\n value=%g", name, value);
-				mouse_pos_value.setLabel(label);
-			} else {
-				mouse_pos_value.setLabel("");
-			}
-		} else {
-			mouse_value = value;
-			mouse_itemname = name;
-			mouse_pos_display.queueDraw();
-		}
+		import std.format;
+		//if (name !is null && name != "") {
+		//	auto label = format(" %s\n value=%g", name, value);
+		//	mouse_pos_value.setLabel(label);
+		//} else {
+		//	mouse_pos_value.setLabel("");
+		//}
 	}	
-}
-
-version(gtk4) {
-
-	class MousePos : DrawingArea {
-		import gtk.c.types;
-		import gtk.c.functions;
-		import cairo.c.types;
-		import cairo.c.functions;
-
-
-		extern(C)
-		static void drawFuncMouse(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
-			import std.stdio;
-			writeln("mousePosDrawFunc");
-			auto plot_widget = cast(PlotWidget)userData;
-			GtkAllocation size;
-			gtk_widget_get_allocation(cast(GtkWidget*)drawingArea, &size);
-			cairo_set_source_rgba(cr, 0,0,0,1);
-
-			cairo_set_font_size(cr, 14);
-			static char[256] buffer;
-			import core.stdc.stdio;
-
-			snprintf(buffer.ptr, buffer.length, "x = %f", plot_widget.mouse_pos[0]);
-			cairo_move_to(cr, 20,20);
-			cairo_show_text(cr, buffer.ptr);
-			cairo_stroke(cr);			
-
-			snprintf(buffer.ptr, buffer.length, "y = %f", plot_widget.mouse_pos[1]);
-			cairo_move_to(cr, 140,20);
-			cairo_show_text(cr, buffer.ptr);
-			cairo_stroke(cr);			
-
-			//snprintf(buffer.ptr, buffer.length, "z = %f", plot_widget.mouse_pos[2]);
-			//cairo_move_to(cr, 260,20);
-			//cairo_show_text(cr, buffer.ptr);
-			//cairo_stroke(cr);			
-
-			if (plot_widget.mouse_value !is double.init) {
-				snprintf(buffer.ptr, buffer.length, "%f", plot_widget.mouse_value);
-				cairo_move_to(cr, 20,40);
-				cairo_show_text(cr, buffer.ptr);
-				cairo_stroke(cr);			
-			}
-
-			if (plot_widget.mouse_itemname !is null) {
-				import std.string;
-				snprintf(buffer.ptr, buffer.length, "%s", plot_widget.mouse_itemname.ptr);
-				cairo_move_to(cr, 140,40);
-				cairo_show_text(cr, buffer.ptr);
-				cairo_stroke(cr);			
-			}	}
-		extern(C) 
-		static void destroyNotifyMouse(void *data) {
-		}
-
-
-		this(PlotWidget plot_widget) {
-			setDrawFunc(&drawFuncMouse, cast(void*)plot_widget, &destroyNotifyMouse);
-			setSizeRequest(700, 20);
-		}
-	}
 }
 
 //import draw;
@@ -1574,8 +1411,8 @@ class PlotArea :  DrawingArea, BackendInterface {
 		cairo_paint(cr);
 		cairo_restore(cr);		
 	}
-	override void set_color(double r, double g, double b, double a = 1) {
-		cairo_set_source_rgba(cr, r,g,b,a);
+	override void set_color(double r, double g, double b) {
+		cairo_set_source_rgba(cr, r,g,b,1);
 	}
 	double line_width;
 	override void set_line_width(double w) {
@@ -1597,16 +1434,9 @@ class PlotArea :  DrawingArea, BackendInterface {
 		cairo_move_to(cr, x1, y1);
 		cairo_line_to(cr, x2, y2);
 	}
-	override void rectangle(double x1, double y1, double x2, double y2)
+	void rectangle(double x1, double y1, double x2, double y2)
 	{
 		cairo_rectangle(cr, x1,y1, x2-x1, y2-y1);
-	}
-	override void polygon(double[2][] xys) {
-		foreach(i,xy;xys) {
-			if (!i) cairo_move_to(cr, xy[0], xy[1]);
-			else    cairo_line_to(cr, xy[0], xy[1]);
-		}
-		cairo_line_to(cr, xys[0][0], xys[0][1]);
 	}
 	override void fill() {
 		cairo_fill(cr);
@@ -1709,16 +1539,14 @@ class PlotArea :  DrawingArea, BackendInterface {
 		cairo_show_text(cr, strz);
 	}
 
-	version(gtk4) {
-		import gtk.EventControllerMotion;
-		import gtk.EventControllerScroll, gtk.c.types;
-		import gtk.GestureClick, gdk.c.types;
-		EventControllerMotion motion_controller;
-		EventControllerScroll scroll_controller;
-		GestureClick left_click;
-		GestureClick right_click;
-		GestureClick middle_click;
-	}
+	import gtk.EventControllerMotion;
+	import gtk.EventControllerScroll, gtk.c.types;
+	import gtk.GestureClick, gdk.c.types;
+	EventControllerMotion motion_controller;
+	EventControllerScroll scroll_controller;
+	GestureClick left_click;
+	GestureClick right_click;
+	GestureClick middle_click;
 
 	this(CanvasProperties *canvas, 
 		 void delegate(double,double) @trusted updateMousePosLabel_func ,
@@ -1732,138 +1560,83 @@ class PlotArea :  DrawingArea, BackendInterface {
 
 //		// minimum size of PlotArea
 		setSizeRequest(100, 50);
- 
-		version(gtk3) {
-			addOnDraw(&drawCallback);
-			addOnMotionNotify(delegate bool(GdkEventMotion *event_motion, Widget w){
-				double x = event_motion.x, y = event_motion.y;
-				bool ctrl  = (event_motion.state & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (event_motion.state & GdkModifierType.SHIFT_MASK  ) != 0;
-				painter.mouse_motion(x,y, cast(PlotArea)w, ctrl, shift);
-				return false;
-			});
-		    addOnButtonPress(delegate bool(GdkEventButton *event_button, Widget w) {
-				import gdk.Event;
-				int nPress = Event.isDoubleClick(event_button)?2:1;
-				PlotArea plot_area = cast(PlotArea)w;
-				double x = event_button.x, y = event_button.y;
-				bool ctrl  = (event_button.state & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (event_button.state & GdkModifierType.SHIFT_MASK  ) != 0;
-				if (event_button.button == 1) painter.left_button_pressed (nPress,x,y,this,ctrl,shift);
-				if (event_button.button == 2) painter.mid_button_pressed  (nPress,x,y,this,ctrl,shift);		
-				if (event_button.button == 3) painter.right_button_pressed(nPress,x,y,ctrl,shift);
-				return false;
-			});
-		    addOnButtonRelease(delegate bool(GdkEventButton *event_button, Widget w) {
-				import gdk.Event;
-				int nPress = Event.isDoubleClick(event_button)?2:1;
-				PlotArea plot_area = cast(PlotArea)w;
-				double x = event_button.x, y = event_button.y;
-				bool ctrl  = (event_button.state & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (event_button.state & GdkModifierType.SHIFT_MASK  ) != 0;
-				if (event_button.button == 1) painter.left_button_released (nPress,x,y,ctrl,shift);
-				if (event_button.button == 2) painter.mid_button_released  (nPress,x,y,ctrl,shift);		
-				if (event_button.button == 3) painter.right_button_released(nPress,x,y,ctrl,shift);
-				return false;
-			});
-			addOnScroll(delegate bool(GdkEventScroll *event_scroll, Widget w) {
-				import gdk.Event;
-				//double x = event_scroll.x, y = event_scroll.y;
-				PlotArea plot_area = cast(PlotArea)w;
-				bool ctrl  = (event_scroll.state & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (event_scroll.state & GdkModifierType.SHIFT_MASK  ) != 0;
-				final switch(event_scroll.direction)
-				{
-					case GdkScrollDirection.DOWN:  painter.scroll( 0 , 1, ctrl, shift);  break;
-					case GdkScrollDirection.UP:	   painter.scroll( 0 ,-1, ctrl, shift);  break;
-					case GdkScrollDirection.LEFT:  painter.scroll(-1 , 0, ctrl, shift);  break;
-					case GdkScrollDirection.RIGHT: painter.scroll( 1 , 0, ctrl, shift);  break;
-					case GdkScrollDirection.SMOOTH:						 break;
-				}
-				return true;								
-			});
+
+		///////////////////////////////////////////
+		// mouse motion
+		///////////////////////////////////////////
+		setDrawFunc(&drawFunc, cast(void*)this, &destroyNotify);
+		// detect mouse motion in the PlotArea
+		import gtk.EventControllerMotion;
+		motion_controller = new EventControllerMotion();
+		//gulong addOnMotion(void delegate(double, double, EventControllerMotion) dlg, ConnectFlags connectFlags=cast(ConnectFlags)0)
+		motion_controller.addOnMotion(delegate(double x, double y, EventControllerMotion controller) {
+			bool ctrl  = (controller.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+			bool shift = (controller.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+			mouse_motion(x,y, cast(PlotArea)controller.getWidget(), ctrl, shift);
+		});
+
+		addController(motion_controller); 
+
+		///////////////////////////////////////////
+		// mouse wheel 
+		///////////////////////////////////////////
+		import gtk.EventControllerScroll, gtk.c.types;
+		scroll_controller = new EventControllerScroll(GtkEventControllerScrollFlags.VERTICAL | 
+		                                                   GtkEventControllerScrollFlags.HORIZONTAL);
+		scroll_controller.addOnScroll(delegate bool(double dx, double dy, EventControllerScroll controller) {
+			bool ctrl  = (controller.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+			bool shift = (controller.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+			scroll(dx,dy, ctrl, shift);
+			return true;
+		});
+		addController(scroll_controller);
 
 
-		} 
+		///////////////////////////////////////////
+		// detect mouse clicks in the PlotArea
+		///////////////////////////////////////////
+		import gtk.GestureClick, gdk.c.types;
+		left_click = new GestureClick;
+		addController(left_click);
+		left_click.setButton(BUTTON_PRIMARY); 
+		left_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
+			bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+			bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+			left_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+		});
+		left_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
+			bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+			bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+			left_button_released(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+		});
 
-		version(gtk4) { 
-			///////////////////////////////////////////
-			// mouse motion
-			///////////////////////////////////////////
-			setDrawFunc(&drawFunc, cast(void*)this, &destroyNotify);
-			// detect mouse motion in the PlotArea
-			import gtk.EventControllerMotion;
-			motion_controller = new EventControllerMotion();
-			//gulong addOnMotion(void delegate(double, double, EventControllerMotion) dlg, ConnectFlags connectFlags=cast(ConnectFlags)0)
-			motion_controller.addOnMotion(delegate(double x, double y, EventControllerMotion controller) {
-				bool ctrl  = (controller.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (controller.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-				mouse_motion(x,y, cast(PlotArea)controller.getWidget(), ctrl, shift);
-			});
+		right_click = new GestureClick;
+		addController(right_click);
+		right_click.setButton(BUTTON_SECONDARY); 
+		right_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
+			bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+			bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+			right_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+		});
+		right_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
+			bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+			bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+			right_button_released(nPress, x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+		});
 
-			addController(motion_controller); 
-
-			///////////////////////////////////////////
-			// mouse wheel 
-			///////////////////////////////////////////
-			import gtk.EventControllerScroll, gtk.c.types;
-			scroll_controller = new EventControllerScroll(GtkEventControllerScrollFlags.VERTICAL | 
-			                                                   GtkEventControllerScrollFlags.HORIZONTAL);
-			scroll_controller.addOnScroll(delegate bool(double dx, double dy, EventControllerScroll controller) {
-				bool ctrl  = (controller.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (controller.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-				scroll(dx,dy, ctrl, shift);
-				return true;
-			});
-			addController(scroll_controller);
-
-
-			///////////////////////////////////////////
-			// detect mouse clicks in the PlotArea
-			///////////////////////////////////////////
-			import gtk.GestureClick, gdk.c.types;
-			left_click = new GestureClick;
-			addController(left_click);
-			left_click.setButton(BUTTON_PRIMARY); 
-			left_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
-				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-				left_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-			});
-			left_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
-				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-				left_button_released(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-			});
-
-			right_click = new GestureClick;
-			addController(right_click);
-			right_click.setButton(BUTTON_SECONDARY); 
-			right_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
-				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-				right_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-			});
-			right_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
-				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-				right_button_released(nPress, x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-			});
-
-			middle_click = new GestureClick;
-			addController(middle_click);
-			middle_click.setButton(BUTTON_MIDDLE); 
-			middle_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
-				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-				mid_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-			});
-			middle_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
-				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
-				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
-				mid_button_released(nPress, x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
-			});
-		}
+		middle_click = new GestureClick;
+		addController(middle_click);
+		middle_click.setButton(BUTTON_MIDDLE); 
+		middle_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
+			bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+			bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+			mid_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+		});
+		middle_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
+			bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
+			bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+			mid_button_released(nPress, x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
+		});
 
 
 
@@ -1873,15 +1646,15 @@ private:
 
 	CanvasPainter painter;
 
-	version(gtk3) {
-		import cairo.Context, cairo.Surface;
-		bool drawCallback(Scoped!Context cr, Widget widget) {
-			GtkAllocation size;
-			getAllocation(size);		
-			drawFunc(null, cr.getContextStruct, size.width, size.height, cast(void*)this);
-			return true;
-		}
-	}
+	//version(gtk3) {
+	//	import cairo.Context, cairo.Surface;
+	//	bool drawCallback(Scoped!Context cr, Widget widget) {
+	//		GtkAllocation size;
+	//		getAllocation(size);		
+	//		drawFunc(null, cr.getContextStruct, size.width, size.height, cast(void*)this);
+	//		return true;
+	//	}
+	//}
 	extern(C) 
 	static void drawFunc(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
 		GtkAllocation size;
@@ -1920,7 +1693,7 @@ private:
 		painter.mid_button_released(nPress,x,y,ctrl,shift);
 	}
 	void left_button_pressed(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
-		painter.left_button_pressed(nPress,x,y,this,ctrl,shift);
+		painter.left_button_pressed(nPress,x,y,ctrl,shift);
 	}
 	void left_button_released(int nPress, double x, double y, PlotArea pa, bool ctrl = false, bool shift = false) {
 		painter.left_button_released(nPress,x,y,ctrl,shift);

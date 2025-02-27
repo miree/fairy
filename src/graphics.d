@@ -32,6 +32,7 @@ interface BackendInterface {
 	void horizontal_line(double y, double x1, double x2);
 	void line(double x1, double y1, double x2, double y2);
 	void rectangle(double x1, double y1, double x2, double y2);
+	void polygon(double[2][] xys);
 	void fill();
 	void stroke();
 

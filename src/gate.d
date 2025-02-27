@@ -1412,6 +1412,7 @@ public:
 
 	override void draw(BackendInterface d, in Transform[3] t) const  
 	{
+		static double[2][] polygon_canvas_points;
 		import std.algorithm;
 
 		import std.stdio;
@@ -1429,6 +1430,33 @@ public:
 		double xcenter = xsum / gate.data.points.length;
 		double ycenter = ysum / gate.data.points.length;
 		double Rmax = 0;
+
+		polygon_canvas_points.length = 0;
+		for (int i = 0; i < gate.data.points.length; ++i) {
+			if (t[0].logscale || t[1].logscale) {
+				int iplus1 = i+1;
+				if (iplus1 == gate.data.points.length) iplus1 = 0;
+				double x1w = gate.deltas[i][0]      + gate.data.points[i][0];
+				double y1w = gate.deltas[i][1]      + gate.data.points[i][1];
+				double x2w = gate.deltas[iplus1][0] + gate.data.points[iplus1][0];
+				double y2w = gate.deltas[iplus1][1] + gate.data.points[iplus1][1];
+				
+				const int N = 15;
+				for (int k = 0; k < N; ++k) {
+					double eps = (k+1.0)/N;
+					double xc = t[0].world2canvas(t[0].log(x2w*eps+x1w*(1.0-eps)));
+					double yc = t[1].world2canvas(t[1].log(y2w*eps+y1w*(1.0-eps)));
+					polygon_canvas_points ~= [xc,yc];
+				}
+			} else {
+				double x1 = t[0].world2canvas(t[0].log(gate.deltas[i][0]      + gate.data.points[i][0]));
+				double y1 = t[1].world2canvas(t[1].log(gate.deltas[i][1]      + gate.data.points[i][1]));
+				polygon_canvas_points ~= [x1,y1];
+			}
+		}
+		d.polygon(polygon_canvas_points);
+		d.set_color(1,1,1,0.3);
+		d.fill();
 
 		for (int level = 1; level >= 0; --level) // draw thicker lines/points in background color to enhance contrast and visibility
 		for (int i = 0; i < gate.data.points.length; ++i) {
