@@ -6,12 +6,16 @@ import std.json;
 import serializeJSON;
 
 
-void set_gate_color(BackendInterface d) {
-	d.set_color(0,0.7,0);
+// level 0 means background color, level 1 means main color
+void set_gate_color_level(BackendInterface d, int level) {
+	if (level) 	d.set_color(0.9,0.9,0.9); // background color
+	else        d.set_color(0,0.7,0);
 }
-void set_gate_color_selected(BackendInterface d) {
-	d.set_color(0.4,0.7,0.4);
+void set_selected_color_level(BackendInterface d, int level) {
+	if (level) 	d.set_color(0.9,0.9,0.9); // background color
+	else        d.set_color(1,0,0);
 }
+
 
 class Gate1DFactory : ItemFactory {
 	override Item create(ref JSONValue json) {
@@ -101,19 +105,21 @@ public:
 		d.rectangle(left,y1,right,y2);
 		d.fill();
 
-		d.set_line_width(2);
-		if ((highlight_handle != -1) && (highlight_handle & 0x1)) d.set_line_width(4);
-		d.set_gate_color(); 
-		if ((selected_handle != -1) && (selected_handle  & 0x1)) d.set_color(1,0,0);
-		d.horizontal_line(y1, left, right);
-		d.stroke();
+		for (int level = 1; level >= 0; --level) {
+			d.set_line_width(2+2*level);
+			if ((highlight_handle != -1) && (highlight_handle & 0x1)) d.set_line_width(4+2*level);
+			d.set_gate_color_level(level); 
+			if ((selected_handle != -1) && (selected_handle  & 0x1)) d.set_selected_color_level(level);
+			d.horizontal_line(y1, left, right);
+			d.stroke();
 
-		d.set_line_width(2);
-		if ((highlight_handle != -1) && (highlight_handle & 0x2)) d.set_line_width(4);
-		d.set_gate_color(); 
-		if ((selected_handle != -1) && (selected_handle  & 0x2)) d.set_color(1,0,0);
-		d.horizontal_line(y2, left, right);
-		d.stroke();
+			d.set_line_width(2+2*level);
+			if ((highlight_handle != -1) && (highlight_handle & 0x2)) d.set_line_width(4+2*level);
+			d.set_gate_color_level(level); 
+			if ((selected_handle != -1) && (selected_handle  & 0x2)) d.set_selected_color_level(level);
+			d.horizontal_line(y2, left, right);
+			d.stroke();
+		}
 	}
 
 	override void draw(BackendInterface d, in Transform[3] t) const	{
@@ -142,19 +148,22 @@ public:
 		d.rectangle(x1,bottom,x2,top);
 		d.fill();
 
-		d.set_line_width(2);
-		if ((highlight_handle != -1) && (highlight_handle & 0x1)) d.set_line_width(4);
-		d.set_gate_color(); 
-		if ((selected_handle != -1) && (selected_handle  & 0x1)) d.set_color(1,0,0);
-		d.vertical_line(x1, bottom, top);
-		d.stroke();
+		for (int level = 1; level >= 0; --level) {
+			d.set_line_width(2+2*level);
+			if ((highlight_handle != -1) && (highlight_handle & 0x1)) d.set_line_width(4+2*level);
+			d.set_gate_color_level(level); 
+			if ((selected_handle != -1) && (selected_handle  & 0x1)) d.set_selected_color_level(level);
+			d.vertical_line(x1, bottom, top);
+			d.stroke();
 
-		d.set_line_width(2);
-		if ((highlight_handle != -1) && (highlight_handle & 0x2)) d.set_line_width(4);
-		d.set_gate_color(); 
-		if ((selected_handle != -1) && (selected_handle  & 0x2)) d.set_color(1,0,0);
-		d.vertical_line(x2, bottom, top);
-		d.stroke();
+			d.set_line_width(2+2*level);
+			if ((highlight_handle != -1) && (highlight_handle & 0x2)) d.set_line_width(4+2*level);
+			d.set_gate_color_level(level); 
+			if ((selected_handle != -1) && (selected_handle  & 0x2)) d.set_selected_color_level(level);
+			d.vertical_line(x2, bottom, top);
+			d.stroke();
+
+		}
 
 	}
 	override double getValue(double x, double y) { return 0.0; }
@@ -536,14 +545,14 @@ public:
 		d.set_color(1,1,1,0.3);
 		d.rectangle(x1,y1,x2,y2);
 		d.fill();
-
+		for(int level = 1; level >= 0; --level)
 		for(uint i = 0; i < 4; ++i) {
 			bool is_highlighted = ((highlight_handle!=-1) && (highlight_handle&(1<<i)))?true:false;
 			bool is_selected    = ((selected_handle!=-1) && (selected_handle &(1<<i)))?true:false;
-			d.set_gate_color();
-			d.set_line_width(2);
-			if (is_highlighted) { d.set_line_width(4); }
-			if (is_selected)    { d.set_color(1,0,0);  }
+			d.set_gate_color_level(level);
+			d.set_line_width(2+2*level);
+			if (is_highlighted) { d.set_line_width(4+2*level); }
+			if (is_selected)    { d.set_selected_color_level(level);  }
 			switch(i) {
 				case 0:   d.vertical_line(x1,y1,y2); break;
 				case 1:   d.vertical_line(x2,y1,y2); break;
@@ -553,32 +562,6 @@ public:
 			}
 			d.stroke();
 		}
-		//double boundsx1,boundsx2,boundsx3,boundsx4;
-		//boundaries(xmin,xmax,t[0],boundsx1,boundsx2,boundsx3,boundsx4);
-		//d.set_color(0,0.4,0);
-		//d.set_line_width(2);
-		//d.vertical_line(t[0].world2canvas(boundsx1),t[1].world2canvas(t[1].min),t[1].world2canvas(t[1].max));
-		//d.stroke();
-		//d.vertical_line(t[0].world2canvas(boundsx2),t[1].world2canvas(t[1].min),t[1].world2canvas(t[1].max));
-		//d.stroke();
-		//d.vertical_line(t[0].world2canvas(boundsx3),t[1].world2canvas(t[1].min),t[1].world2canvas(t[1].max));
-		//d.stroke();
-		//d.vertical_line(t[0].world2canvas(boundsx4),t[1].world2canvas(t[1].min),t[1].world2canvas(t[1].max));
-		//d.stroke();
-
-		//double boundsy1,boundsy2,boundsy3,boundsy4;
-		//boundaries(ymin,ymax,t[1],boundsy1,boundsy2,boundsy3,boundsy4);
-		//d.set_color(0.4,0,0);
-		//d.set_line_width(2);
-		//d.horizontal_line(t[1].world2canvas(boundsy1),t[0].world2canvas(t[0].min),t[0].world2canvas(t[0].max));
-		//d.stroke();
-		//d.horizontal_line(t[1].world2canvas(boundsy2),t[0].world2canvas(t[0].min),t[0].world2canvas(t[0].max));
-		//d.stroke();
-		//d.horizontal_line(t[1].world2canvas(boundsy3),t[0].world2canvas(t[0].min),t[0].world2canvas(t[0].max));
-		//d.stroke();
-		//d.horizontal_line(t[1].world2canvas(boundsy4),t[0].world2canvas(t[0].min),t[0].world2canvas(t[0].max));
-		//d.stroke();
-
 	}
 	override double getValue(double x, double y) { return 0.0; }
 	override bool get_leftright(out double[2] minmax, in Transform[3] t)  {
@@ -1447,7 +1430,7 @@ public:
 		double ycenter = ysum / gate.data.points.length;
 		double Rmax = 0;
 
-
+		for (int level = 1; level >= 0; --level) // draw thicker lines/points in background color to enhance contrast and visibility
 		for (int i = 0; i < gate.data.points.length; ++i) {
 			int iplus1 = i+1;
 			if (iplus1 == gate.data.points.length) iplus1 = 0;
@@ -1456,28 +1439,18 @@ public:
 			double x2 = t[0].world2canvas(t[0].log(gate.deltas[iplus1][0] + gate.data.points[iplus1][0]));
 			double y2 = t[1].world2canvas(t[1].log(gate.deltas[iplus1][1] + gate.data.points[iplus1][1]));
 
-			// maximum radius (measured from center point)
-			import std.math;
-			double dx = xcenter - x1;
-			double dy = ycenter - y1;
-			double R = sqrt(dx*dx + dy*dy);
-			if (Rmax < R) {
-				Rmax = R;
-			}
-
-			//writeln("point ", i, " ", x1, " ", y1, " ", x2, " ", y2);
-			int POINTSIZE=3;
+			double POINTSIZE=2;
 			import std.algorithm;
-			if (highlight_handle == i /*|| highlight_handle == gate.data.points.length*2*/) POINTSIZE = 6;
-			d.set_gate_color();
-			if (selected.canFind(i)) d.set_color(1,0,0);
-			d.rectangle(x1-POINTSIZE,y1-POINTSIZE, x1+POINTSIZE,y1+POINTSIZE);
+			if (highlight_handle == i /*|| highlight_handle == gate.data.points.length*2*/) POINTSIZE = 4;
+			d.set_gate_color_level(level);
+			if (selected.canFind(i)) d.set_selected_color_level(level);
+			d.rectangle(x1-POINTSIZE-level,y1-POINTSIZE-level, x1+POINTSIZE+level,y1+POINTSIZE+level);
 			d.fill();
 
-			if (highlight_handle == i+gate.data.points.length || highlight_handle == gate.data.points.length*2) d.set_line_width(4);
-			else                                                                                                d.set_line_width(2);
-			d.set_gate_color();
-			if (selected.canFind(i) && selected.canFind(iplus1)) d.set_color(1,0,0);
+			if (highlight_handle == i+gate.data.points.length || highlight_handle == gate.data.points.length*2) d.set_line_width(4+2*level);
+			else                                                                                                d.set_line_width(2+level);
+			d.set_gate_color_level(level);
+			if (selected.canFind(i) && selected.canFind(iplus1)) d.set_selected_color_level(level);
 			if (t[0].logscale || t[1].logscale) {
 				double x1w = gate.deltas[i][0]      + gate.data.points[i][0];
 				double y1w = gate.deltas[i][1]      + gate.data.points[i][1];
@@ -1501,23 +1474,6 @@ public:
 				d.stroke();
 			}
 		}
-
-		//// draw outer circle
-		//Rmax = min(Rmax,30);
-		//int Npoints = 32;
-		//double x0 = xcenter + Rmax;
-		//double y0 = ycenter + 0;
-		//for (int i = 1 ; i <= Npoints; ++i) {
-		//	d.set_line_width(2);
-		//	d.set_color(0.8,0.8,1);
-		//	import std.math;
-		//	double x1 = xcenter + Rmax*cos(2.0*PI*i/Npoints);
-		//	double y1 = ycenter - Rmax*sin(2.0*PI*i/Npoints);
-		//	d.line(x0,y0, x1,y1);
-		//	d.stroke();
-		//	x0 = x1;
-		//	y0 = y1;
-		//}
 
 	}
 
