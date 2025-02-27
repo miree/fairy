@@ -1051,18 +1051,29 @@ public:
 
 	override double getValue(double x, double y) { return 0.0; }
 	override bool get_leftright(out double[2] minmax, in Transform[3] t)  {
+		bool result = false;
 		double left, right;
 		foreach(point; gate.data.points) {
-			if (left is double.init || left > point[0]) {
-				left = point[0];
+			if (left is double.init || left > t[0].log(point[0])) {
+				if (point[0] > 0 || !t[0].logscale) {
+					if (point[1] > 0 || !t[1].logscale) {
+						left = t[0].log(point[0]);
+						result = true;
+					}
+				}
 			}
-			if (right is double.init || right < point[0]) {
-				right = point[0];
+			if (right is double.init || right < t[0].log(point[0])) {
+				if (point[0] > 0 || !t[0].logscale) {
+					if (point[1] > 0 || !t[1].logscale) {
+						right = t[0].log(point[0]);
+						result = true;
+					}
+				}
 			}
 		}
 		minmax[0] = left;
 		minmax[1] = right;
-		return true;
+		return result;
 	}	
 	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) 
 	{
@@ -1071,15 +1082,19 @@ public:
 		get_leftright(leftright, t);
 		bool result = false;
 		foreach (point; gate.data.points) {
-			if ((point[0] >= lr[0] && point[0] <= lr[1]) ||
-				(t[0].min >= leftright[0] && t[0].min <= leftright[1]) ||
-				(t[0].max >= leftright[0] && t[0].max <= leftright[1])) 
+			if ((point[0] >= t[0].log(lr[0]) && point[0] <= t[0].log(lr[1])) ||
+				(t[0].min >= leftright[0]    && t[0].min <= leftright[1])    ||
+				(t[0].max >= leftright[0]    && t[0].max <= leftright[1])) 
 			{
-				if (bottom is double.init || bottom >= point[1]) {
-					bottom = point[1];
+				if (bottom is double.init || bottom >= t[1].log(point[1])) {
+					if (point[1] > 0 || !t[1].logscale) {
+						bottom = t[1].log(point[1]);
+					}
 				}
-				if (top is double.init || top <= point[1]) {
-					top = point[1];
+				if (top is double.init || top <= t[1].log(point[1])) {
+					if (point[1] > 0 || !t[1].logscale) {
+						top = t[1].log(point[1]);
+					}
 				}
 				result = true;
 			}
