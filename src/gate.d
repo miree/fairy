@@ -239,8 +239,8 @@ public:
 				double min_canvas = t[gate.data.direction].world2canvas(t[gate.data.direction].log(gate.data.min));
 				double max_canvas = t[gate.data.direction].world2canvas(t[gate.data.direction].log(gate.data.max));
 				double mid_canvas = 0.5*(min_canvas+max_canvas);
-				if ((highlight_handle == -1 && selected_handle == 3) ||
-					(selected_handle == -1 && highlight_handle == 3) ||
+				if ((highlight_handle == -1 && (selected_handle & 3)) ||
+					(selected_handle == -1 && (highlight_handle & 3)) ||
 					 (highlight_handle|selected_handle) == 3) {
 					min_canvas -= mid_canvas;
 					max_canvas -= mid_canvas;

@@ -525,18 +525,21 @@ struct MyItemView {
 
 		// this expands all parents of all shown items in the item_view
 		// the purpose is that when a session is opened, it is obvious which items are shown in the item_view 
-		if (expand_parents_of_selected)
-		{
-			foreach(itemname; main_window.canvas.itemnames) {
-				auto fullitemname = ["fairy"] ~ itemname.split('/');
-				while (fullitemname.length > 0) {
-					import std.conv;
-					auto node = root_node.find_node(fullitemname.join('/').to!string);
-					if (node !is null) node.expanded = true;
-					fullitemname = fullitemname[0..$-1];
-				}
-			}
-		}
+		// this is a nice feature but in combination with elderpt creating a lot of histograms this slows 
+		// down the startup of elderpt significantly => TODO find out why and improve it! Deacitvate it for now.
+		
+		//if (expand_parents_of_selected)
+		//{
+		//	foreach(itemname; main_window.canvas.itemnames) {
+		//		auto fullitemname = ["fairy"] ~ itemname.split('/');
+		//		while (fullitemname.length > 0) {
+		//			import std.conv;
+		//			auto node = root_node.find_node(fullitemname.join('/').to!string);
+		//			if (node !is null) node.expanded = true;
+		//			fullitemname = fullitemname[0..$-1];
+		//		}
+		//	}
+		//}
 
 
 		// clear the string list
