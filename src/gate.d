@@ -232,7 +232,7 @@ public:
 			else                          delta = t[1].canvas2world_delta(y_canvas - y_canvas_start);
 
 			if (scale) {
-				if (t[gate.data.direction].logscale && gate.data.min < 0 || gate.data.max < 0) {
+				if (t[gate.data.direction].logscale && (gate.data.min < 0 || gate.data.max < 0)) {
 					if (end) scale = false;
 					return;
 				}
@@ -666,11 +666,94 @@ public:
 		}
 		return result;			
 	}
+
+	bool scale = false;
+	bool translate = false;	
 	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
 
 		if (handle != -1 || selected_handle != -1) {
-			//import std.stdio;
-			//writeln("drag handle = ", handle, "   selected_handle = ", selected_handle);
+			if (!scale && !translate) {
+				if (shift) scale = true;
+				else   translate = true;
+			}
+
+			if (scale) { // scaling around midpoint
+				if (t[0].logscale && (gate.data.xmin < 0 || gate.data.xmax < 0)) {
+					scale = false;
+					return; // scaling not possible in this case
+				}
+				if (t[1].logscale && (gate.data.ymin < 0 || gate.data.ymax < 0)) {
+					scale = false;
+					return; // scaling not possible in this case
+				}
+				import std.math;
+
+				double width_canvas = abs(t[0].world2canvas(t[0].log(gate.data.xmax))-t[0].world2canvas(t[0].log(gate.data.xmin)));		
+				double height_canvas = abs(t[1].world2canvas(t[1].log(gate.data.ymax))-t[1].world2canvas(t[1].log(gate.data.ymin)));		
+				double mid_x = 0.5*(t[0].world2canvas(t[0].log(gate.data.xmin))+t[0].world2canvas(t[0].log(gate.data.xmax))); // center of rotation / scaling in canvas coordinates
+				double mid_y = 0.5*(t[1].world2canvas(t[1].log(gate.data.ymin))+t[1].world2canvas(t[1].log(gate.data.ymax))); // center of rotation / scaling in canvas coordinates
+
+				if (((selected_handle & 0x3)) ||
+				    ((highlight_handle & 0x3)) || 
+				    ((selected_handle != -1) && (highlight_handle != -1) && ((selected_handle|highlight_handle)&0x3)))
+				{
+					double min_canvas = t[0].world2canvas(t[0].log(gate.data.xmin)) - mid_x;
+					double max_canvas = t[0].world2canvas(t[0].log(gate.data.xmax)) - mid_x;
+					import std.math;
+					if (abs(x_canvas_start-mid_x) < 1e-10) {
+						if (end) scale = false;
+						return;
+					} 
+					if (abs(x_canvas_start-mid_x) > width_canvas/6.0) min_canvas *= (x_canvas-mid_x)/(x_canvas_start-mid_x);
+					if (abs(x_canvas_start-mid_x) > width_canvas/6.0) max_canvas *= (x_canvas-mid_x)/(x_canvas_start-mid_x);
+					min_canvas += mid_x;
+					max_canvas += mid_x;
+					gate.xmin_delta = t[0].exp(t[0].canvas2world(min_canvas)) - gate.data.xmin;
+					gate.xmax_delta = t[0].exp(t[0].canvas2world(max_canvas)) - gate.data.xmax;
+					if (end) {
+						gate.data.xmin += gate.xmin_delta;
+						gate.data.xmax += gate.xmax_delta;
+						import std.algorithm;
+						if (gate.data.xmin > gate.data.xmax) swap(gate.data.xmin, gate.data.xmax);
+						gate.xmin_delta = 0;
+						gate.xmax_delta = 0;
+						scale = false;
+					}
+
+				} 
+
+				if (((selected_handle & 0xc)) ||
+				    ((highlight_handle & 0xc)) || 
+				    ((selected_handle != -1) && (highlight_handle != -1) && ((selected_handle|highlight_handle)&0xc)))
+				{
+					double min_canvas = t[1].world2canvas(t[1].log(gate.data.ymin)) - mid_y;
+					double max_canvas = t[1].world2canvas(t[1].log(gate.data.ymax)) - mid_y;
+					import std.math;
+					if (abs(y_canvas_start-mid_y) < 1e-10) {
+						if (end) scale = false;
+						return;
+					} 
+					if (abs(y_canvas_start-mid_y) > height_canvas/6.) min_canvas *= (y_canvas-mid_y)/(y_canvas_start-mid_y);
+					if (abs(y_canvas_start-mid_y) > height_canvas/6.) max_canvas *= (y_canvas-mid_y)/(y_canvas_start-mid_y);
+					min_canvas += mid_y;
+					max_canvas += mid_y;
+					gate.ymin_delta = t[1].exp(t[1].canvas2world(min_canvas)) - gate.data.ymin;
+					gate.ymax_delta = t[1].exp(t[1].canvas2world(max_canvas)) - gate.data.ymax;
+					if (end) {
+						gate.data.ymin += gate.ymin_delta;
+						gate.data.ymax += gate.ymax_delta;
+						import std.algorithm;
+						if (gate.data.ymin > gate.data.ymax) swap(gate.data.ymin, gate.data.ymax);
+						gate.ymin_delta = 0;
+						gate.ymax_delta = 0;
+						scale = false;
+					}
+
+				} 
+
+
+				return; // dont do the following translation part
+			}
 
 			double deltax = t[0].canvas2world_delta(x_canvas - x_canvas_start);
 			double deltay = t[1].canvas2world_delta(y_canvas - y_canvas_start);
@@ -743,6 +826,7 @@ public:
 						selected_handle |= 0x4;
 					}
 				}
+				translate = false;
 			}
 		}
 
