@@ -1513,6 +1513,8 @@ public:
 	bool rotate = false;
 	bool scale = false;
 	bool translate = false;
+	double action_center_x = 0;
+	double action_center_y = 0;
 	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
 
 		// kind of manipulation is decided on first call of this function, after that the parameters ctrl and shift are ignored until end was set to true
@@ -1549,6 +1551,8 @@ public:
 			}
 			mid_x /= N;
 			mid_y /= N;
+			action_center_x = mid_x;
+			action_center_y = mid_y;
 			double ux = x_canvas_start - mid_x;
 			double uy = y_canvas_start - mid_y;
 			double u2 = ux*ux+uy*uy; // lenght of that vector squared
@@ -1620,6 +1624,8 @@ public:
 			}
 			mid_x /= N;
 			mid_y /= N;
+			action_center_x = mid_x;
+			action_center_y = mid_y;
 			// vector u from center to mouse start point in canvas coordinates
 			double ux = x_canvas_start - mid_x;
 			double uy = y_canvas_start - mid_y;
@@ -1637,8 +1643,8 @@ public:
 					double x = t[0].world2canvas(gate.data.points[i][0]) - mid_x; 
 					double y = t[1].world2canvas(gate.data.points[i][1]) - mid_y; 
 					// scale x and y axis independently
-					double xfactor = 1; if (abs(ux) > 5) xfactor = vx/ux;
-					double yfactor = 1; if (abs(uy) > 5) yfactor = vy/uy;
+					double xfactor = 1; if (abs(ux) > 20) xfactor = vx/ux;
+					double yfactor = 1; if (abs(uy) > 20) yfactor = vy/uy;
 
 					double xnew = x * xfactor;
 					double ynew = y * yfactor;
@@ -1745,6 +1751,30 @@ public:
 		d.polygon(polygon_canvas_points);
 		d.set_color(1,1,1,0.3);
 		d.fill();
+
+		if (scale) {
+			// show center of rotation
+			d.set_color(0,0,0,0.1);
+			d.rectangle(action_center_x-10,action_center_y-20,action_center_x+10,action_center_y+20);
+			d.fill();
+			d.rectangle(action_center_x-20,action_center_y-10,action_center_x+20,action_center_y+10);
+			d.fill();
+		}
+		if (rotate) {
+			d.set_color(0,0,0,0.1);
+			d.set_line_width(6);
+			double R = 10;
+			int Npoints = 30;
+			import std.math;
+			for(int i = 0; i < Npoints; ++i) {
+				double x1 = action_center_x + R*cos((i+0)*2.0*PI/Npoints);
+				double y1 = action_center_y + R*sin((i+0)*2.0*PI/Npoints);
+				double x2 = action_center_x + R*cos((i+1)*2.0*PI/Npoints);
+				double y2 = action_center_y + R*sin((i+1)*2.0*PI/Npoints);
+				d.line(x1,y1,x2,y2);
+				d.stroke();
+			}
+		}
 
 		for (int level = 1; level >= 0; --level) // draw thicker lines/points in background color to enhance contrast and visibility
 		for (int i = 0; i < gate.data.points.length; ++i) {
