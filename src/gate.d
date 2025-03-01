@@ -1531,10 +1531,6 @@ public:
 
 
 		if (rotate) { // rotating around midpoint
-			if (t[0].logscale || t[1].logscale) {
-				if (end) {	rotate = false; scale = false; translate = false; }
-				return; // rotation is only possible in linear space!
-			}
 			import std.math;
 			double mid_x = 0; // center of rotation / scaling in canvas coordinates
 			double mid_y = 0; // center of rotation / scaling in canvas coordinates
@@ -1544,8 +1540,16 @@ public:
 				    (highlight_handle == i || selected.canFind(i)) || // select the selected single points and highlighted single point
 				    (highlight_handle == 2*gate.data.points.length) ) // all points are highlighted  
 				{
-					mid_x += t[0].world2canvas(gate.data.points[i][0]); // no log because this is disallowed
-					mid_y += t[1].world2canvas(gate.data.points[i][1]); // no log because this is disallowed
+					if (t[0].logscale && gate.data.points[i][0] < 0) {
+						rotate = false;
+						return; // rotation is only possible if all points are > 0!
+					}
+					if (t[1].logscale && gate.data.points[i][1] < 0) {
+						rotate = false;
+						return; // rotation is only possible if all points are > 0!
+					}
+					mid_x += t[0].world2canvas(t[0].log(gate.data.points[i][0])); // no log because this is disallowed
+					mid_y += t[1].world2canvas(t[1].log(gate.data.points[i][1])); // no log because this is disallowed
 					++N;
 				}
 			}
@@ -1584,8 +1588,8 @@ public:
 				    (highlight_handle == i || selected.canFind(i)) || // select the selected single points and highlighted single point
 				    (highlight_handle == 2*gate.data.points.length) ) // all points are highlighted  
 				{
-					double x = t[0].world2canvas(gate.data.points[i][0]) - mid_x; 
-					double y = t[1].world2canvas(gate.data.points[i][1]) - mid_y; 
+					double x = t[0].world2canvas(t[0].log(gate.data.points[i][0])) - mid_x; 
+					double y = t[1].world2canvas(t[1].log(gate.data.points[i][1])) - mid_y; 
 					// project xy onto u and U;
 					double a = x*ux + y*uy; 
 					double b = x*Ux + y*Uy;
@@ -1593,8 +1597,8 @@ public:
 					double xnew = a*vx + b*Vx;
 					double ynew = a*vy + b*Vy;
 					// transform back to world coordingates;
-					double xnew_world = t[0].canvas2world(xnew + mid_x); 
-					double ynew_world = t[1].canvas2world(ynew + mid_y);
+					double xnew_world = t[0].exp(t[0].canvas2world(xnew + mid_x)); 
+					double ynew_world = t[1].exp(t[1].canvas2world(ynew + mid_y));
 					gate.deltas[i][0] =  xnew_world - gate.data.points[i][0];
 					gate.deltas[i][1] =  ynew_world - gate.data.points[i][1];
 				}
@@ -1606,8 +1610,8 @@ public:
 			}
 			return; // dont do the following translation part
 		}
+
 		if (scale) { // scaling around midpoint
-			if (t[0].logscale || t[1].logscale) return; // rotation is only possible in linear space!
 			import std.math;
 			double mid_x = 0; // center of rotation / scaling in canvas coordinates
 			double mid_y = 0; // center of rotation / scaling in canvas coordinates
@@ -1617,8 +1621,16 @@ public:
 				    (highlight_handle == i || selected.canFind(i)) || // select the selected single points and highlighted single point
 				    (highlight_handle == 2*gate.data.points.length) ) // all points are highlighted  
 				{
-					mid_x += t[0].world2canvas(gate.data.points[i][0]); // no log because this is disallowed
-					mid_y += t[1].world2canvas(gate.data.points[i][1]); // no log because this is disallowed
+					if (t[0].logscale && gate.data.points[i][0] < 0) {
+						scale = false;
+						return; // rotation is only possible if all points are > 0!
+					}
+					if (t[1].logscale && gate.data.points[i][1] < 0) {
+						scale = false;
+						return; // rotation is only possible if all points are > 0!
+					}
+					mid_x += t[0].world2canvas(t[0].log(gate.data.points[i][0])); // no log because this is disallowed
+					mid_y += t[1].world2canvas(t[1].log(gate.data.points[i][1])); // no log because this is disallowed
 					++N;
 				}
 			}
@@ -1640,8 +1652,8 @@ public:
 				    (highlight_handle == i || selected.canFind(i)) || // select the selected single points and highlighted single point
 				    (highlight_handle == 2*gate.data.points.length) ) // all points are highlighted  
 				{
-					double x = t[0].world2canvas(gate.data.points[i][0]) - mid_x; 
-					double y = t[1].world2canvas(gate.data.points[i][1]) - mid_y; 
+					double x = t[0].world2canvas(t[0].log(gate.data.points[i][0])) - mid_x; 
+					double y = t[1].world2canvas(t[1].log(gate.data.points[i][1])) - mid_y; 
 					// scale x and y axis independently
 					double xfactor = 1; if (abs(ux) > 20) xfactor = vx/ux;
 					double yfactor = 1; if (abs(uy) > 20) yfactor = vy/uy;
@@ -1649,8 +1661,8 @@ public:
 					double xnew = x * xfactor;
 					double ynew = y * yfactor;
 					// transform back to world coordingates;
-					double xnew_world = t[0].canvas2world(xnew + mid_x); 
-					double ynew_world = t[1].canvas2world(ynew + mid_y);
+					double xnew_world = t[0].exp(t[0].canvas2world(xnew + mid_x)); 
+					double ynew_world = t[1].exp(t[1].canvas2world(ynew + mid_y));
 					gate.deltas[i][0] =  xnew_world - gate.data.points[i][0];
 					gate.deltas[i][1] =  ynew_world - gate.data.points[i][1];
 				}
