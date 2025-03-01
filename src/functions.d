@@ -353,7 +353,7 @@ public:
 	//override void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove) {
 	//	handles.select_box(x1,y1, x2,y2, t, add, remove);
 	//}
-	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
 		if (funct.is_interactive == false) return;
 		if (end) {
 			auto true_deltas = super.deltas.dup;
@@ -366,9 +366,9 @@ public:
 				funct.parameter_deltas[indices[0]] = 0.0;
 				funct.parameter_deltas[indices[1]] = 0.0;
 			}
-			super.drag(handle, x_canvas_start, y_canvas_start, x_canvas, y_canvas, t, end);
+			super.drag(handle, x_canvas_start, y_canvas_start, x_canvas, y_canvas, t, ctrl, shift, end);
 		} else {
-			super.drag(handle, x_canvas_start, y_canvas_start, x_canvas, y_canvas, t, end);
+			super.drag(handle, x_canvas_start, y_canvas_start, x_canvas, y_canvas, t, ctrl, shift, end);
 			//import std.stdio;
 			//writeln(funct.handle_links, "       ", super.deltas);
 			auto true_deltas = super.deltas.dup;

@@ -15,7 +15,7 @@ interface Interactive {
 	// selection with a box (box points are canvas coordinates), the add flag decide if the points inside the box should be added or removed
 	void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove);
 	// an interactive element is dragged by calling this function with x and y being in canvas coordinates 
-	void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false);
+	void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false);
 }
 
 
@@ -464,7 +464,7 @@ public:
 		update_move_indices();
 	}
 
-	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
 		import std.algorithm;
 		double[2] start = [x_canvas_start, y_canvas_start];
 		double[2] current = [x_canvas, y_canvas];

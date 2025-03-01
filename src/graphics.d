@@ -595,9 +595,9 @@ struct CanvasPainter {
 
 		// for some reason mouse motion is called here (TODO: why???) but this falsely sets the "mouse_moved" variable to true even if the mouse was not moved.
 		// quick-fix remember the variable and restore it after the function returns.
-		bool mm = mouse_moved;
-		mouse_motion(mouse_pos_x, mouse_pos_y, backend);
-		mouse_moved = mm;
+		//bool mm = mouse_moved;
+		//mouse_motion(mouse_pos_x, mouse_pos_y, backend);
+		//mouse_moved = mm;
 	}
 
 	void iterate_grid_transforms(double x, double y, void delegate(double x, double y, double z, bool inside, string itemname, in Transform[3] t) @safe callback ) {
@@ -710,7 +710,9 @@ struct CanvasPainter {
 						if (interact) {
 							long handle = -1;
 							if (interact is select_or_drag.item) handle = select_or_drag.handle;
-							interact.drag(handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[0]);
+							//import std.stdio;
+							//writeln("mouse_motion drag overlay ", ctrl);
+							interact.drag(handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[0], ctrl, shift);
 						}
 					}
 				}
@@ -727,7 +729,9 @@ struct CanvasPainter {
 						}
 					}
 				}
-				select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[grid_idx]);
+				import std.stdio;
+				writeln("mouse_motion drag gridmode");
+				select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[grid_idx], ctrl, shift);
 			}
 			backend.need_redraw();
 		}
@@ -888,7 +892,7 @@ struct CanvasPainter {
 						if (interact) {
 							long handle = -1;
 							if (interact is select_or_drag.item) handle = select_or_drag.handle;
-							interact.drag(handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[0], end);
+							interact.drag(handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[0], ctrl, shift, end);
 						}
 					}
 				}
@@ -905,7 +909,7 @@ struct CanvasPainter {
 						}
 					}
 				}
-				select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[grid_idx], end);
+				select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[grid_idx], ctrl, shift, end);
 			}
 
 			//select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, canvas.transform, end);

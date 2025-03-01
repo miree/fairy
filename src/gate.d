@@ -218,7 +218,7 @@ public:
 		} 
 		return false; 
 	}
-	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
 		if (handle != -1 || selected_handle != -1) {
 			double delta;
 			if (gate.data.direction == 0) delta = t[0].canvas2world_delta(x_canvas - x_canvas_start);
@@ -609,7 +609,7 @@ public:
 		}
 		return result;			
 	}
-	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
 
 		if (handle != -1 || selected_handle != -1) {
 			//import std.stdio;
@@ -985,20 +985,22 @@ private:
 		                       double bx, double by, // end of line
 		                       double mx, double my) // test point
 	{
-		import std.math;
-		double ux=mx-ax;
-		double uy=my-ay;
-		double vx=bx-ax;
-		double vy=by-ay;
-		double lu = sqrt(ux*ux+uy*uy);
-		double lv = sqrt(vx*vx+vy*vy);
-		if (lu < 1e-10 || lv < 1e-10) {
+		import std.math;   //      m
+		double ux=mx-ax;   //     /|    find coordinates of point "xy"
+		double uy=my-ay;   //   u/ |    u and v are vectors from a to m and b respecitvely
+		double vx=bx-ax;   //   /__|____________ 
+		double vy=by-ay;   //  a   xy     v     b  
+		//double lu = sqrt(ux*ux+uy*uy);
+		double lv2 = vx*vx+vy*vy;
+		if (lv2 < 1e-20) {
 			return false;
 		}
-		double p = (ux*vx+uy*vy)/lv/lv;
+		double p = (ux*vx+uy*vy)/lv2;
 		if (p >= 0 && p <= 1) {
 			x = ax+p*vx;
 			y = ay+p*vy;
+			double dx = x-mx;
+			double dy = y-my;
 			return true;
 		}
 		return false;
@@ -1123,6 +1125,7 @@ public:
 
 			double x_line, y_line;
 			double distance;
+			import std.stdio;
 			if (closest_point_on_line(x_line, y_line, x1w,y1w, x2w,y2w, x_world,y_world)) {
 				double dx = t[0].world2canvas(t[0].log(x_line)) - x_canvas;
 				double dy = t[1].world2canvas(t[1].log(y_line)) - y_canvas;
@@ -1366,11 +1369,149 @@ public:
 
 	}
 
-	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+	bool rotate = false;
+	bool scale = false;
+	bool translate = false;
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
+
+		// kind of manipulation is decided on first call of this function, after that the parameters ctrl and shift are ignored until end was set to true
+		if (!rotate && !scale && !translate) {
+			if (ctrl) rotate = true;
+			else if (shift) scale = true;
+			else translate = true;
+		}
+
+
 		import std.algorithm;
 		double deltax = t[0].canvas2world_delta(x_canvas - x_canvas_start);
 		double deltay = t[1].canvas2world_delta(y_canvas - y_canvas_start);
-		//for (long i = 0 ; i < selected.length; ++i) {
+
+
+		if (rotate) { // rotating around midpoint
+			if (t[0].logscale || t[1].logscale) return; // rotation is only possible in linear space!
+			import std.math;
+			double mid_x = 0; // center of rotation / scaling in canvas coordinates
+			double mid_y = 0; // center of rotation / scaling in canvas coordinates
+			int    N     = 0; // number of moving points
+			for (long i = 0 ; i < gate.data.points.length; ++i) {
+				if ((highlight_handle >= gate.data.points.length && highlight_handle < 2*gate.data.points.length && ((highlight_handle-gate.data.points.length) == i || ((highlight_handle-gate.data.points.length)+1)%gate.data.points.length == i)) || // seletc points on a highlighted line segment
+				    (highlight_handle == i || selected.canFind(i)) || // select the selected single points and highlighted single point
+				    (highlight_handle == 2*gate.data.points.length) ) // all points are highlighted  
+				{
+					mid_x += t[0].world2canvas(gate.data.points[i][0]); // no log because this is disallowed
+					mid_y += t[1].world2canvas(gate.data.points[i][1]); // no log because this is disallowed
+					++N;
+				}
+			}
+			mid_x /= N;
+			mid_y /= N;
+			double ux = x_canvas_start - mid_x;
+			double uy = y_canvas_start - mid_y;
+			double u2 = ux*ux+uy*uy; // lenght of that vector squared
+			double u = sqrt(u2); // length of that vector
+			if (u2 < 1e-15) {
+				return; // if start point is too close to center point nothing happens
+			}
+			ux /= u; uy /= u;
+			double Ux = -uy; // rotated by +90 degrees
+			double Uy =  ux; // vectors u and U form a coordinate system
+			// vector from center to current mouse point 
+			double vx = x_canvas - mid_x;
+			double vy = y_canvas - mid_y;
+			double v2 = vx*vx+vy*vy; // lenght of that vector squared
+			double v = sqrt(v2); // length of that vector
+			if (v2 < 1e-15) {
+				return; // if start point is too close to center point nothing happens
+			}
+			vx /= v; vy /= v;
+			double Vx = -vy; // rotated by +90 degrees
+			double Vy =  vx; // vectors v and V form a coordinate system
+
+			// transform all points from coordinate system U to coordinate system V
+			for (long i = 0 ; i < gate.data.points.length; ++i) {
+				//writeln("highlight_handle = " , highlight_handle); 
+				if ((highlight_handle >= gate.data.points.length && highlight_handle < 2*gate.data.points.length && ((highlight_handle-gate.data.points.length) == i || ((highlight_handle-gate.data.points.length)+1)%gate.data.points.length == i)) || // seletc points on a highlighted line segment
+				    (highlight_handle == i || selected.canFind(i)) || // select the selected single points and highlighted single point
+				    (highlight_handle == 2*gate.data.points.length) ) // all points are highlighted  
+				{
+					double x = t[0].world2canvas(gate.data.points[i][0]) - mid_x; 
+					double y = t[1].world2canvas(gate.data.points[i][1]) - mid_y; 
+					// project xy onto u and U;
+					double a = x*ux + y*uy; 
+					double b = x*Ux + y*Uy;
+					// transform into coordinate system v V
+					double xnew = a*vx + b*Vx;
+					double ynew = a*vy + b*Vy;
+					// transform back to world coordingates;
+					double xnew_world = t[0].canvas2world(xnew + mid_x); 
+					double ynew_world = t[1].canvas2world(ynew + mid_y);
+					gate.deltas[i][0] =  xnew_world - gate.data.points[i][0];
+					gate.deltas[i][1] =  ynew_world - gate.data.points[i][1];
+				}
+				if (end) {
+					gate.data.points[i][0] += gate.deltas[i][0]; gate.deltas[i][0] = 0;
+					gate.data.points[i][1] += gate.deltas[i][1]; gate.deltas[i][1] = 0;
+					rotate = false;
+				}
+			}
+			return; // dont do the following translation part
+		}
+		if (scale) { // scaling around midpoint
+			if (t[0].logscale || t[1].logscale) return; // rotation is only possible in linear space!
+			import std.math;
+			double mid_x = 0; // center of rotation / scaling in canvas coordinates
+			double mid_y = 0; // center of rotation / scaling in canvas coordinates
+			int    N     = 0; // number of moving points
+			for (long i = 0 ; i < gate.data.points.length; ++i) {
+				if ((highlight_handle >= gate.data.points.length && highlight_handle < 2*gate.data.points.length && ((highlight_handle-gate.data.points.length) == i || ((highlight_handle-gate.data.points.length)+1)%gate.data.points.length == i)) || // seletc points on a highlighted line segment
+				    (highlight_handle == i || selected.canFind(i)) || // select the selected single points and highlighted single point
+				    (highlight_handle == 2*gate.data.points.length) ) // all points are highlighted  
+				{
+					mid_x += t[0].world2canvas(gate.data.points[i][0]); // no log because this is disallowed
+					mid_y += t[1].world2canvas(gate.data.points[i][1]); // no log because this is disallowed
+					++N;
+				}
+			}
+			mid_x /= N;
+			mid_y /= N;
+			// vector u from center to mouse start point in canvas coordinates
+			double ux = x_canvas_start - mid_x;
+			double uy = y_canvas_start - mid_y;
+			// vector from center to current mouse point 
+			double vx = x_canvas - mid_x;
+			double vy = y_canvas - mid_y;
+
+			// transform all points from coordinate system U to coordinate system V
+			for (long i = 0 ; i < gate.data.points.length; ++i) {
+				//writeln("highlight_handle = " , highlight_handle); 
+				if ((highlight_handle >= gate.data.points.length && highlight_handle < 2*gate.data.points.length && ((highlight_handle-gate.data.points.length) == i || ((highlight_handle-gate.data.points.length)+1)%gate.data.points.length == i)) || // seletc points on a highlighted line segment
+				    (highlight_handle == i || selected.canFind(i)) || // select the selected single points and highlighted single point
+				    (highlight_handle == 2*gate.data.points.length) ) // all points are highlighted  
+				{
+					double x = t[0].world2canvas(gate.data.points[i][0]) - mid_x; 
+					double y = t[1].world2canvas(gate.data.points[i][1]) - mid_y; 
+					// scale x and y axis independently
+					double xfactor = 1; if (abs(ux) > 5) xfactor = vx/ux;
+					double yfactor = 1; if (abs(uy) > 5) yfactor = vy/uy;
+
+					double xnew = x * xfactor;
+					double ynew = y * yfactor;
+					// transform back to world coordingates;
+					double xnew_world = t[0].canvas2world(xnew + mid_x); 
+					double ynew_world = t[1].canvas2world(ynew + mid_y);
+					gate.deltas[i][0] =  xnew_world - gate.data.points[i][0];
+					gate.deltas[i][1] =  ynew_world - gate.data.points[i][1];
+				}
+				if (end) {
+					gate.data.points[i][0] += gate.deltas[i][0]; gate.deltas[i][0] = 0;
+					gate.data.points[i][1] += gate.deltas[i][1]; gate.deltas[i][1] = 0;
+					scale = false;
+				}
+			}
+			return; // dont do the following translation part
+		}
+
+
 		for (long i = 0 ; i < gate.data.points.length; ++i) {
 			bool needs_to_be_dragged = false;
 			if (highlight_handle == 2*gate.data.points.length) needs_to_be_dragged = true; // entire polygon is highlighted
@@ -1392,6 +1533,7 @@ public:
 						gate.data.points[i][1] += deltay;
 					}
 					gate.deltas[i][1] = 0;
+					translate = false;
 				} else {
 					if (t[0].logscale) {
 						gate.deltas[i][0] = gate.data.points[i][0]*(exp(deltax) - 1);
@@ -1441,7 +1583,7 @@ public:
 				double x2w = gate.deltas[iplus1][0] + gate.data.points[iplus1][0];
 				double y2w = gate.deltas[iplus1][1] + gate.data.points[iplus1][1];
 				
-				const int N = 15;
+				const int N = 30;
 				for (int k = 0; k < N; ++k) {
 					double eps = (k+1.0)/N;
 					double xc = t[0].world2canvas(t[0].log(x2w*eps+x1w*(1.0-eps)));

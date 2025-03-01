@@ -1107,7 +1107,7 @@ struct MyPlotWidget {
 		bool shift = (gtk_event_controller_get_current_event_state(cast(GtkEventController*)self) & GDK_SHIFT_MASK  ) != 0;
 		CairoBackend cairo_backend = cast(CairoBackend)user_data;
 		//import std.stdio;
-		//writeln("motion");
+		//writeln("motion ", ctrl, " ", gtk_event_controller_get_current_event_state(cast(GtkEventController*)self));
 		cairo_backend.painter.mouse_motion(x,y,cairo_backend,ctrl,shift);
 	}
 	// mouse enter

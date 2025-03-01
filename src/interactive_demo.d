@@ -199,7 +199,7 @@ public:
 		}
 	}
 
-	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
 		double[2] start = [x_canvas_start, y_canvas_start];
 		double[2] current = [x_canvas, y_canvas];
 		if (handle >= -1 && handle <= cast(long)points.length) {
@@ -449,7 +449,7 @@ public:
 
 	}
 
-	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool end = false) {
+	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
 		double[2] start = [x_canvas_start, y_canvas_start];
 		double[2] current = [x_canvas, y_canvas];
 		if (handle >= 0 && handle <= cast(long)points.length) {
