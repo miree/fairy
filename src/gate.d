@@ -218,11 +218,64 @@ public:
 		} 
 		return false; 
 	}
+	bool scale = false;
+	bool translate = false;
 	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
 		if (handle != -1 || selected_handle != -1) {
+			if (!scale && !translate) {
+				if (shift) scale = true;
+				else   translate = true;
+			}
+
 			double delta;
 			if (gate.data.direction == 0) delta = t[0].canvas2world_delta(x_canvas - x_canvas_start);
 			else                          delta = t[1].canvas2world_delta(y_canvas - y_canvas_start);
+
+			if (scale) {
+				if (t[gate.data.direction].logscale && gate.data.min < 0 || gate.data.max < 0) {
+					if (end) scale = false;
+					return;
+				}
+				double min_canvas = t[gate.data.direction].world2canvas(t[gate.data.direction].log(gate.data.min));
+				double max_canvas = t[gate.data.direction].world2canvas(t[gate.data.direction].log(gate.data.max));
+				double mid_canvas = 0.5*(min_canvas+max_canvas);
+				if ((highlight_handle == -1 && selected_handle == 3) ||
+					(selected_handle == -1 && highlight_handle == 3) ||
+					 (highlight_handle|selected_handle) == 3) {
+					min_canvas -= mid_canvas;
+					max_canvas -= mid_canvas;
+					import std.math;
+					if (gate.data.direction == 0) {
+						if (abs(x_canvas_start-mid_canvas) < 1e-10) {
+							if (end) scale = false;
+							return;
+						} 
+						min_canvas *= (x_canvas-mid_canvas)/(x_canvas_start-mid_canvas);
+						max_canvas *= (x_canvas-mid_canvas)/(x_canvas_start-mid_canvas);
+					} else {
+						if (abs(y_canvas_start-mid_canvas) < 1e-10) {
+							if (end) scale = false;
+							return;
+						} 
+						min_canvas *= (y_canvas-mid_canvas)/(y_canvas_start-mid_canvas);
+						max_canvas *= (y_canvas-mid_canvas)/(y_canvas_start-mid_canvas);
+					}
+					min_canvas += mid_canvas;
+					max_canvas += mid_canvas;
+					gate.min_delta = t[gate.data.direction].exp(t[gate.data.direction].canvas2world(min_canvas)) - gate.data.min;
+					gate.max_delta = t[gate.data.direction].exp(t[gate.data.direction].canvas2world(max_canvas)) - gate.data.max;
+					if (end) {
+						gate.data.min += gate.min_delta;
+						gate.data.max += gate.max_delta;
+						import std.algorithm;
+						if (gate.data.min > gate.data.max) swap(gate.data.min, gate.data.max);
+						gate.min_delta = 0;
+						gate.max_delta = 0;
+						scale = false;
+					}
+				}
+				return;
+			}
 
 			if (t[gate.data.direction].logscale) {
 				import std.math;
@@ -259,6 +312,8 @@ public:
 					     if (selected_handle == 1) selected_handle = 2;
 					else if (selected_handle == 2) selected_handle = 1;
 				}
+				scale = false;
+				translate = false;
 			}
 		}
 	}
@@ -336,6 +391,8 @@ public:
 		return false; 
 	}
 	override void select(long handle, bool add_or_remove = false, bool action = false) {
+		scale     = false; // not really needed, but would reset the state should it get stuck for some reason
+		translate = false; // not really needed, but would reset the state should it get stuck for some reason
 		//import std.stdio;
 		//writeln("handle ", handle, " was selected  (selected_handle=",selected_handle,")  add_or_remove = ", add_or_remove);
 		if (add_or_remove) {
@@ -1388,7 +1445,10 @@ public:
 
 
 		if (rotate) { // rotating around midpoint
-			if (t[0].logscale || t[1].logscale) return; // rotation is only possible in linear space!
+			if (t[0].logscale || t[1].logscale) {
+				if (end) {	rotate = false; scale = false; translate = false; }
+				return; // rotation is only possible in linear space!
+			}
 			import std.math;
 			double mid_x = 0; // center of rotation / scaling in canvas coordinates
 			double mid_y = 0; // center of rotation / scaling in canvas coordinates
@@ -1410,6 +1470,7 @@ public:
 			double u2 = ux*ux+uy*uy; // lenght of that vector squared
 			double u = sqrt(u2); // length of that vector
 			if (u2 < 1e-15) {
+				if (end) {	rotate = false; }
 				return; // if start point is too close to center point nothing happens
 			}
 			ux /= u; uy /= u;
@@ -1421,6 +1482,7 @@ public:
 			double v2 = vx*vx+vy*vy; // lenght of that vector squared
 			double v = sqrt(v2); // length of that vector
 			if (v2 < 1e-15) {
+				if (end) {	rotate = false; }
 				return; // if start point is too close to center point nothing happens
 			}
 			vx /= v; vy /= v;
