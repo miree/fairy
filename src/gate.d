@@ -1267,15 +1267,25 @@ public:
 			double x_line, y_line;
 			double distance;
 			import std.stdio;
-			if (closest_point_on_line(x_line, y_line, x1w,y1w, x2w,y2w, x_world,y_world)) {
-				double dx = t[0].world2canvas(t[0].log(x_line)) - x_canvas;
-				double dy = t[1].world2canvas(t[1].log(y_line)) - y_canvas;
+
+			// Doing the computation in world coordinate can lead to imprecise results if the scaling factors for x and y are 
+			// very different (by orders of magnitude).
+			// On the other hand, the computation is simpler in world coordinated becayse the lines are straight
+			// In canvas coordinates straight lines become curves if logscale is enabled.
+			// So in logscale, we decide to live with the occasional inaccuracy and prefer the simpler computation.
+			if ((t[0].logscale || t[1].logscale) && closest_point_on_line(x_line, y_line, x1w,y1w, x2w,y2w, x_world,y_world)) {
+				double dx = t[0].world2canvas_delta(t[0].log(x_line) - t[0].log(x_world));
+				double dy = t[1].world2canvas_delta(t[1].log(y_line) - t[1].log(y_world));
 				distance = sqrt(dx*dx+dy*dy);
-				if (distance < DISTANCE) {
-					// indices are: [0... length-1] => points ; [length...2*length-1] => lines ; [2*length] => all
-					highlighted = gate.data.points.length+i;
-					bbline = BoundingBox(t[0].canvas2world(x1),t[1].canvas2world(y1),t[0].canvas2world(x2),t[1].canvas2world(y2), distance, this, highlighted);
-				}
+			} else if (closest_point_on_line(x_line, y_line, x1,y1, x2,y2, x_canvas,y_canvas)) { // do distance computation in canvas space if no logscale is selected
+				double dx = x_line-x_canvas;
+				double dy = y_line-y_canvas;
+				distance = sqrt(dx*dx+dy*dy);
+			}
+			if (distance < DISTANCE) {
+				// indices are: [0... length-1] => points ; [length...2*length-1] => lines ; [2*length] => all
+				highlighted = gate.data.points.length+i;
+				bbline = BoundingBox(t[0].canvas2world(x1),t[1].canvas2world(y1),t[0].canvas2world(x2),t[1].canvas2world(y2), distance, this, highlighted);
 			}
 
 			import std.algorithm;
