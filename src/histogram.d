@@ -268,6 +268,9 @@ public:
 	override void overrideVersion(ulong new_version) {
 		item_version = new_version;
 	}
+	Data get_data() {
+		return data;
+	}
 private:
 	ulong item_version = 0;
 	Data data;
@@ -371,6 +374,101 @@ private:
 
 }
 
+
+class Hist2ProjectionFactory : ItemFactory {
+	override Item create(ref JSONValue json) {
+		import std.stdio;
+		return new Hist2Projection(json);
+	}
+}
+
+import graphics, functions;
+class Hist2Projection : Visual, Item {
+	import gate;
+	struct Data {
+		@SERIALIZE string hist2name;
+		@SERIALIZE string gate1name;
+	}
+	Data data;
+
+	this(string hist2name, string gate1name) { 
+		import std.stdio; writeln("constructor1");
+		data.hist2name = hist2name;
+		data.gate1name = gate1name;
+		item_version = 0;
+	}
+	this(ref JSONValue json) { 
+		import std.stdio; writeln("constructor2");
+		writeln("before deserialize");
+		data = deserialize!Data(json); 
+		item_version = 0;
+	}
+	// Item Interface
+	override JSONValue toJSON()  { 
+		return serialize(data); 
+	}
+	override string get_type()  { 
+		return "histogram.Hist2Projection"; 
+	}
+	override void reset() {
+		//target.reset();
+	}
+	override ulong getVersion() {
+		if ((min != region.data.min+region.min_delta) ||
+			(max != region.data.max+region.max_delta))
+		{
+			min = region.data.min+region.min_delta;
+			max = region.data.max+region.max_delta;
+			import std.algorithm;
+			if (min > max) swap(min,max);
+			++item_version;
+		}
+		return item_version;
+	}
+	override void overrideVersion(ulong new_version) {
+		item_version = new_version;
+	}
+
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) {
+		import std.stdio;
+
+		import fairy;
+		source = cast(Hist2)session.items[data.hist2name].item;
+		region = cast(Gate1D)session.items[data.gate1name].item;
+		if (source is null) {
+			throw new Exception("Hist2Projection fails: " ~ data.hist2name ~ " is not a Hist2");
+		}
+		if (region is null) {
+			throw new Exception("Hist2Projection fails: " ~ data.gate1name ~ " is not a Gate1D");
+		}
+		long min_y = cast(long)(source.data.bins_y*(min-source.data.bottom)/(source.data.top-source.data.bottom));                     //y = bottom+idx*(top-bottom)/bins_y
+		long max_y = cast(long)(source.data.bins_y*(max-source.data.bottom)/(source.data.top-source.data.bottom));                     //y = bottom+idx*(top-bottom)/bins_y
+		bins.length = source.data.bins_x;
+		bins[] = 0.0;
+		left  = source.data.left;
+		right = source.data.right;
+		import std.stdio;
+		double sum = 0;
+		foreach(idx, content; source.data.bins) {
+			long idx_x = idx % source.data.bins_x;
+			long idx_y = idx / source.data.bins_x;
+			//writeln(idx_x, " ", idx_y, " ", content);
+			if (content !is double.init && idx_y >= min_y && idx_y < max_y) {
+				bins[idx_x] += content;
+
+			}
+		}
+
+		return new Hist1Visualizer(null, 1, bins, left, right);
+	}
+private:
+	long item_version;
+	double[] bins;
+	double min,max;
+	double left, right;
+	Hist2 source;
+	Gate1D region;
+}
 
 
 

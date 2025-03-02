@@ -444,6 +444,16 @@ string hist1(string name, ulong bins, double left = double.init, double right = 
 	return "";
 }
 
+@UI_EXPORT("add projection from 2D-histogram to 1D-histogram using a 1D-gate",
+	["name of projector",
+	 "name of 2D source histogram",
+	 "name of gate"])
+string hist2projector(string name, string sourcename, string gatename) {
+	import fairy, histogram;
+	fairy.session.add_item(name, new Hist2Projection(sourcename, gatename));
+	return "";
+}
+
 @UI_EXPORT("add set of points as interactive demo",
 	["name of point set",
 	 "number of points"])
