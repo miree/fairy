@@ -68,6 +68,7 @@ fairy.o: src/fairy.d include/cmdline.di \
  include/expression.di \
  include/waveform.di \
  include/histogram.di \
+ include/projection.di \
  include/audiodaq.di \
  include/gtk4_import.i \
  include/graphics_gtk4_native.di \
@@ -122,6 +123,15 @@ gtk4_native.o: src/gtk4_native.d \
  include/gtk4_import.i \
  /usr/lib/gcc/x86_64-pc-linux-gnu/14.2.1/include/d/__builtins.di
 histogram.o: src/histogram.d \
+ include/transform.di \
+ include/serializeJSON.di \
+ include/functions.di \
+ include/expression.di \
+ include/graphics.di \
+ include/interactive.di \
+ include/item.di
+projection.o: src/projection.d \
+ include/histogram.di \
  include/transform.di \
  include/serializeJSON.di \
  include/functions.di \
