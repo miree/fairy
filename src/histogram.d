@@ -388,13 +388,15 @@ class Hist2Projection : Visual, Item {
 	struct Data {
 		@SERIALIZE string hist2name;
 		@SERIALIZE string gate1name;
+		@SERIALIZE int    direction;
 	}
 	Data data;
 
-	this(string hist2name, string gate1name) { 
+	this(string hist2name, string gate1name, int direction = 1) { 
 		import std.stdio; writeln("constructor1");
 		data.hist2name = hist2name;
 		data.gate1name = gate1name;
+		data.direction = direction;
 		item_version = 0;
 	}
 	this(ref JSONValue json) { 
@@ -421,13 +423,25 @@ class Hist2Projection : Visual, Item {
 			integral_bindata.length = source.data.bins.length;
 			for (long y = 0; y < source.data.bins_y; ++y) {
 				for (long x = 0; x < source.data.bins_x; ++x) {
-					if (y==0) {
-						if (source.data.bins[x] is double.init) integral_bindata[x] = 0;
-						else integral_bindata[x] = source.data.bins[x];
+					if (data.direction == 1) {
+						if (y==0) {
+							if (source.data.bins[x] is double.init) integral_bindata[x] = 0;
+							else integral_bindata[x] = source.data.bins[x];
+						}
+						else  {
+							if (source.data.bins[x+y*source.data.bins_y] is double.init) integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x];
+							else integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x] + source.data.bins[x+y*source.data.bins_y];
+						}
 					}
-					else  {
-						if (source.data.bins[x+y*source.data.bins_y] is double.init) integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x];
-						else integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x] + source.data.bins[x+y*source.data.bins_y];
+					if (data.direction == 0) {
+						if (x==0) {
+							if (source.data.bins[y*source.data.bins_x] is double.init) integral_bindata[y*source.data.bins_x] = 0;
+							else integral_bindata[y*source.data.bins_x] = source.data.bins[y*source.data.bins_x];
+						}
+						else  {
+							if (source.data.bins[x+y*source.data.bins_y] is double.init) integral_bindata[x+y*source.data.bins_x] = integral_bindata[(x-1)+y*source.data.bins_x];
+							else integral_bindata[x+y*source.data.bins_x] = integral_bindata[(x-1)+y*source.data.bins_x] + source.data.bins[x+y*source.data.bins_y];
+						}
 					}
 				}
 			}
@@ -459,9 +473,6 @@ class Hist2Projection : Visual, Item {
 			return old;
 		}
 
-		//import std.stdio;
-		//writeln("create_visualizer (old=",(old is null)?"null":"valid");
-
 		import fairy;
 		source = cast(Hist2)session.items[data.hist2name].item;
 		region = cast(Gate1D)session.items[data.gate1name].item;
@@ -471,46 +482,59 @@ class Hist2Projection : Visual, Item {
 		if (region is null) {
 			throw new Exception("Hist2Projection fails: " ~ data.gate1name ~ " is not a Gate1D");
 		}
-		source_bin_width = (source.data.top-source.data.bottom)/source.data.bins_y;
-		long n_bins = cast(long)((max-min)/source_bin_width);
 
-		long min_y = cast(long)(source.data.bins_y*(min-source.data.bottom)/(source.data.top-source.data.bottom));                     //y = bottom+idx*(top-bottom)/bins_y
-		long max_y = min_y+n_bins; 
-		bins.length = source.data.bins_x;
-		bins[] = 0.0;
-		left  = source.data.left;
-		right = source.data.right;
-		import std.stdio;
-		double sum = 0;
-
-		if (min_y < 0) min_y = 0;
-		if (max_y >= source.data.bins_y) max_y = source.data.bins_y-1;
-		if (min_y >= max_y) {
+		if (data.direction == 1) {
+			double source_bin_width = (source.data.top-source.data.bottom)/source.data.bins_y;
+			long n_bins = cast(long)((max-min)/source_bin_width);
+			long min_y = cast(long)(source.data.bins_y*(min-source.data.bottom)/(source.data.top-source.data.bottom));                     //y = bottom+idx*(top-bottom)/bins_y
+			long max_y = min_y+n_bins; 
+			bins.length = source.data.bins_x;
 			bins[] = 0.0;
- 		} else {
+			left  = source.data.left;
+			right = source.data.right;
+			import std.stdio;
+			double sum = 0;
 
-			//if (integral_bindata is null || integral_bindata.length == 0) {
-			//	getVersion();
-			//}
+			if (min_y < 0) min_y = 0;
+			if (max_y < 0) max_y = 0;
+			if (min_y >= source.data.bins_y) min_y = source.data.bins_y-1;
+			if (max_y >= source.data.bins_y) max_y = source.data.bins_y-1;
+			if (min_y >= max_y || max_y < 0 || min_y >= source.data.bins_y) {
+				bins[] = 0.0;
+	 		} else {
+				if (bins.length > 0)
+				for (long x = 0; x < source.data.bins_x; ++x) {
+					bins[x] = integral_bindata[x+max_y*source.data.bins_x] 
+					        - integral_bindata[x+min_y*source.data.bins_x]; 
+				}
+	 		}
+		}
+		if (data.direction == 0) {
+			double source_bin_width = (source.data.right-source.data.left)/source.data.bins_x;
+			long n_bins = cast(long)((max-min)/source_bin_width);
+			long min_x = cast(long)(source.data.bins_x*(min-source.data.left)/(source.data.right-source.data.left));                     //y = bottom+idx*(top-bottom)/bins_y
+			long max_x = min_x+n_bins; 
+			bins.length = source.data.bins_y;
+			bins[] = 0.0;
+			left  = source.data.bottom;
+			right = source.data.top;
+			import std.stdio;
+			double sum = 0;
 
-			//import std.stdio;
-			//writeln("bins.length =", bins.length, " integral_bindata.length = ", integral_bindata.length);
-			if (bins.length > 0)
-			for (long x = 0; x < source.data.bins_x; ++x) {
-				bins[x] = integral_bindata[x+max_y*source.data.bins_x] 
-				        - integral_bindata[x+min_y*source.data.bins_x]; 
-			}
-
-			//foreach(idx, content; source.data.bins) {
-			//	long idx_x = idx % source.data.bins_x;
-			//	long idx_y = idx / source.data.bins_x;
-			//	//writeln(idx_x, " ", idx_y, " ", content);
-			//	if (content !is double.init && idx_y >= min_y && idx_y < max_y) {
-			//		bins[idx_x] += content;
-
-			//	}
-			//}
- 		}
+			if (min_x < 0) min_x = 0;
+			if (max_x < 0) max_x = 0;
+			if (min_x >= source.data.bins_x) min_x = source.data.bins_x-1;
+			if (max_x >= source.data.bins_x) max_x = source.data.bins_x-1;
+			if (min_x >= max_x || max_x < 0 || min_x >= source.data.bins_x) {
+				bins[] = 0.0;
+	 		} else {
+				if (bins.length > 0)
+				for (long y = 0; y < source.data.bins_y; ++y) {
+					bins[y] = integral_bindata[max_x+y*source.data.bins_x] 
+					        - integral_bindata[min_x+y*source.data.bins_x]; 
+				}
+	 		}
+		}
 
 		dirty = false;
 		return new Hist1Visualizer(null, 1, bins, left, right);
@@ -518,9 +542,8 @@ class Hist2Projection : Visual, Item {
 private:
 	long source_version = -1;
 	double[] integral_bindata;
-	// information about the source histogram
+
 	bool dirty = true;
-	double source_bin_width; // along the direction of projection
 	long item_version;
 	double[] bins;
 	double min,max;
