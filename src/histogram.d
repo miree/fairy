@@ -483,55 +483,56 @@ class Hist2Projection : Visual, Item {
 			throw new Exception("Hist2Projection fails: " ~ data.gate1name ~ " is not a Gate1D");
 		}
 
+		import std.math;
 		if (region.data.direction == 1) {
 			double source_bin_width = (source.data.top-source.data.bottom)/source.data.bins_y;
 			long n_bins = cast(long)((max-min)/source_bin_width);
-			long min_y = cast(long)(source.data.bins_y*(min-source.data.bottom)/(source.data.top-source.data.bottom));                     //y = bottom+idx*(top-bottom)/bins_y
-			long max_y = min_y+n_bins; 
+			long min_y = cast(long)floor(source.data.bins_y*(min-source.data.bottom)/(source.data.top-source.data.bottom));
+			long max_y = min_y+n_bins;
 			bins.length = source.data.bins_x;
 			bins[] = 0.0;
-			left  = source.data.left;
-			right = source.data.right;
-			import std.stdio;
-			double sum = 0;
+			left   = source.data.left;
+			right  = source.data.right;
 
-			if (min_y < 0) min_y = 0;
-			if (max_y < 0) max_y = 0;
-			if (min_y >= source.data.bins_y) min_y = source.data.bins_y-1;
-			if (max_y >= source.data.bins_y) max_y = source.data.bins_y-1;
-			if (min_y >= max_y || max_y < 0 || min_y >= source.data.bins_y) {
+			if (min_y >= cast(long)source.data.bins_y) min_y = cast(long)source.data.bins_y-1;
+			if (max_y >= cast(long)source.data.bins_y) max_y = cast(long)source.data.bins_y-1;
+			if (min_y >= max_y || max_y < 0) {
 				bins[] = 0.0;
 	 		} else {
-				if (bins.length > 0)
+				if (bins.length > 0 && integral_bindata.length > 0)
 				for (long x = 0; x < source.data.bins_x; ++x) {
-					bins[x] = integral_bindata[x+max_y*source.data.bins_x] 
-					        - integral_bindata[x+min_y*source.data.bins_x]; 
+					if (min_y >= 0) {
+						bins[x] = integral_bindata[x+max_y*source.data.bins_x] 
+						        - integral_bindata[x+min_y*source.data.bins_x]; 
+					} else {
+						bins[x] = integral_bindata[x+max_y*source.data.bins_x]; 						
+					}
 				}
-	 		}
+	 		} 
 		}
 		if (region.data.direction == 0) {
 			double source_bin_width = (source.data.right-source.data.left)/source.data.bins_x;
 			long n_bins = cast(long)((max-min)/source_bin_width);
-			long min_x = cast(long)(source.data.bins_x*(min-source.data.left)/(source.data.right-source.data.left));                     //y = bottom+idx*(top-bottom)/bins_y
+			long min_x = cast(long)floor(source.data.bins_x*(min-source.data.left)/(source.data.right-source.data.left));                     //y = bottom+idx*(top-bottom)/bins_y
 			long max_x = min_x+n_bins; 
 			bins.length = source.data.bins_y;
 			bins[] = 0.0;
 			left  = source.data.bottom;
 			right = source.data.top;
-			import std.stdio;
-			double sum = 0;
 
-			if (min_x < 0) min_x = 0;
-			if (max_x < 0) max_x = 0;
-			if (min_x >= source.data.bins_x) min_x = source.data.bins_x-1;
-			if (max_x >= source.data.bins_x) max_x = source.data.bins_x-1;
-			if (min_x >= max_x || max_x < 0 || min_x >= source.data.bins_x) {
+			if (min_x >= cast(long)source.data.bins_x) min_x = cast(long)source.data.bins_x-1;
+			if (max_x >= cast(long)source.data.bins_x) max_x = cast(long)source.data.bins_x-1;
+			if (min_x >= max_x || max_x < 0) {
 				bins[] = 0.0;
 	 		} else {
-				if (bins.length > 0)
+				if (bins.length > 0 && integral_bindata.length > 0)
 				for (long y = 0; y < source.data.bins_y; ++y) {
-					bins[y] = integral_bindata[max_x+y*source.data.bins_x] 
-					        - integral_bindata[min_x+y*source.data.bins_x]; 
+					if (min_x >= 0) {
+						bins[y] = integral_bindata[max_x+y*source.data.bins_x] 
+						        - integral_bindata[min_x+y*source.data.bins_x]; 
+					} else {
+						bins[y] = integral_bindata[max_x+y*source.data.bins_x];
+					}
 				}
 	 		}
 		}
