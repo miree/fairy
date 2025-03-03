@@ -394,7 +394,8 @@ public:
 	}
 	override void fill() {
 		if (draw_rectangle) {
-			al_draw_filled_rectangle(rect_x1,rect_y1, rect_x2,rect_y2, color);
+			// don't draw transparent rectangles
+			if (color.a == 1) al_draw_filled_rectangle(rect_x1,rect_y1, rect_x2,rect_y2, color);
 			draw_rectangle = false;
 		}
 	}
