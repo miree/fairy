@@ -486,8 +486,8 @@ class Hist2Projection : Visual, Item {
 		import std.math;
 		if (region.data.direction == 1) {
 			double source_bin_width = (source.data.top-source.data.bottom)/source.data.bins_y;
-			long n_bins = cast(long)((max-min)/source_bin_width);
-			long min_y = cast(long)floor(source.data.bins_y*(min-source.data.bottom)/(source.data.top-source.data.bottom));
+			long n_bins = cast(long)floor((max-min)/source_bin_width);
+			long min_y = cast(long)floor(source.data.bins_y*(min-source.data.bottom)/(source.data.top-source.data.bottom)-0.5);
 			long max_y = min_y+n_bins;
 			bins.length = source.data.bins_x;
 			bins[] = 0.0;
@@ -512,8 +512,8 @@ class Hist2Projection : Visual, Item {
 		}
 		if (region.data.direction == 0) {
 			double source_bin_width = (source.data.right-source.data.left)/source.data.bins_x;
-			long n_bins = cast(long)((max-min)/source_bin_width);
-			long min_x = cast(long)floor(source.data.bins_x*(min-source.data.left)/(source.data.right-source.data.left));                     //y = bottom+idx*(top-bottom)/bins_y
+			long n_bins = cast(long)floor((max-min)/source_bin_width);
+			long min_x = cast(long)floor(source.data.bins_x*(min-source.data.left)/(source.data.right-source.data.left)-0.5);                     //y = bottom+idx*(top-bottom)/bins-0.5_y
 			long max_x = min_x+n_bins; 
 			bins.length = source.data.bins_y;
 			bins[] = 0.0;
