@@ -388,20 +388,15 @@ class Hist2Projection : Visual, Item {
 	struct Data {
 		@SERIALIZE string hist2name;
 		@SERIALIZE string gate1name;
-		@SERIALIZE int    direction;
 	}
 	Data data;
 
-	this(string hist2name, string gate1name, int direction = 1) { 
-		import std.stdio; writeln("constructor1");
+	this(string hist2name, string gate1name) { 
 		data.hist2name = hist2name;
 		data.gate1name = gate1name;
-		data.direction = direction;
 		item_version = 0;
 	}
 	this(ref JSONValue json) { 
-		import std.stdio; writeln("constructor2");
-		writeln("before deserialize");
 		data = deserialize!Data(json); 
 		item_version = 0;
 	}
@@ -416,6 +411,11 @@ class Hist2Projection : Visual, Item {
 		//target.reset();
 	}
 	override ulong getVersion() {
+		if (source is null || region is null) {
+			import std.stdio;
+			writeln("Hist2Projection: source or region is null");
+			return 0;
+		}
 
 		if (source_version == -1 || source.getVersion() > source_version) {
 			//import std.stdio;
@@ -423,7 +423,7 @@ class Hist2Projection : Visual, Item {
 			integral_bindata.length = source.data.bins.length;
 			for (long y = 0; y < source.data.bins_y; ++y) {
 				for (long x = 0; x < source.data.bins_x; ++x) {
-					if (data.direction == 1) {
+					if (region.data.direction == 1) {
 						if (y==0) {
 							if (source.data.bins[x] is double.init) integral_bindata[x] = 0;
 							else integral_bindata[x] = source.data.bins[x];
@@ -433,7 +433,7 @@ class Hist2Projection : Visual, Item {
 							else integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x] + source.data.bins[x+y*source.data.bins_y];
 						}
 					}
-					if (data.direction == 0) {
+					if (region.data.direction == 0) {
 						if (x==0) {
 							if (source.data.bins[y*source.data.bins_x] is double.init) integral_bindata[y*source.data.bins_x] = 0;
 							else integral_bindata[y*source.data.bins_x] = source.data.bins[y*source.data.bins_x];
@@ -483,7 +483,7 @@ class Hist2Projection : Visual, Item {
 			throw new Exception("Hist2Projection fails: " ~ data.gate1name ~ " is not a Gate1D");
 		}
 
-		if (data.direction == 1) {
+		if (region.data.direction == 1) {
 			double source_bin_width = (source.data.top-source.data.bottom)/source.data.bins_y;
 			long n_bins = cast(long)((max-min)/source_bin_width);
 			long min_y = cast(long)(source.data.bins_y*(min-source.data.bottom)/(source.data.top-source.data.bottom));                     //y = bottom+idx*(top-bottom)/bins_y
@@ -509,7 +509,7 @@ class Hist2Projection : Visual, Item {
 				}
 	 		}
 		}
-		if (data.direction == 0) {
+		if (region.data.direction == 0) {
 			double source_bin_width = (source.data.right-source.data.left)/source.data.bins_x;
 			long n_bins = cast(long)((max-min)/source_bin_width);
 			long min_x = cast(long)(source.data.bins_x*(min-source.data.left)/(source.data.right-source.data.left));                     //y = bottom+idx*(top-bottom)/bins_y
