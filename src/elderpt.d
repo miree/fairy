@@ -408,14 +408,14 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 				auto buffer_header = cast(sMbsBufferHeader*) i_buffer_header;
 
 				int event_data_length   = (event_header.iWords);
-				int event_type_low      = (event_header.iType&0x0000FFFF);
-				int event_type_high     = (event_header.iType>>16);
+				int event_type          = (event_header.iType&0x0000FFFF);
+				int event_subtype       = (event_header.iType>>16);
 				int event_trigger       = (event_header.iTrigger>>16);
 				int event_count         = (event_header.iEventNumber);
 				int event_size          = (event_header.iWords-2)/2;
 				int buffer_sec          = buffer_header.iTimeSpecSec;
 				int buffer_msecs        = buffer_header.iTimeSpecNanoSec; // the name is misleading. These are apparently miliseconds
-				elder_pt_event_clear(evt, i, event_type_low, event_trigger, buffer_sec, buffer_msecs, timestamp);
+				elder_pt_event_clear(evt, event_count, event_type, /+event_subtype,+/ event_trigger, buffer_sec, buffer_msecs, timestamp);
 				const(uint*)  event_ptr = cast(const(uint*))event_header;
 				//write(i, ": trig=",event_trigger, " subevents: ");
 				if (event_size >= 8) {
@@ -431,18 +431,12 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 
 						const uint *subev_data_ptr = &event_ptr[index+3];
 						int length   = subevent_header.iWords;
-						int type1    = ((subevent_header.iType>>16)&0x00FF); 
-						int type2    = ((subevent_header.iType>>24)&0x00FF);
-						int procid   = (subevent_header.iSubeventID&0x0000FFFF);
-						int subcrate = ((subevent_header.iSubeventID>>16)&0x00FF); 
-						int control  = ((subevent_header.iSubeventID>>24)&0x00FF);  
-						elder_pt_event_add_subevent(evt,procid,type1,type2,control,subcrate,length,subev_data_ptr);
-						//writeln("len=", length, " type1=", type1, " type2", type2, " procid=", procid, " subcrate=", subcrate, " control=", control);
-						//foreach(idx, w; subev_data_ptr[0..length]) {
-						//	if (idx%8 == 0) writeln;
-						//	writef("%08x ", w);
-						//}
-						//writeln;
+						int type     = ((subevent_header.iType)&0xFF); 
+						int subtype  = ((subevent_header.iType>>16)&0xFFFF);
+						int procid   = (subevent_header.iSubeventID&0xFFFF);
+						int subcrate = ((subevent_header.iSubeventID>>16)&0xFF); 
+						int control  = ((subevent_header.iSubeventID>>24)&0xFF);  
+						elder_pt_event_add_subevent(evt,procid,type,subtype,control,subcrate,data_length,subev_data_ptr);
 				        index += subevent_length;       
 					}
 				}
