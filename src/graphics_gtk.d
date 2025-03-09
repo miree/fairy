@@ -1349,17 +1349,16 @@ class PlotWidget : Box {
 //		///////////////////////////////////////////////////////
 
 		version(gtk3){ 
-
-		mouse_pos = new Label("  x=0\n  y=0");
-		mouse_pos.setJustify(GtkJustification.LEFT);
-		mouse_pos_box = new Box(GtkOrientation.HORIZONTAL, 0);
-		mouse_pos_box.setSizeRequest(150,0);
-		mouse_pos_box.append(mouse_pos);
-		mouse_pos_value = new Label("\nvalue=nan");
-		mouse_pos_value.setJustify(GtkJustification.LEFT);
-		mouse_pos_value_box = new Box(GtkOrientation.HORIZONTAL, 0);
-		mouse_pos_value_box.setSizeRequest(150,0);
-		mouse_pos_value_box.append(mouse_pos_value);
+			mouse_pos = new Label("  x=0\n  y=0");
+			mouse_pos.setJustify(GtkJustification.LEFT);
+			mouse_pos_box = new Box(GtkOrientation.HORIZONTAL, 0);
+			mouse_pos_box.setSizeRequest(150,0);
+			mouse_pos_box.append(mouse_pos);
+			mouse_pos_value = new Label("\nvalue=nan");
+			mouse_pos_value.setJustify(GtkJustification.LEFT);
+			mouse_pos_value_box = new Box(GtkOrientation.HORIZONTAL, 0);
+			mouse_pos_value_box.setSizeRequest(150,0);
+			mouse_pos_value_box.append(mouse_pos_value);
 		} else {
 			mouse_pos_display = new MousePos(this);
 		}
@@ -1477,8 +1476,8 @@ version(gtk4) {
 
 		extern(C)
 		static void drawFuncMouse(GtkDrawingArea* drawingArea, cairo_t* cr, int width, int height, void* userData) {
-			import std.stdio;
-			writeln("mousePosDrawFunc");
+			//import std.stdio;
+			//writeln("mousePosDrawFunc");
 			auto plot_widget = cast(PlotWidget)userData;
 			GtkAllocation size;
 			gtk_widget_get_allocation(cast(GtkWidget*)drawingArea, &size);
