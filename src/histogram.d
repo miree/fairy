@@ -429,8 +429,8 @@ class Hist2Projection : Visual, Item {
 							else integral_bindata[x] = source.data.bins[x];
 						}
 						else  {
-							if (source.data.bins[x+y*source.data.bins_y] is double.init) integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x];
-							else integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x] + source.data.bins[x+y*source.data.bins_y];
+							if (source.data.bins[x+y*source.data.bins_x] is double.init) integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x];
+							else integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x] + source.data.bins[x+y*source.data.bins_x];
 						}
 					}
 					if (region.data.direction == 0) {
@@ -439,8 +439,8 @@ class Hist2Projection : Visual, Item {
 							else integral_bindata[y*source.data.bins_x] = source.data.bins[y*source.data.bins_x];
 						}
 						else  {
-							if (source.data.bins[x+y*source.data.bins_y] is double.init) integral_bindata[x+y*source.data.bins_x] = integral_bindata[(x-1)+y*source.data.bins_x];
-							else integral_bindata[x+y*source.data.bins_x] = integral_bindata[(x-1)+y*source.data.bins_x] + source.data.bins[x+y*source.data.bins_y];
+							if (source.data.bins[x+y*source.data.bins_x] is double.init) integral_bindata[x+y*source.data.bins_x] = integral_bindata[(x-1)+y*source.data.bins_x];
+							else integral_bindata[x+y*source.data.bins_x] = integral_bindata[(x-1)+y*source.data.bins_x] + source.data.bins[x+y*source.data.bins_x];
 						}
 					}
 				}
