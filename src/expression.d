@@ -137,6 +137,11 @@ class Number : Expression {
 	this(ref string expression, ref int[string] parameter_index_lookup) {
 		if (expression.reached_end) throw new Exception("unexpected end");
 		const next = expression.front;
+		if (expression.front == '-') {
+			negative = true;
+			expression.popFront;
+			if (expression.reached_end) throw new Exception("unexpected end");
+		}
 		if (expression.front == '(') {
 			expression.popFront;
 			e = new Sum(expression, parameter_index_lookup);
@@ -162,11 +167,6 @@ class Number : Expression {
 				e = new Function!(function_name,1)(expression, parameter_index_lookup);
 				return;
 			}
-		}
-		if (expression.front == '-') {
-			negative = true;
-			expression.popFront;
-			if (expression.reached_end) throw new Exception("unexpected end");
 		}
 		if ((expression.front >= 'a' && expression.front <= 'z') ||
 		    (expression.front >= 'A' && expression.front <= 'Z')) {
@@ -263,6 +263,8 @@ Result evaluate(string expression) {
 unittest {
 
 	void testLiteral(string ex, double expected) {
+		import std.stdio;
+		writeln("testLiteral ", ex, " ?= ", expected);
 		const e = ex.parse_noparam;
 		assert(e.eval == expected);
 	}
@@ -289,6 +291,7 @@ unittest {
 
 
 	void testParam(string ex, double[] params, double expected) {
+		writeln("testParam ", ex, " ", params, " ?= ", expected);
 		int[string] parameter_index_lookup;
 		const e = new Sum(ex, parameter_index_lookup);
 		import std.stdio;
@@ -309,6 +312,8 @@ unittest {
 	testParam("cos(pi)", [3*PI/4], cos(3*PI/4));
 	testParam("exp(0.0)", null, exp(0.0));
 	testParam("exp(1.0)", null, exp(1.0));
+	testParam("exp(-1.0)", null, 1.0/exp(1.0));
+	testParam("exp(-(x*x)/s/s)", [1.0,1.0], exp(-(1.0*1.0)/1.0/1.0));
 	testParam("exp(2.0)", null, exp(2.0));
 	testParam("log(1.0)", null, log(1.0));
 	testParam("log(2.0)", null, log(2.0));
