@@ -367,9 +367,9 @@ private:
 		gtk_application_set_accels_for_action(app, "win.quit_fairy",   fairy_quit_accels_.ptr);
 
 
-
+		gtk_window_set_decorated(window, false);
 		gtk_header_bar_set_title_widget(header_bar, cast(GtkWidget*)header_title);
-		gtk_header_bar_set_show_title_buttons(header_bar, false);
+		gtk_header_bar_set_show_title_buttons(header_bar, true);
 		gtk_frame_set_child (cast(GtkFrame*)frame, cast(GtkWidget*)toplevel);
 		gtk_box_append(toplevel, cast(GtkWidget*)header_bar);
 		gtk_box_append(toplevel, cast(GtkWidget*)paned);
