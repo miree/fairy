@@ -487,9 +487,28 @@ struct MyItemView {
 	auto root_node = new Tree("fairy");
 
 	import fairy, item;
+	import std.datetime, std.datetime.stopwatch;
+	StopWatch time_since_last_refresh_string_list;
+	bool refresh_string_list_is_sceduled;
+	extern(C) static gboolean scheculed_refresh_string_list(gpointer user_data) {
+		MainWindow main_window = cast(MainWindow)user_data;
+		main_window.item_view.refresh_string_list();
+		main_window.item_view.time_since_last_refresh_string_list.reset();
+		main_window.item_view.refresh_string_list_is_sceduled = false;
+		return false; // execute only once
+	}
 	void addItem(string fullname, Item item) {
 		root_node.add(fullname);
-		refresh_string_list();
+		import core.time;
+		if (time_since_last_refresh_string_list.peek.total!"msecs" > 250) {
+			refresh_string_list();
+			main_window.item_view.time_since_last_refresh_string_list.reset();
+		} else {
+			if (!refresh_string_list_is_sceduled) {
+				refresh_string_list_is_sceduled = true;
+				g_timeout_add(250, &scheculed_refresh_string_list, cast(gpointer)main_window);
+			}
+		}
 	}
 	void removeItem(string fullname) {
 		root_node.remove(fullname);
@@ -528,18 +547,18 @@ struct MyItemView {
 		// this is a nice feature but in combination with elderpt creating a lot of histograms this slows 
 		// down the startup of elderpt significantly => TODO find out why and improve it! Deacitvate it for now.
 		
-		//if (expand_parents_of_selected)
-		//{
-		//	foreach(itemname; main_window.canvas.itemnames) {
-		//		auto fullitemname = ["fairy"] ~ itemname.split('/');
-		//		while (fullitemname.length > 0) {
-		//			import std.conv;
-		//			auto node = root_node.find_node(fullitemname.join('/').to!string);
-		//			if (node !is null) node.expanded = true;
-		//			fullitemname = fullitemname[0..$-1];
-		//		}
-		//	}
-		//}
+		if (expand_parents_of_selected)
+		{
+			foreach(itemname; main_window.canvas.itemnames) {
+				auto fullitemname = ["fairy"] ~ itemname.split('/');
+				while (fullitemname.length > 0) {
+					import std.conv;
+					auto node = root_node.find_node(fullitemname.join('/').to!string);
+					if (node !is null) node.expanded = true;
+					fullitemname = fullitemname[0..$-1];
+				}
+			}
+		}
 
 
 		// clear the string list
@@ -593,7 +612,8 @@ struct MyItemView {
 	this(MainWindow window) {
 		main_window = window;
 		string_list = gtk_string_list_new(null); // this implements GListModel
-		
+		time_since_last_refresh_string_list = StopWatch(AutoStart.yes);
+
 		// sync with session
 		import fairy;
 		import std.stdio, std.array, std.algorithm;
