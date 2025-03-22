@@ -558,7 +558,7 @@ public:
 
 		version(gtk3) {
 			addOnKeyPress(delegate bool(GdkEventKey* e, Widget w) { // the action to perform if that menu entry is selected
-				handle_keyboard_shortcut(e.keyval);
+				handle_keyboard_shortcut(e.keyval, (e.state & GdkModifierType.CONTROL_MASK) != 0);
 				return true; // don't propagate
 				//return false; // propagate
 			});
@@ -566,7 +566,7 @@ public:
 		version(gtk4) {
 			event_controller_key = new EventControllerKey();
 			event_controller_key.addOnKeyPressed(delegate bool(uint keyval, uint keycode, GdkModifierType mod, EventControllerKey controller) {
-				handle_keyboard_shortcut(keyval);
+				handle_keyboard_shortcut(keyval, (mod & GdkModifierType.CONTROL_MASK) != 0);
 				return true; // don't propagate further				
 			});
 			this.addController(event_controller_key);
@@ -589,18 +589,34 @@ public:
 		}
 	}
 
-	void handle_keyboard_shortcut(uint keyval) {
+	void handle_keyboard_shortcut(uint keyval, bool ctrl_pressed) {
 		import ui;
 		switch(keyval) {
 			case '1': .. case '9': plot_widget.spin_n_columns.setValue(keyval-'0'); break;
 			case 'u': ui.winrefresh(name);                                 break;
 			case 'p': ui.winpoll(name);                                    break;
-			case 'q': ui.winzoom(name,1*1.2);                              break;
+			case 'q': if (ctrl_pressed) ui.quit();
+					  else              ui.winzoom(name,1*1.2);                              
+			break;
 			case 'e': ui.winzoom(name,1/1.1666666666);                     break;
 			case 'a': ui.winmove(name,'x',-0.2);                           break;
 			case 'd': ui.winmove(name,'x',+0.2);                           break;
 			case 's': ui.winmove(name,'y',-0.2);                           break;
-			case 'w': ui.winmove(name,'y',+0.2);                           break;
+			case 'w': if (ctrl_pressed) ui.close(name);
+			          else              ui.winmove(name,'y',+0.2);
+			break;
+			case 'n': if (ctrl_pressed) {
+						for (int i = 0; i < 100;++i) {
+							import std.conv;
+							try {
+								ui.win("window" ~ i.to!string);
+								break;
+							} catch(Exception e) {
+								// window with this name was probably already present
+							}
+						}
+			          }
+			break;
 			case 'o': ui.overlay(name);                                    break;
 			case 'b': ui.colorbar(name);                                   break;
 			case 'c': plot_widget.radio_colmajor.setActive(true);          break;
