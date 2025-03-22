@@ -15,6 +15,11 @@ gulong g_signal_connect_after_d(void* widget, const char* signal_name, void* cal
 	return g_signal_connect_after(widget, signal_name, G_CALLBACK(callback), user_data);
 }
 
+
+bool gdk_is_x11_display(GdkDisplay* d) {
+	return GDK_IS_X11_DISPLAY(d);
+}
+
 int get_window_position_and_size(GtkWindow *window, int *x, int *y, int *w, int *h) 
 {
 	// Get the GdkSurface for the GtkWindow

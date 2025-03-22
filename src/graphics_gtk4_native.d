@@ -367,7 +367,8 @@ private:
 		gtk_application_set_accels_for_action(app, "win.quit_fairy",   fairy_quit_accels_.ptr);
 
 
-		gtk_window_set_decorated(window, false);
+		gtk_window_set_decorated(window, false); // remove window decorations 
+
 		gtk_header_bar_set_title_widget(header_bar, cast(GtkWidget*)header_title);
 		gtk_header_bar_set_show_title_buttons(header_bar, true);
 		gtk_frame_set_child (cast(GtkFrame*)frame, cast(GtkWidget*)toplevel);
@@ -385,8 +386,61 @@ private:
 		gtk_window_set_title(window, name.toStringz);
 		//gtk_window_set_child(window, cast(GtkWidget*)item_view.scrolled_window);
 		gtk_window_set_child(window, cast(GtkWidget*)frame);
+
+		// Tried this because when deactivating window decoration in the constructor the window raises on mouse click (which is undesired)
+		// The following code was an attempt to restore the behavior with window decorations (but it didn't work) 
+		//g_signal_connect!(GtkWindow*)(window, "realize", &on_realize_callback, cast(gpointer)this);
+
+
 		gtk_window_present(window);
+
+		if (gdk_is_x11_display(gdk_display_get_default())) {
+			// workaround to the fact that GTK4 does not provide API for repositioning windows
+			GtkNative *native = gtk_widget_get_native(cast(GtkWidget*)window);
+			assert (native !is null, "cannot get GtkNative"); 
+			GdkSurface *surface = gtk_native_get_surface(native);
+			assert (surface !is null, "cannot get GdkSurface"); 
+			Window w = gdk_x11_surface_get_xid(surface);
+			GdkDisplay* displayGdk = gdk_display_get_default();
+			assert (displayGdk !is null, "cannot get GdkDisplay"); 
+			Display* display = gdk_x11_display_get_xdisplay(displayGdk);
+			assert (display !is null, "cannot get X11 Display");
+			XMoveWindow(display, w, canvas.xpos, canvas.ypos);
+			XFlush(display);
+		}
+
 	}
+	extern(C) static void on_realize_callback (GtkApplication *app, gpointer user_data) {
+		auto self = cast(MainWindow)user_data;
+
+		// Tried the following because when deactivating window decoration in the constructor the window raises on mouse click (which is undesired)
+		// The following code was an attempt to restore the behavior with window decorations (but it didn't work) 
+
+		// change window properties to NORMAL window. If not doen GTK overrides the behavior of the window manager (like not putting window in foreground on mouse click)
+		// compiles and runs without error, but still does not produce the desired effect...
+		GtkNative *native = gtk_widget_get_native(cast(GtkWidget*)self.window);
+		assert (native !is null, "cannot get GtkNative"); 
+		GdkSurface *surface = gtk_native_get_surface(native);
+		assert (surface !is null, "cannot get GdkSurface"); 
+		Window w = gdk_x11_surface_get_xid(surface);
+		GdkDisplay* displayGdk = gdk_display_get_default();
+		assert (displayGdk !is null, "cannot get GdkDisplay"); 
+		Display* display = gdk_x11_display_get_xdisplay(displayGdk);
+		assert (display !is null, "cannot get X11 Display");
+
+		//// set windwo type normal  
+		//Atom atom = gdk_x11_get_xatom_by_name_for_display(displayGdk, "_NET_WM_WINDOW_TYPE_NORMAL");
+		//Atom atom0 = gdk_x11_get_xatom_by_name_for_display(displayGdk, "_NET_WM_WINDOW_TYPE");
+		//XChangeProperty(display, w, atom0, XaAtom.XA_ATOM_, 32, PropMode.Replace, cast(guchar*)&atom, 1);		
+
+		//// Set focus state
+		//Atom state_atom = gdk_x11_get_xatom_by_name_for_display(displayGdk, "_NET_WM_STATE");
+		//Atom focused_atom = gdk_x11_get_xatom_by_name_for_display(displayGdk, "_NET_WM_STATE_FOCUSED");
+
+		//XChangeProperty(display, w, state_atom, XaAtom.XA_ATOM_, 32, PropMode.Replace, cast(guchar*)&focused_atom, 1);
+		//// end of setting window to NORMAL (must be before the call to gtk_window_present(window))
+	}
+
 
 	void update_from_canvas() {
 		//assert(item_view !is null);
