@@ -169,7 +169,7 @@ class Hist2Factory : ItemFactory {
 	}
 }
 
-class Hist2 : Visual, Item
+class Hist2 : Visual, Item, Hist2ProjectionSource
 {
 public:
 	struct Data{
@@ -271,6 +271,13 @@ public:
 	Data get_data() {
 		return data;
 	}
+
+	// Hist2ProjectionSource overrides
+	Hist2ProjectionSource.Data get_projection_data() {
+		return Hist2ProjectionSource.Data(data.bins, data.bins_x, data.bins_y,
+			                              data.left, data.right, data.bottom, data.top);
+	}
+
 private:
 	ulong item_version = 0;
 	Data data;
@@ -289,7 +296,7 @@ class FileHistogramFactory : ItemFactory {
 }
 
 import graphics, functions;
-class FileHistogram : Visual, FitDataSource, Item {
+class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 	struct Data {
 		@SERIALIZE string filename;
 	}
@@ -349,6 +356,18 @@ class FileHistogram : Visual, FitDataSource, Item {
 		return result;
 	}
 
+
+
+	// Hist2ProjectionSource overrides
+	Hist2ProjectionSource.Data get_projection_data() {
+		HistData hist_data = read_file(data.filename);
+		if (hist_data.dim == 2) {
+			return Hist2ProjectionSource.Data(hist_data.data, hist_data.bins_x, hist_data.bins_y,
+				                              hist_data.left, hist_data.right, hist_data.bottom, hist_data.top);
+		} 
+		throw new Exception("Projection for 1D-histograms not implemented ");
+	}
+
 private:
 	import std.datetime : abs, DateTime, hnsecs, SysTime;
 	import std.datetime : Clock, seconds;		
@@ -372,6 +391,16 @@ private:
 	}	
 
 
+}
+
+
+interface Hist2ProjectionSource {
+	struct Data {
+		double[] bins;
+		ulong bins_x, bins_y;
+		double left,right, bottom,top;
+	}
+	Data get_projection_data();
 }
 
 
@@ -417,35 +446,36 @@ class Hist2Projection : Visual, Item {
 			return 0;
 		}
 
-		if (source_version == -1 || source.getVersion() > source_version) {
+		if (source_version == -1 || source_item.getVersion() > source_version) {
 			//import std.stdio;
 			//writeln("source was updated");
-			integral_bindata.length = source.data.bins.length;
-			for (long y = 0; y < source.data.bins_y; ++y) {
-				for (long x = 0; x < source.data.bins_x; ++x) {
+			auto data = source.get_projection_data();
+			integral_bindata.length = data.bins.length;
+			for (long y = 0; y < data.bins_y; ++y) {
+				for (long x = 0; x < data.bins_x; ++x) {
 					if (region.data.direction == 1) {
 						if (y==0) {
-							if (source.data.bins[x] is double.init) integral_bindata[x] = 0;
-							else integral_bindata[x] = source.data.bins[x];
+							if (data.bins[x] is double.init) integral_bindata[x] = 0;
+							else integral_bindata[x] = data.bins[x];
 						}
 						else  {
-							if (source.data.bins[x+y*source.data.bins_x] is double.init) integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x];
-							else integral_bindata[x+y*source.data.bins_x] = integral_bindata[x+(y-1)*source.data.bins_x] + source.data.bins[x+y*source.data.bins_x];
+							if (data.bins[x+y*data.bins_x] is double.init) integral_bindata[x+y*data.bins_x] = integral_bindata[x+(y-1)*data.bins_x];
+							else integral_bindata[x+y*data.bins_x] = integral_bindata[x+(y-1)*data.bins_x] + data.bins[x+y*data.bins_x];
 						}
 					}
 					if (region.data.direction == 0) {
 						if (x==0) {
-							if (source.data.bins[y*source.data.bins_x] is double.init) integral_bindata[y*source.data.bins_x] = 0;
-							else integral_bindata[y*source.data.bins_x] = source.data.bins[y*source.data.bins_x];
+							if (data.bins[y*data.bins_x] is double.init) integral_bindata[y*data.bins_x] = 0;
+							else integral_bindata[y*data.bins_x] = data.bins[y*data.bins_x];
 						}
 						else  {
-							if (source.data.bins[x+y*source.data.bins_x] is double.init) integral_bindata[x+y*source.data.bins_x] = integral_bindata[(x-1)+y*source.data.bins_x];
-							else integral_bindata[x+y*source.data.bins_x] = integral_bindata[(x-1)+y*source.data.bins_x] + source.data.bins[x+y*source.data.bins_x];
+							if (data.bins[x+y*data.bins_x] is double.init) integral_bindata[x+y*data.bins_x] = integral_bindata[(x-1)+y*data.bins_x];
+							else integral_bindata[x+y*data.bins_x] = integral_bindata[(x-1)+y*data.bins_x] + data.bins[x+y*data.bins_x];
 						}
 					}
 				}
 			}
-			source_version = source.getVersion();
+			source_version = source_item.getVersion();
 			++item_version; // inceement version 
 			dirty = true; // redraw is needed now
 		}
@@ -474,8 +504,9 @@ class Hist2Projection : Visual, Item {
 		}
 
 		import fairy;
-		source = cast(Hist2)session.items[data.hist2name].item;
-		region = cast(Gate1D)session.items[data.gate1name].item;
+		source_item = cast(Visual)session.items[data.hist2name].item;
+		source      = cast(Hist2ProjectionSource)session.items[data.hist2name].item;
+		region      = cast(Gate1D)session.items[data.gate1name].item;
 		if (source is null) {
 			throw new Exception("Hist2Projection fails: " ~ data.hist2name ~ " is not a Hist2");
 		}
@@ -484,54 +515,55 @@ class Hist2Projection : Visual, Item {
 		}
 
 		import std.math;
+		auto data = source.get_projection_data();
 		if (region.data.direction == 1) {
-			double source_bin_width = (source.data.top-source.data.bottom)/source.data.bins_y;
+			double source_bin_width = (data.top-data.bottom)/data.bins_y;
 			long n_bins = cast(long)floor((max-min)/source_bin_width);
-			long min_y = cast(long)floor(source.data.bins_y*(min-source.data.bottom)/(source.data.top-source.data.bottom)-0.5);
+			long min_y = cast(long)floor(data.bins_y*(min-data.bottom)/(data.top-data.bottom)-0.5);
 			long max_y = min_y+n_bins;
-			bins.length = source.data.bins_x;
+			bins.length = data.bins_x;
 			bins[] = 0.0;
-			left   = source.data.left;
-			right  = source.data.right;
+			left   = data.left;
+			right  = data.right;
 
-			if (min_y >= cast(long)source.data.bins_y) min_y = cast(long)source.data.bins_y-1;
-			if (max_y >= cast(long)source.data.bins_y) max_y = cast(long)source.data.bins_y-1;
+			if (min_y >= cast(long)data.bins_y) min_y = cast(long)data.bins_y-1;
+			if (max_y >= cast(long)data.bins_y) max_y = cast(long)data.bins_y-1;
 			if (min_y >= max_y || max_y < 0) {
 				bins[] = 0.0;
 	 		} else {
 				if (bins.length > 0 && integral_bindata.length > 0)
-				for (long x = 0; x < source.data.bins_x; ++x) {
+				for (long x = 0; x < data.bins_x; ++x) {
 					if (min_y >= 0) {
-						bins[x] = integral_bindata[x+max_y*source.data.bins_x] 
-						        - integral_bindata[x+min_y*source.data.bins_x]; 
+						bins[x] = integral_bindata[x+max_y*data.bins_x] 
+						        - integral_bindata[x+min_y*data.bins_x]; 
 					} else {
-						bins[x] = integral_bindata[x+max_y*source.data.bins_x]; 						
+						bins[x] = integral_bindata[x+max_y*data.bins_x]; 						
 					}
 				}
 	 		} 
 		}
 		if (region.data.direction == 0) {
-			double source_bin_width = (source.data.right-source.data.left)/source.data.bins_x;
+			double source_bin_width = (data.right-data.left)/data.bins_x;
 			long n_bins = cast(long)floor((max-min)/source_bin_width);
-			long min_x = cast(long)floor(source.data.bins_x*(min-source.data.left)/(source.data.right-source.data.left)-0.5);                     //y = bottom+idx*(top-bottom)/bins-0.5_y
+			long min_x = cast(long)floor(data.bins_x*(min-data.left)/(data.right-data.left)-0.5);                     //y = bottom+idx*(top-bottom)/bins-0.5_y
 			long max_x = min_x+n_bins; 
-			bins.length = source.data.bins_y;
+			bins.length = data.bins_y;
 			bins[] = 0.0;
-			left  = source.data.bottom;
-			right = source.data.top;
+			left  = data.bottom;
+			right = data.top;
 
-			if (min_x >= cast(long)source.data.bins_x) min_x = cast(long)source.data.bins_x-1;
-			if (max_x >= cast(long)source.data.bins_x) max_x = cast(long)source.data.bins_x-1;
+			if (min_x >= cast(long)data.bins_x) min_x = cast(long)data.bins_x-1;
+			if (max_x >= cast(long)data.bins_x) max_x = cast(long)data.bins_x-1;
 			if (min_x >= max_x || max_x < 0) {
 				bins[] = 0.0;
 	 		} else {
 				if (bins.length > 0 && integral_bindata.length > 0)
-				for (long y = 0; y < source.data.bins_y; ++y) {
+				for (long y = 0; y < data.bins_y; ++y) {
 					if (min_x >= 0) {
-						bins[y] = integral_bindata[max_x+y*source.data.bins_x] 
-						        - integral_bindata[min_x+y*source.data.bins_x]; 
+						bins[y] = integral_bindata[max_x+y*data.bins_x] 
+						        - integral_bindata[min_x+y*data.bins_x]; 
 					} else {
-						bins[y] = integral_bindata[max_x+y*source.data.bins_x];
+						bins[y] = integral_bindata[max_x+y*data.bins_x];
 					}
 				}
 	 		}
@@ -550,7 +582,8 @@ private:
 	double min,max;
 	double left, right;
 
-	Hist2 source;
+	Visual source_item;
+	Hist2ProjectionSource source;
 	Gate1D region;
 }
 
