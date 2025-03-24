@@ -593,11 +593,14 @@ struct CanvasPainter {
 
 		backend.finish();
 
-		// for some reason mouse motion is called here (TODO: why???) but this falsely sets the "mouse_moved" variable to true even if the mouse was not moved.
-		// quick-fix remember the variable and restore it after the function returns.
-		//bool mm = mouse_moved;
-		//mouse_motion(mouse_pos_x, mouse_pos_y, backend);
-		//mouse_moved = mm;
+		// mouse motion is called here to update the mouse_value display in autorefresh mode
+		//  but this falsely sets the "mouse_moved" variable to true even if the mouse was not moved.
+		//  quick-fix remember the variable and restore it after the function returns.
+		if (canvas.autorefresh) {
+			bool mm = mouse_moved;
+			mouse_motion(mouse_pos_x, mouse_pos_y, backend);
+			mouse_moved = mm;
+		}
 	}
 
 	void iterate_grid_transforms(double x, double y, void delegate(double x, double y, double z, bool inside, string itemname, in Transform[3] t) @safe callback ) {
