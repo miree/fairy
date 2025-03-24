@@ -978,7 +978,8 @@ struct CanvasPainter {
 
 			double amount = dy*(ctrl?5:50);
 			double x_world = mouse_transform[0].canvas2world(mouse_pos_x);
-			if (x_world <= mouse_transform[0].max && 
+			if (canvas.color_bar &&
+				x_world <= mouse_transform[0].max && 
 				x_world >= mouse_transform[0].max - mouse_transform[0].width*canvas.color_key_width) {
 				canvas.transform[2].scale_one_step(mouse_pos_y, canvas.rows, canvas.height, amount, 0.01, true);
 			} else {
