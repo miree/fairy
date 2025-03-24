@@ -330,6 +330,10 @@ struct CanvasPainter {
 			top    = (top    is double.init)?bt[1]:max(top   ,bt[1]);
 		}
 		if (bottom !is double.init && top !is double.init) {
+			if (bottom == top) {
+				bottom = bottom-0.5;
+				top    = top   +0.5;
+			}
 			canvas.transform[1].set_minmax(bottom,top);		
 			canvas.transform[1].scale=1; // eliminate all ongoing transformations in y-direction
 			canvas.transform[1].delta=0; // eliminate all ongoing transformations in y-direction
