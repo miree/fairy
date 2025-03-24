@@ -33,4 +33,5 @@ all: $(INCLUDES)
 	dmd -i -I../src -o- -H $< 
 
 %.i: %.c
-	gcc `pkg-config gtk4 alsa gsl --cflags` -E $< > $@
+	gcc `pkg-config gtk4 alsa gsl --cflags` -E $< > $@.tmp 
+	mv $@.tmp $@
