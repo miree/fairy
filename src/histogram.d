@@ -412,7 +412,7 @@ class Hist2ProjectionFactory : ItemFactory {
 }
 
 import graphics, functions;
-class Hist2Projection : Visual, Item {
+class Hist2Projection : Visual, FitDataSource, Item {
 	import gate;
 	struct Data {
 		@SERIALIZE string hist2name;
@@ -498,11 +498,7 @@ class Hist2Projection : Visual, Item {
 		item_version = new_version;
 	}
 
-	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) {
-		if (old !is null && !dirty) {
-			return old;
-		}
-
+	void do_project() {
 		import fairy;
 		source_item = cast(Visual)session.items[data.hist2name].item;
 		source      = cast(Hist2ProjectionSource)session.items[data.hist2name].item;
@@ -567,11 +563,41 @@ class Hist2Projection : Visual, Item {
 					}
 				}
 	 		}
+		}		
+	}
+
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) {
+		if (old !is null && !dirty) {
+			return old;
 		}
+
+		do_project();
 
 		dirty = false;
 		return new Hist1Visualizer(null, 1, bins, left, right);
 	}
+
+	// FitDataSource override
+	override double[3][] get_data(double[2] region) {
+		if (bins is null || bins.length==0) {
+			do_project();
+		}
+		double bin_width = (right-left)/bins.length;
+		double[3][] result;
+		foreach(idx, y; bins) {
+			double x = left+idx*(right-left)/bins.length;
+			x += bin_width/2;
+			if (x >= region[0] && x < region[1]) {
+				import std.math;
+				double[3] dp = [x,y,y>1?sqrt(y):1];
+				result ~= dp;
+			}
+		}
+		return result;
+	}
+
+
+
 private:
 	long source_version = -1;
 	double[] integral_bindata;
