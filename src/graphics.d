@@ -285,7 +285,8 @@ struct CanvasPainter {
 			double y2 = canvas.transform[1].world2canvas(canvas.transform[1].min+(canvas.transform[1].max-canvas.transform[1].min)*(i+1)/N);
 			uint rgb;
 			double c = 1.0*i/N;
-			get_rgb(c,rgb);
+			import color;
+			color.get_rgb(c,rgb);
 			rgb &= 0x00ffffff;
 			backend.set_color((rgb>>16)/255.0,((rgb&0xffff)>>8)/255.0,((rgb&0xff)/255.0));
 			backend.set_line_width(2);
@@ -527,6 +528,10 @@ struct CanvasPainter {
 							if (canvas.autoscale[1] && visualizer.get_bottomtop_in_leftright(bt, [left,right], canvas.transform)) {
 								bottom = bt[0];
 								top = bt[1];
+								if (bottom == top) {
+									bottom = bottom-0.5;
+									top    = top   +0.5;
+								}								
 								canvas.transform[1].scale=1; // eliminate all ongoing transformations in y-direction
 								canvas.transform[1].delta=0; // eliminate all ongoing transformations in y-direction
 								canvas.transform[1].set_minmax(bottom,top);
