@@ -858,9 +858,11 @@ public:
 			//	d.fill();
 			//}
 			double line_width = 2.0;
-			d.set_color(0.2,0.8,1.0);
+			//d.set_color(0.2,0.8,1.0);
+			d.set_color(0x2a/255.0, 0x78/255.0, 0x8e/255.0);
 			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
-			d.set_color(0.0,0.0,1.0);
+			//d.set_color(0.0,0.0,1.0);
+			d.set_color(0x44/255.0, 0x01/255.0, 0x54/255.0);
 			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, false);
 		} catch(Exception e) {
 			import std.stdio;
