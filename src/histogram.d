@@ -858,9 +858,9 @@ public:
 			//	d.fill();
 			//}
 			double line_width = 2.0;
-			d.set_color(1.0,0.5,0.5);
+			d.set_color(0.2,0.8,1.0);
 			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
-			d.set_color(1.0,0.0,0.0);
+			d.set_color(0.0,0.0,1.0);
 			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, false);
 		} catch(Exception e) {
 			import std.stdio;
@@ -1265,9 +1265,10 @@ public:
 				auto bin = data[cast(uint)idx];
 				auto rgb_data_idx = (y)*stride + x;
 				if (bin !is double.init) {// && bin>0) {
-					get_rgb((bin-zmin)/(zmax-zmin), rgb_data[cast(uint)rgb_data_idx]);				
+					import color;
+					color.get_rgb((bin-zmin)/(zmax-zmin), rgb_data[cast(uint)rgb_data_idx]);				
 					if (bin > 0) {
-						get_rgb((log(bin)-zmin)/(zmax-zmin), log_rgb_data[cast(uint)rgb_data_idx]);
+						color.get_rgb((log(bin)-zmin)/(zmax-zmin), log_rgb_data[cast(uint)rgb_data_idx]);
 					} else {
 						log_rgb_data[cast(uint)rgb_data_idx] = 0x00000000;
 					}
