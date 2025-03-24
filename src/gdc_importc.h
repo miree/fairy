@@ -94,11 +94,11 @@ typedef unsigned int __uint32_t;
  *    https://clang.llvm.org/docs/LanguageExtensions.html
  * ImportC no has extensions.
  */
-#undef __has_feature
-#define __has_feature(x) 0
+// #undef __has_feature
+// #define __has_feature(x) 0
 
-#undef __has_extension
-#define __has_extension(x) 0
+// #undef __has_extension
+// #define __has_extension(x) 0
 
 /*************************************
  * OS-specific macros
