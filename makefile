@@ -7,6 +7,9 @@ fairy: src/*.d
 allegro5: src/*.d
 	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 $(LD_FLAGS)
 
+allegro5-elder: src/*.d
+	dmd -Isrc -i src/app.d src/mbsapi/*.c -of=fairy -version=allegro5 -version=elderpt $(LD_FLAGS)
+
 elderpt: src/*.d
 	dmd -Isrc -i src/app.d src/mbsapi/*.c -of=fairy -version=allegro5 -version=elderpt $(LD_FLAGS)
 

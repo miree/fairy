@@ -94,6 +94,7 @@ gate.o: src/gate.d \
  include/interactive.di \
  include/item.di
 graphics.o: src/graphics.d include/fairy.di \
+ include/color.di \
  include/audiodaq.di \
  include/alsa_import.i \
  /usr/lib/gcc/x86_64-pc-linux-gnu/14.2.1/include/d/__builtins.di \
@@ -124,6 +125,7 @@ gtk4_native.o: src/gtk4_native.d \
  include/gtk4_import.i \
  /usr/lib/gcc/x86_64-pc-linux-gnu/14.2.1/include/d/__builtins.di
 histogram.o: src/histogram.d \
+ include/color.di \
  include/transform.di \
  include/serializeJSON.di \
  include/functions.di \
