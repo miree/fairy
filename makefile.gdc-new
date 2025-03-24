@@ -3,8 +3,8 @@ VPATH=include src src/mbsapi
 # gdc -Iinclude -Isrc -c -o gate.d src/gate.d -MMD `pkg-config gtk4 --cflags` -MF gate.d.dep
 
 
-CFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --cflags` -s -O0
-LDFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --libs` -s -O0 -Wl,-rpath=/home/michael/.local/lib -lX11
+CFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --cflags` -s -O4
+LDFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --libs` -s -O4 -Wl,-rpath=/home/michael/.local/lib -lX11
 
 
 
@@ -24,6 +24,7 @@ OBJECTS=\
 	asciirender.o          \
 	audiodaq.o             \
 	cmdline.o              \
+	color.o                \
 	expression.o           \
 	fairy.o                \
 	functions.o            \

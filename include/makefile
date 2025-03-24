@@ -6,6 +6,7 @@ INCLUDES=\
 	asciirender.di          \
 	audiodaq.di             \
 	cmdline.di              \
+	color.di                \
 	expression.di           \
 	fairy.di                \
 	functions.di            \
@@ -30,8 +31,8 @@ INCLUDES=\
 all: $(INCLUDES)
 
 %.di: %.d
-	dmd -i -I../src -o- -H $< 
+	dmd -i -I../src -o- -H $<
 
 %.i: %.c
 	gcc `pkg-config gtk4 alsa gsl --cflags` -E $< > $@.tmp 
-	mv $@.tmp $@
+	mv "$@.tmp" "$@"

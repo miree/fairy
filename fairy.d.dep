@@ -43,6 +43,7 @@ cmdline.o: src/cmdline.d include/ui.di \
  include/graphics.di \
  include/interactive.di \
  include/item.di
+color.o: src/color.d
 elderpt.o: src/elderpt.d \
  include/mbsapi_import.i \
  /usr/lib/gcc/x86_64-pc-linux-gnu/14.2.1/include/d/__builtins.di \
