@@ -3,10 +3,12 @@ VPATH=include src src/mbsapi
 # gdc -Iinclude -Isrc -c -o gate.d src/gate.d -MMD `pkg-config gtk4 --cflags` -MF gate.d.dep
 
 
-CFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --cflags` -g -O0
-LDFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --libs` -Wl,-rpath=/home/michael/.local/lib -lX11
+CFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --cflags` -s -O0
+LDFLAGS = `pkg-config elderpt-0.1 alsa gtk4 gsl --libs` -s -O0 -Wl,-rpath=/home/michael/.local/lib -lX11
 
-all: includes fairy
+
+
+all: fairy
 
 # translate .d source files into .di interface files
 include/%.di: src/%.d
@@ -64,15 +66,13 @@ OBJECTS=\
 
 include fairy.d.dep
 
+
 # %.o: %.d
 # 	make -C include
 # 	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -c $<
 
 fairy: $(PREPROCESSED) $(OBJECTS)
 	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -o $@ $+ $(LDFLAGS) 
-
-includes: 
-	make -C include
 
 clean:
 	rm -f include/*.di include/*.i *.o fairy 
