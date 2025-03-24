@@ -54,7 +54,8 @@ elderpt.o: src/elderpt.d \
  include/graphics.di \
  include/interactive.di \
  include/item.di
-expression.o: src/expression.d
+expression.o: src/expression.d \
+ include/gsl_import.i
 fairy.o: src/fairy.d include/cmdline.di \
  include/interactive_demo.di \
  include/transform.di \
