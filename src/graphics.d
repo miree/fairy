@@ -602,12 +602,8 @@ struct CanvasPainter {
 
 		backend.finish();
 
-		// mouse motion is called here to update the mouse_value display 
-		//  this falsely sets the "mouse_moved" variable to true even if the mouse was not moved.
-		//  quick-fix remember the variable and restore it after the function returns.
-		bool mm = mouse_moved;
-		mouse_motion(mouse_pos_x, mouse_pos_y, backend);
-		mouse_moved = mm;
+		// mouse_value display 
+		show_value(mouse_pos_x, mouse_pos_y, backend);
 	}
 
 	void iterate_grid_transforms(double x, double y, void delegate(double x, double y, double z, bool inside, string itemname, in Transform[3] t) @safe callback ) {
@@ -635,11 +631,7 @@ struct CanvasPainter {
 
 	}
 
-	void mouse_motion(double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {
-		mouse_pos_x = x;
-		mouse_pos_y = y;
-		mouse_moved = true;
-
+	void show_value(double x, double y, BackendInterface backend) {
 		backend.show_value(double.init, null); // this clears the show_value field
 		if (!draw_selection_box && !select_or_drag.valid) {
 			// this section handles 
@@ -683,6 +675,15 @@ struct CanvasPainter {
 				});
 			}
 		}
+	}
+
+	void mouse_motion(double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {
+		mouse_pos_x = x;
+		mouse_pos_y = y;
+		mouse_moved = true;
+
+		// mouse motion means that show value has to be called
+		show_value(x,y,backend);
 
 		//drawer.show_mouse_pos(transform.transform_canvas2world_x(x), transform.transform_canvas2world_y(y));
 		with (canvas.transform[0]) {
@@ -739,8 +740,6 @@ struct CanvasPainter {
 						}
 					}
 				}
-				import std.stdio;
-				writeln("mouse_motion drag gridmode");
 				select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[grid_idx], ctrl, shift);
 			}
 			backend.need_redraw();
@@ -842,7 +841,7 @@ struct CanvasPainter {
 
 
 	void left_button_pressed(int nPress, double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {
-		import std.stdio;
+		//import std.stdio;
 		//mouse_pos_x = x;
 		//mouse_pos_y = y;
 		//writeln("left click ", nPress, " ",  x , " ", y, "     ctrl=", ctrl, "    shift=",shift);
