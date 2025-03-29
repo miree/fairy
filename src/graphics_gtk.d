@@ -186,6 +186,7 @@ class MainWindow : ApplicationWindow
 private:
 	CanvasProperties *canvas;
 
+	import gtk.Frame;
 	import gtk.Button;
 	import gtk.HeaderBar;
 	import gtk.Paned;
@@ -212,6 +213,7 @@ private:
 	static int windowIndexCtr;
 	string name;
 
+	Frame window_toplevel_frame;
 	Box window_toplevel_box;
 	HeaderBar header_bar;
 		Button open_menu;
@@ -477,7 +479,7 @@ public:
 		//});
 		//header_bar.packStart(open_soundscope);
 
-
+		window_toplevel_frame = new Frame(cast(string)null);
 		window_toplevel_box = new Box(GtkOrientation.VERTICAL,0);
 
 
@@ -576,10 +578,10 @@ public:
 			plot_widget.setFocusable(false);// (see https://docs.gtk.org/gtk4/input-handling.html)
 
 		}
-
 		window_toplevel_box.append(header_bar);
 		window_toplevel_box.append(workspace);
-		this.setChild(window_toplevel_box);
+		window_toplevel_frame.setChild(window_toplevel_box);
+		this.setChild(window_toplevel_frame);
 
 		setSizeRequest(-1,-1);
 		present();
