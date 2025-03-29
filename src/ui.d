@@ -560,7 +560,7 @@ string wave(string name) {
 	["name of item to display",
 	 "name of window on which the item should be shown",
 	 "true, false, all, none: true/false add/remove exact match, add/none add/remove also children"])
-string show(string item_name, string window_name, string action = "true") {
+string show(string item_name, string window_name, string action = "true", bool update_window = true) {
 	import fairy;
 	import std.algorithm, std.array;
 	auto canvas = fairy.session.get_canvas(window_name);
@@ -620,7 +620,7 @@ string show(string item_name, string window_name, string action = "true") {
 	//	}
 	//	canvas.itemnames = itemnames;
 	//}
-	update_window_gui(window_name);
+	if (update_window) update_window_gui(window_name);
 	return "";
 }
 

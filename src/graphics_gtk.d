@@ -808,15 +808,17 @@ class ItemView : TreeView {
 			}
 			// recursively toggle children (only if iter is not an acutal item)
 			auto is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
-			bool active = switch_iter(treestore, iter, plotwidget); 
+			bool active = switch_iter(treestore, iter, plotwidget, null, false); 
 			if (!is_item) { // only recurse for non-items
 				iterate_children_depth_first(&active, treestore, iter, 0,
 					(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) { 
 						import std.stdio;
 						writeln("iterate_children_depth_first");
-						switch_iter(treestore, iter, plotwidget, force_active);
+						switch_iter(treestore, iter, plotwidget, force_active, false);
 					});
 			}
+			import ui;
+			ui.update_window_gui(main_window.name);
 
 			// check if a parent has to be toggled
 			import std.array;
@@ -969,7 +971,7 @@ class ItemView : TreeView {
 
 
 	// helper function to send visualizers to the plotwidget and update the checkbox in the treeview
-	bool switch_iter(TreeStore treestore, TreeIter iter, PlotWidget plotwidget, bool* force_active = null) {
+	bool switch_iter(TreeStore treestore, TreeIter iter, PlotWidget plotwidget, bool* force_active = null, bool update_window = true) {
 		//import app, std.stdio;
 
 		auto active   = treestore.getInt(iter, COLUMN_VISUALIZED); // use a gtk3/gtk4 compatibility/convenience function
@@ -988,7 +990,7 @@ class ItemView : TreeView {
 			//import std.stdio;
 			//writeln(active, " " , fullname);
 			import ui;
-			ui.show(fullname, main_window.name, active?"true":"false");
+			ui.show(fullname, main_window.name, active?"true":"false", update_window);
 		}
 		//// add or remove the visualizer from plotaera
 		//auto visualizer = runningSession.getVisualizerForItemName(fullname);
