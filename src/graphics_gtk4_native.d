@@ -1145,7 +1145,7 @@ struct MyPlotWidget {
 		cairo_stroke(cr);			
 
 		if (backend.mouse_value !is double.init) {
-			snprintf(buffer.ptr, buffer.length, "%.9g", backend.mouse_value);
+			snprintf(buffer.ptr, buffer.length, "value = %.9g", backend.mouse_value);
 			cairo_move_to(cr, 20,40);
 			cairo_show_text(cr, buffer.ptr);
 			cairo_stroke(cr);			

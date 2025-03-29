@@ -490,7 +490,6 @@ public:
 
 		item_view.sync_with_session();
 		item_view.sync_with_canvas(canvas);
-		item_view.expand_all_shown();
 
 		item_view_scrolled_window = new ScrolledWindow();
 		item_view_scrolled_window.setPropagateNaturalWidth(true);
@@ -688,15 +687,7 @@ class ItemView : TreeView {
 			this.expandRow(treestore.getPath(selected_iter), true);
 		}
 	}
-	void expand_all_shown() {
-		foreach(itemname; main_window.canvas.itemnames) {
-			auto iter = find_iter_for_itemname(itemname, treestore);
-			if (iter is null) continue;
-			auto path = treestore.getPath(iter);
-			if (path is null) continue;
-			expandToPath(path);
-		}
-	}
+
 	void remove_all_selected() {
 		string[] names; 
 		foreach(selected_iter; getSelectedIters()) {
@@ -821,6 +812,8 @@ class ItemView : TreeView {
 			if (!is_item) { // only recurse for non-items
 				iterate_children_depth_first(&active, treestore, iter, 0,
 					(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) { 
+						import std.stdio;
+						writeln("iterate_children_depth_first");
 						switch_iter(treestore, iter, plotwidget, force_active);
 					});
 			}
@@ -1031,7 +1024,7 @@ class ItemView : TreeView {
 	void add_item_(string fullname, string[] parts, const(Item) item, TreeIter parent = null) 
 	{
 		import gobject.Value, std.typecons;
-		void set_iter(TreeIter iter, string fullname, string[] parts) {
+		void set_iter(TreeIter iter, string fullname, string[] parts, bool is_shown) {
 			// only rows that really refer to items get a fullname assigned // todo: is this desirable?
 			if (parts.length > 1) {	fullname = null; }
 			int is_item = (parts.length==1);
@@ -1041,7 +1034,7 @@ class ItemView : TreeView {
 			treestore.setValue(iter, COLUMN_NAME,       scoped!Value(parts[0]));
 			treestore.setValue(iter, COLUMN_FULLNAME,   scoped!Value(fullname));
 			treestore.setValue(iter, COLUMN_IS_ITEM,    scoped!Value(is_item));
-			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(0));
+			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(is_shown?1:0));
 		}
 
 		//iterate all children of the root nodes and try to find one with the correct prefix of the given fullname
@@ -1056,8 +1049,10 @@ class ItemView : TreeView {
 				if (n == 0)          iter_first = iter;
 				if (name < parts[0]) iter_after  = iter;
 				if (name == parts[0]) {
+					import std.algorithm;
+					bool shown = main_window.canvas.itemnames.canFind(fullname);
 					//writeln("names match: ", name);
-					if (parts.length == 1) { return set_iter(iter, fullname, parts); }    // set the iterator (end of recursion)
+					if (parts.length == 1) { return set_iter(iter, fullname, parts, shown); }    // set the iterator (end of recursion)
 					else                   { return add_item_(fullname, parts[1..$], item, iter); } // recurse down
 				}
 			}
@@ -1067,7 +1062,9 @@ class ItemView : TreeView {
 		if (iter_after  !is null) treestore.moveAfter(iter, iter_after);
 		else                      treestore.moveBefore(iter, iter_first);
 		// set new iterator contents
-		set_iter(iter, fullname, parts);
+		import std.algorithm;
+		bool shown = main_window.canvas.itemnames.canFind(fullname);
+		set_iter(iter, fullname, parts, shown);
 		if (parts.length > 1) {
 			add_item_(fullname, parts[1..$], item, iter);
 		}
@@ -1097,6 +1094,10 @@ class ItemView : TreeView {
 		foreach (name ; canvas.itemnames) {
 			TreeIter iter = find_iter_for_itemname(name, treestore);
 			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
+			if (iter is null) continue;
+			auto path = treestore.getPath(iter);
+			if (path is null) continue;
+			expandToPath(path);
 			fix_parent_checkboxes(iter);
 		}
 	}
@@ -1384,6 +1385,7 @@ class PlotWidget : Box {
 			mouse_pos_box.setSizeRequest(150,0);
 			mouse_pos_box.append(mouse_pos);
 			mouse_pos_value = new Label("\nvalue=nan");
+			mouse_pos_value.setUseUnderline(false);
 			mouse_pos_value.setJustify(GtkJustification.LEFT);
 			mouse_pos_value_box = new Box(GtkOrientation.HORIZONTAL, 0);
 			mouse_pos_value_box.setSizeRequest(150,0);
@@ -1465,7 +1467,7 @@ class PlotWidget : Box {
 
 	}
 
-	void setMousePosLabel(double x, double y) {
+	void setMousePosLabel(double x, double y, double z) {
 		version (gtk3) {
 			import std.format;
 			auto label = format("  x=%g\n  y=%g", x,y);
@@ -1474,6 +1476,7 @@ class PlotWidget : Box {
 		} else {
 			mouse_pos[0] = x;
 			mouse_pos[1] = y;
+			mouse_pos[2] = z;
 			mouse_pos_display.queueDraw();
 		}
 	}
@@ -1516,23 +1519,23 @@ version(gtk4) {
 			static char[256] buffer;
 			import core.stdc.stdio;
 
-			snprintf(buffer.ptr, buffer.length, "x = %f", plot_widget.mouse_pos[0]);
+			snprintf(buffer.ptr, buffer.length, "x = %.9g", plot_widget.mouse_pos[0]);
 			cairo_move_to(cr, 20,20);
 			cairo_show_text(cr, buffer.ptr);
 			cairo_stroke(cr);			
 
-			snprintf(buffer.ptr, buffer.length, "y = %f", plot_widget.mouse_pos[1]);
-			cairo_move_to(cr, 140,20);
+			snprintf(buffer.ptr, buffer.length, "y = %.9g", plot_widget.mouse_pos[1]);
+			cairo_move_to(cr, 180,20);
 			cairo_show_text(cr, buffer.ptr);
 			cairo_stroke(cr);			
 
-			//snprintf(buffer.ptr, buffer.length, "z = %f", plot_widget.mouse_pos[2]);
-			//cairo_move_to(cr, 260,20);
-			//cairo_show_text(cr, buffer.ptr);
-			//cairo_stroke(cr);			
+			snprintf(buffer.ptr, buffer.length, "z = %.9g", plot_widget.mouse_pos[2]);
+			cairo_move_to(cr, 340,20);
+			cairo_show_text(cr, buffer.ptr);
+			cairo_stroke(cr);			
 
 			if (plot_widget.mouse_value !is double.init) {
-				snprintf(buffer.ptr, buffer.length, "%f", plot_widget.mouse_value);
+				snprintf(buffer.ptr, buffer.length, "value = %.9g", plot_widget.mouse_value);
 				cairo_move_to(cr, 20,40);
 				cairo_show_text(cr, buffer.ptr);
 				cairo_stroke(cr);			
@@ -1541,7 +1544,7 @@ version(gtk4) {
 			if (plot_widget.mouse_itemname !is null) {
 				import std.string;
 				snprintf(buffer.ptr, buffer.length, "%s", plot_widget.mouse_itemname.ptr);
-				cairo_move_to(cr, 140,40);
+				cairo_move_to(cr, 180,40);
 				cairo_show_text(cr, buffer.ptr);
 				cairo_stroke(cr);			
 			}	}
@@ -1710,7 +1713,7 @@ class PlotArea :  DrawingArea, BackendInterface {
 	}
 
 	override void show_mouse_pos(double x, double y, double z) {
-		updateMousePosLabel(x,y);
+		updateMousePosLabel(x,y,z);
 	}
 	override void show_value(double value, string itemname) {
 		updateValue(value, itemname);
@@ -1749,7 +1752,7 @@ class PlotArea :  DrawingArea, BackendInterface {
 	}
 
 	this(CanvasProperties *canvas, 
-		 void delegate(double,double) @trusted updateMousePosLabel_func ,
+		 void delegate(double,double,double) @trusted updateMousePosLabel_func ,
 		 void delegate(double,string) @trusted updateValue_func) 
 	{
 //		draw_area.drawer = this;
@@ -1966,7 +1969,7 @@ private:
 		painter.scroll(dx, dy, ctrl, shift);
 	}
 
-	void delegate(double, double) updateMousePosLabel;
+	void delegate(double, double, double) updateMousePosLabel;
 	void delegate(double, string) updateValue;
 
 

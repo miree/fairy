@@ -648,7 +648,10 @@ struct CanvasPainter {
 						backend.show_mouse_pos(x_world, y_world, z_world);
 						if (itemname !is null) {
 							if (highlight([itemname], visualizers, x_world, y_world, canvas.transform)) backend.need_redraw();
-							backend.show_value(visualizers[itemname].getValue(x_world, y_world), itemname);						
+							auto visualizer = itemname in visualizers;
+							if (visualizer !is null) {
+								backend.show_value((*visualizer).getValue(x_world, y_world), itemname);						
+							}
 						}	
 					} else {
 						if (itemname !is null && un_highlight(itemname, visualizers)) backend.need_redraw();
