@@ -488,6 +488,7 @@ public:
 
 		item_view.sync_with_session();
 		item_view.sync_with_canvas(canvas);
+		item_view.expand_all_shown();
 
 		item_view_scrolled_window = new ScrolledWindow();
 		item_view_scrolled_window.setPropagateNaturalWidth(true);
@@ -683,6 +684,15 @@ class ItemView : TreeView {
 	void expand_all_selected() {
 		foreach(selected_iter; getSelectedIters()) {
 			this.expandRow(treestore.getPath(selected_iter), true);
+		}
+	}
+	void expand_all_shown() {
+		foreach(itemname; main_window.canvas.itemnames) {
+			auto iter = find_iter_for_itemname(itemname, treestore);
+			if (iter is null) continue;
+			auto path = treestore.getPath(iter);
+			if (path is null) continue;
+			expandToPath(path);
 		}
 	}
 	void remove_all_selected() {
@@ -915,6 +925,7 @@ class ItemView : TreeView {
 				w.popup_menu.setVisible(true);
 			});
 		}
+
 	}
 
 	void show_visualizer(string item_name) {
