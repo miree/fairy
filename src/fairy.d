@@ -266,7 +266,7 @@ void run(string[] args) {
 	string execute;
 	auto getopt_result = getopt(args,
 		"session|s", "session name (default = session)", &session.name,
-		"gui|g",     "start gui at startup", &start_gui,
+		"nogui|g",   "do not launch gui at application start", &start_gui,
 		"execute|e", "execute this command after startup", &execute 
 	);	
 
@@ -285,7 +285,7 @@ void run(string[] args) {
 	session.write_to_file();
 }
 
-public bool start_gui = false;
+public bool start_gui = true;
 import graphics;
 Gui main_gui = null;
 public bool running = true;
@@ -332,6 +332,10 @@ void loop(string[] args) {
 			else {
 				stdout.writeln("Error: no graphics back-end available");
 				start_gui = false;
+			}
+			if (session.windows.length == 0) {
+				import cmdline;
+				thisTid.send(cmdline.Command("win window0", thisTid));
 			}
 
 		}
