@@ -61,10 +61,10 @@ bool toggle_action(string action, ref bool property) {
 	return false;
 }
 
-void update_window_gui(string window_name) {
+void update_window_gui(string window_name, bool canvas_items_changed = false) {
 	import fairy;
 	if (start_gui && main_gui !is null) {
-		main_gui.update_from_canvas(window_name);
+		if (canvas_items_changed) main_gui.update_from_canvas(window_name);
 		main_gui.redraw_window(window_name);
 	}
 }
@@ -620,7 +620,7 @@ string show(string item_name, string window_name, string action = "true", bool u
 	//	}
 	//	canvas.itemnames = itemnames;
 	//}
-	if (update_window) update_window_gui(window_name);
+	if (update_window) update_window_gui(window_name, true);
 	return "";
 }
 

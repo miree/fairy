@@ -301,7 +301,7 @@ public:
 						}
 						version(gtk4) {
 							auto filename = (cast(FileChooserDialog)dialog).getFile().getPath().fixWindowsPaths().chompPrefix(cwd~"/");
-							import std.stdio; writeln("filename=", filename);
+							//import std.stdio; writeln("filename=", filename);
 						}
 						if (filename.endsWith(".session")) { filename = filename[0..$-8]; }
 						import ui;
@@ -338,7 +338,7 @@ public:
 						}
 						version(gtk4) {
 							auto filename = (cast(FileChooserDialog)dialog).getFile().getPath().fixWindowsPaths().chompPrefix(cwd~"/");
-							import std.stdio; writeln("filename=", filename);
+							//import std.stdio; writeln("filename=", filename);
 						}
 						if (filename.endsWith(".session")) { filename = filename[0..$-8]; }
 						// execute the command with a short delay to make sure the dialog window is closed before the action is executed
@@ -718,7 +718,7 @@ class ItemView : TreeView {
 			}
 		}
 		import ui;
-		ui.update_window_gui(main_window.name);		
+		ui.update_window_gui(main_window.name, true);		
 	}
 	void show_all_recursive() {
 		string[] names; 
@@ -730,7 +730,7 @@ class ItemView : TreeView {
 				});
 		}
 		import ui;
-		ui.update_window_gui(main_window.name);		
+		ui.update_window_gui(main_window.name, true);		
 	}
 
 	void hide_all_selected() {
@@ -748,7 +748,7 @@ class ItemView : TreeView {
 			}
 		}
 		import ui;
-		ui.update_window_gui(main_window.name);		
+		ui.update_window_gui(main_window.name, true);		
 	}
 	void hide_all_recursive() {
 		string[] names; 
@@ -760,7 +760,7 @@ class ItemView : TreeView {
 				});
 		}
 		import ui;
-		ui.update_window_gui(main_window.name);		
+		ui.update_window_gui(main_window.name, true);		
 	}
 
 	void reset_all_selected() {
@@ -820,13 +820,11 @@ class ItemView : TreeView {
 			if (!is_item) { // only recurse for non-items
 				iterate_children_depth_first(&active, treestore, iter, 0,
 					(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) { 
-						import std.stdio;
-						writeln("iterate_children_depth_first");
 						switch_iter(treestore, iter, plotwidget, force_active, false);
 					});
 			}
 			import ui;
-			ui.update_window_gui(main_window.name);
+			ui.update_window_gui(main_window.name, true);
 
 			// check if a parent has to be toggled
 			import std.array;
@@ -920,7 +918,7 @@ class ItemView : TreeView {
 			addController(right_click);
 			right_click.setButton(BUTTON_SECONDARY); 
 			right_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
-				import std.stdio; writeln("right click");
+				//import std.stdio; writeln("right click");
 				auto w = cast(ItemView)g.getWidget();
 				w.popup_menu.setParent(w);
 				auto rect = GdkRectangle(cast(int)x, cast(int)y, 4,4);
