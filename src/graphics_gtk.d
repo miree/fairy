@@ -256,7 +256,7 @@ public:
 	this(string window_name, CanvasProperties *canvas_properties, Application application) {
 		canvas = canvas_properties;
 		super(application);
-		setDecorated(true);
+		setDecorated(false);
 		// check arguments
 		import std.algorithm;
 		width  = (canvas_properties.width >0)?max(canvas_properties.width , min_width):min_width;
