@@ -711,12 +711,14 @@ class ItemView : TreeView {
 		foreach(name; names) {
 			try {
 				import ui;
-				if (name !is null) ui.show(name, main_window.name);
+				if (name !is null) ui.show(name, main_window.name, "true", false);
 			} catch (Exception e) {
 				import std.stdio;
 				writeln("cannot show " ~ name ~": " ~ e.msg);
 			}
 		}
+		import ui;
+		ui.update_window_gui(main_window.name);		
 	}
 	void show_all_recursive() {
 		string[] names; 
@@ -724,9 +726,11 @@ class ItemView : TreeView {
 			bool active = true;
 			iterate_children_depth_first(&active, treestore, selected_iter, 0,
 				(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) { 
-					switch_iter(treestore, iter, plotwidget, force_active);
+					switch_iter(treestore, iter, plotwidget, force_active, false);
 				});
 		}
+		import ui;
+		ui.update_window_gui(main_window.name);		
 	}
 
 	void hide_all_selected() {
@@ -737,12 +741,14 @@ class ItemView : TreeView {
 		foreach(name; names) {
 			try {
 				import ui;
-				if (name !is null) ui.show(name, main_window.name, "false");
+				if (name !is null) ui.show(name, main_window.name, "false", false);
 			} catch (Exception e) {
 				import std.stdio;
 				writeln("cannot show " ~ name ~": " ~ e.msg);
 			}
 		}
+		import ui;
+		ui.update_window_gui(main_window.name);		
 	}
 	void hide_all_recursive() {
 		string[] names; 
@@ -750,9 +756,11 @@ class ItemView : TreeView {
 			bool active = false;
 			iterate_children_depth_first(&active, treestore, selected_iter, 0,
 				(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) { 
-					switch_iter(treestore, iter, plotwidget, force_active);
+					switch_iter(treestore, iter, plotwidget, force_active, false);
 				});
 		}
+		import ui;
+		ui.update_window_gui(main_window.name);		
 	}
 
 	void reset_all_selected() {
