@@ -369,8 +369,8 @@ private:
 
 		gtk_window_set_decorated(window, true); // enable window decorations 
 
-		gtk_header_bar_set_title_widget(header_bar, cast(GtkWidget*)header_title);
-		gtk_header_bar_set_show_title_buttons(header_bar, true);
+		//gtk_header_bar_set_title_widget(header_bar, cast(GtkWidget*)header_title);
+		//gtk_header_bar_set_show_title_buttons(header_bar, true);
 		gtk_frame_set_child (cast(GtkFrame*)frame, cast(GtkWidget*)toplevel);
 		//gtk_box_append(toplevel, cast(GtkWidget*)header_bar);
 		gtk_box_append(toplevel, cast(GtkWidget*)paned);
@@ -386,7 +386,9 @@ private:
 		gtk_window_set_title(window, name.toStringz);
 		//gtk_window_set_child(window, cast(GtkWidget*)item_view.scrolled_window);
 		gtk_window_set_child(window, cast(GtkWidget*)frame);
-		gtk_window_set_titlebar(window, cast(GtkWidget*)header_bar);
+
+		//gtk_window_set_titlebar(window, cast(GtkWidget*)header_bar); // this causes warnings so I'm using window manager decorations for now
+
 		// Tried this because when deactivating window decoration in the constructor the window raises on mouse click (which is undesired)
 		// The following code was an attempt to restore the behavior with window decorations (but it didn't work) 
 		//g_signal_connect!(GtkWindow*)(window, "realize", &on_realize_callback, cast(gpointer)this);
