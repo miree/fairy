@@ -264,11 +264,13 @@ void run(string[] args) {
 
 	import std.getopt;
 	string execute;
+	bool no_gui=false;
 	auto getopt_result = getopt(args,
 		"session|s", "session name (default = session)", &session.name,
-		"nogui|g",   "do not launch gui at application start", &start_gui,
+		"nogui|g",   "do not launch gui at application start", &no_gui,
 		"execute|e", "execute this command after startup", &execute 
 	);	
+	start_gui = !no_gui;
 
 	import std.stdio, std.algorithm;
 	if (session.name.endsWith(".session")) session.name = session.name[0..$-".session".length];
