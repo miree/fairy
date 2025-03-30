@@ -214,11 +214,8 @@ private:
 	static int windowIndexCtr;
 	string name;
 
-	Frame window_toplevel_frame_outer;
-	const int border_size = 3;
-	Frame window_toplevel_frame;
-	Cursor cursor_normal;
-	Cursor cursor_window_resize_top_left;
+	//Cursor cursor_normal;
+	//Cursor cursor_window_resize_top_left;
 	Box window_toplevel_box;
 	HeaderBar header_bar;
 		Button open_menu;
@@ -263,7 +260,7 @@ public:
 	this(string window_name, CanvasProperties *canvas_properties, Application application) {
 		canvas = canvas_properties;
 		super(application);
-		setDecorated(false);
+		setDecorated(true);
 		// check arguments
 		import std.algorithm;
 		width  = (canvas_properties.width >0)?max(canvas_properties.width , min_width):min_width;
@@ -272,8 +269,8 @@ public:
 			move(canvas.xpos, canvas.ypos);
 		}
 
-		cursor_normal = new Cursor(CursorType.ARROW);
-		cursor_window_resize_top_left = new Cursor(CursorType.TOP_LEFT_CORNER);
+		//cursor_normal = new Cursor(CursorType.ARROW);
+		//cursor_window_resize_top_left = new Cursor(CursorType.TOP_LEFT_CORNER);
 
 
 		import ui;
@@ -489,55 +486,6 @@ public:
 		//});
 		//header_bar.packStart(open_soundscope);
 
-		window_toplevel_frame_outer = new Frame(cast(string)null);
-		window_toplevel_frame = new Frame(cast(string)null);
-		version(gtk3) {
-			//window_toplevel_frame_outer.addOnMotionNotify(delegate bool(GdkEventMotion *event_motion, Widget w){
-			//		GdkRectangle rect;
-			//		window_toplevel_frame_outer.getAllocation(rect);
-
-			//		double x = event_motion.x;
-			//		double y = event_motion.y;
-			//		import std.stdio;
-			//		writeln("rect:", rect.x, ",", rect.y, ",", rect.width, ",", rect.height, "   ", x,",",y, "  ", w is window_toplevel_frame_outer);					
-			//		//bool ctrl  = (event_motion.state & GdkModifierType.CONTROL_MASK) != 0;
-			//		//bool shift = (event_motion.state & GdkModifierType.SHIFT_MASK  ) != 0;
-			//		//painter.mouse_motion(x,y, cast(PlotArea)w, ctrl, shift);
-			//		if (x >= border_size && x < rect.width-border_size &&
-			//			y >= border_size && y < rect.height-border_size) {
-			//			//setCursor(new Cursor(CursorType.ARROW));
-			//			setCursor(cursor_normal);
-			//		} else {
-			//			setCursor(cursor_window_resize_top_left);
-			//		}
-			//		return false;
-			//	});
-			//window_toplevel_frame_outer.addOnButtonPress(delegate bool(GdkEventButton *event_button, Widget w) {
-			//		import gdk.Event;
-			//		int nPress = Event.isDoubleClick(event_button)?2:1;
-			//		PlotArea plot_area = cast(PlotArea)w;
-			//		double x = event_button.x, y = event_button.y;
-			//		bool ctrl  = (event_button.state & GdkModifierType.CONTROL_MASK) != 0;
-			//		bool shift = (event_button.state & GdkModifierType.SHIFT_MASK  ) != 0;
-			//		if (event_button.button == 1) painter.left_button_pressed (nPress,x,y,this,ctrl,shift);
-			//		if (event_button.button == 2) painter.mid_button_pressed  (nPress,x,y,this,ctrl,shift);		
-			//		if (event_button.button == 3) painter.right_button_pressed(nPress,x,y,ctrl,shift);
-			//		return false;
-			//	});
-			//window_toplevel_frame_outer.addOnButtonRelease(delegate bool(GdkEventButton *event_button, Widget w) {
-			//		import gdk.Event;
-			//		int nPress = Event.isDoubleClick(event_button)?2:1;
-			//		PlotArea plot_area = cast(PlotArea)w;
-			//		double x = event_button.x, y = event_button.y;
-			//		bool ctrl  = (event_button.state & GdkModifierType.CONTROL_MASK) != 0;
-			//		bool shift = (event_button.state & GdkModifierType.SHIFT_MASK  ) != 0;
-			//		if (event_button.button == 1) painter.left_button_released (nPress,x,y,ctrl,shift);
-			//		if (event_button.button == 2) painter.mid_button_released  (nPress,x,y,ctrl,shift);		
-			//		if (event_button.button == 3) painter.right_button_released(nPress,x,y,ctrl,shift);
-			//		return false;
-			//	});
-		}
-
 
 		window_toplevel_box = new Box(GtkOrientation.VERTICAL,0);
 
@@ -636,14 +584,10 @@ public:
 			plot_widget.setFocusable(false);// (see https://docs.gtk.org/gtk4/input-handling.html)
 
 		}
-		window_toplevel_box.append(header_bar);
 		window_toplevel_box.append(workspace);
-		window_toplevel_frame.setChild(window_toplevel_box);
-		version(gtk3) {
-			window_toplevel_frame.setBorderWidth(border_size);
-		}
-		window_toplevel_frame_outer.setChild(window_toplevel_frame);
-		this.setChild(window_toplevel_frame_outer);
+
+		this.setChild(window_toplevel_box);
+		this.setTitlebar(header_bar);
 
 		setSizeRequest(-1,-1);
 		present();
