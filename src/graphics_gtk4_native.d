@@ -96,9 +96,9 @@ class Gtk4NativeGui : Gui {
 			if (get_window_position_and_size(window.window, &x, &y, &w, &h)) {
 				//writeln(" x y w h = ", x, " ", y, " ", w, " ", h);
 				window.canvas.width  = w;
-				window.canvas.height = h;
+				window.canvas.height = h+62; // account for window decoration in windowmaker... supid, I know...
 				window.canvas.xpos   = x;
-				window.canvas.ypos   = y;
+				window.canvas.ypos   = y-24; // account for window decoration in windowmaker... supid, I know...
 				import std.stdio;
 				//writeln("save worked");
 			} else {
