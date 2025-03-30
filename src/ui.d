@@ -939,7 +939,8 @@ version (elderpt) {
 
 @UI_EXPORT("control elderpt thread", 
 	["start restart pause continue stop",
-	 "elderpt configuration file"])
+	 "elderpt configuration file",
+	 "mbs source: eg. file:run001.lmd or stream:x86l-xyz"])
 @trusted
 string elderpt(string command, string config_file = "analysis.config", string mbs_file = null) {
 	import elderpt;

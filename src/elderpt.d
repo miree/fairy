@@ -331,10 +331,23 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 		free(mbs_channel); 
 	}
 	if (mbs_filename !is null) {
+		import std.algorithm, std.array;
+		int source_type = GETEVT_STREAM;
+		if (mbs_filename.canFind(':')) {
+			auto parts = mbs_filename.split(':');
+			if (parts[0] == "file")    source_type = GETEVT_FILE;
+			else if (parts[0] == "stream")  source_type = GETEVT_STREAM;
+			else if (parts[0] == "trans")   source_type = GETEVT_TRANS;
+			else if (parts[0] == "event")   source_type = GETEVT_EVENT;
+			else if (parts[0] == "revserv") source_type = GETEVT_REVSERV;
+			else throw new Exception("unknown source type: " ~ parts[0] ~ ".  Possible source types are: file stream trans event revserv");
+			mbs_filename = parts[1];
+		} else if (mbs_filename.endsWith(".lmd")) {
+			source_type = GETEVT_FILE;
+		}
 		import std.string;
 		char *file_header;
-		if (f_evt_get_open(GETEVT_FILE,
-		//if (f_evt_get_open(GETEVT_STREAM,
+		if (f_evt_get_open(source_type,
 			           cast(char*)mbs_filename.dup.toStringz, 
 			           mbs_channel,
 			           &file_header,
