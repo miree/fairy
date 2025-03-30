@@ -131,6 +131,8 @@ string session_save(string session_name) {
 }
 
 
+version(alsa) {
+
 //@UI_EXPORT("print info abut alsa", 
 //	["alsa device name"])
 //@trusted
@@ -238,6 +240,8 @@ string audiodaq(string command, string trigger_level = "0", string trigger_slope
 	}
 	throw new Exception("unknown command for audiodaq");
 }
+
+} // version(alsa)
 
 
 @UI_EXPORT("list all items",

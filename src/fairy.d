@@ -419,24 +419,26 @@ version (elderpt) {
 
 }
 
-// audiodaq waveforms
-import audiodaq;
-@trusted
-void handle_audiodaq_Waveform(MsgWaveformCreate msg) {
-	import item, waveform;
-	auto wf = new Waveform(msg.wave);
-	import std.stdio;
-	//writeln("got waveform ", msg.name, " ", wf.get_type(), " N=", wf.d.N);
-	fairy.session.add_item(msg.name, wf, NameCollisionPolicy.replace);
-	import std.concurrency;
-	audiodaq.tid.send(audiodaq.MsgAck());
-}
+version(alsa) {
+	// audiodaq waveforms
+	import audiodaq;
+	@trusted
+	void handle_audiodaq_Waveform(MsgWaveformCreate msg) {
+		import item, waveform;
+		auto wf = new Waveform(msg.wave);
+		import std.stdio;
+		//writeln("got waveform ", msg.name, " ", wf.get_type(), " N=", wf.d.N);
+		fairy.session.add_item(msg.name, wf, NameCollisionPolicy.replace);
+		import std.concurrency;
+		audiodaq.tid.send(audiodaq.MsgAck());
+	}
 
-void handle_audiodaq_Error(MsgError msg) {
-	import std.stdio;
-	writeln("got error from audiodaq");
-	audiodaq.running = false;
-	audiodaq.paused = false;
+	void handle_audiodaq_Error(MsgError msg) {
+		import std.stdio;
+		writeln("got error from audiodaq");
+		audiodaq.running = false;
+		audiodaq.paused = false;
+	}
 }
 
 @trusted
@@ -460,10 +462,12 @@ bool iterate(uint timeout_ms) {
 			&handle_elderpt_MsgPolyGateCreate
 		)) {}
 	}
-	while (receiveTimeout(dur!"msecs"(0),
-		&handle_audiodaq_Waveform,
-		&handle_audiodaq_Error
-		)) {}
+	version(alsa) {
+		while (receiveTimeout(dur!"msecs"(0),
+			&handle_audiodaq_Waveform,
+			&handle_audiodaq_Error
+			)) {}
+	}
 	return got_cmd;
 }
 

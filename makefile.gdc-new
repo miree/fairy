@@ -59,21 +59,16 @@ OBJECTS=\
 	f_ut_time.o            \
 	f_ut_utime.o           	
 
+include fairy.d.dep
+
 %.o: %.c
 	gcc -Isrc/mbsapi $(CFLAGS) -c $<
 
 %.o: %.d
-	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -c $<
-
-include fairy.d.dep
-
-
-# %.o: %.d
-# 	make -C include
-# 	gdc -Isrc $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -c $<
+	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -fversion=alsa -c $<
 
 fairy: $(PREPROCESSED) $(OBJECTS)
-	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -o $@ $+ $(LDFLAGS) 
+	gdc -Iinclude $(CFLAGS) -fversion=gtk4_native -fversion=elderpt -fversion=alsa -o $@ $+ $(LDFLAGS) 
 
 clean:
 	rm -f include/*.di include/*.i *.o fairy 
