@@ -761,7 +761,7 @@ void winpoll(string window_name, string action="toggle") {
 	import fairy, graphics;
 	auto canvas = fairy.session.get_canvas(window_name);
 	if (toggle_action(action, canvas.autorefresh)) {
-		update_window_gui(window_name);
+		update_window_gui(window_name,true);
 	}
 }
 
@@ -778,7 +778,7 @@ void logscale(string window_name, char axis, string action="toggle") {
 	if (toggle_action(action, logscale)) {
 		if (logscale)  canvas.transform[axis_idx].set_logscale(0.1);
 		if (!logscale) canvas.transform[axis_idx].set_linscale();
-		update_window_gui(window_name);
+		update_window_gui(window_name, true);
 	}
 }
 
@@ -789,7 +789,7 @@ void overlay(string window_name) {
 	auto canvas = fairy.session.get_canvas(window_name);
 	if (canvas.display_mode != DisplayMode.overlay) {
 		canvas.display_mode = DisplayMode.overlay;
-		update_window_gui(window_name);
+		update_window_gui(window_name, true);
 	}
 }
 
@@ -826,7 +826,7 @@ void columns(string window_name, int columns) {
 void autoscale(string window_name, char axis, string action="toggle") {
 	import graphics, fairy;
 	if (toggle_action(action, fairy.session.get_canvas(window_name).autoscale[axis_helper_xyz(axis)])) {
-		update_window_gui(window_name);
+		update_window_gui(window_name, true);
 	}
 }
 
@@ -838,10 +838,10 @@ void grid(string window_name, string axis, string action="toggle") {
 	import graphics, fairy;
 	if (axis == "top") {
 		if (toggle_action(action, fairy.session.get_canvas(window_name).grid_ontop)) {
-			update_window_gui(window_name);
+			update_window_gui(window_name, true);
 		}
 	} else if (toggle_action(action, fairy.session.get_canvas(window_name).grid[axis_helper_xy(axis[0])])) {
-		update_window_gui(window_name);
+		update_window_gui(window_name, true);
 	}
 }
 
@@ -853,10 +853,10 @@ void numbers(string window_name, string axis, string action="toggle") {
 	import graphics, fairy;
 	if (axis == "top") {
 		if (toggle_action(action, fairy.session.get_canvas(window_name).numbers_ontop)) {
-			update_window_gui(window_name);
+			update_window_gui(window_name, true);
 		}
 	} else if (toggle_action(action, fairy.session.get_canvas(window_name).numbers[axis_helper_xy(axis[0])])) {
-		update_window_gui(window_name);
+		update_window_gui(window_name, true);
 	}
 }
 
@@ -867,7 +867,7 @@ void numbers(string window_name, string axis, string action="toggle") {
 void colorbar(string window_name, string action = "toggle") {
 	import graphics, fairy;
 	if (toggle_action(action, fairy.session.get_canvas(window_name).color_bar)) {
-		update_window_gui(window_name);
+		update_window_gui(window_name, true);
 	}
 }
 
