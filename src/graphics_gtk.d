@@ -40,18 +40,35 @@ class GtkGui : Gui {
 	}
 	override void save_window(string name) { // copy window properties to canvas
 		auto window = main_windows[name];
-		GdkRectangle rect;
-		window.window_toplevel_box.getAllocation(rect);
-		window.canvas.width  = rect.width;
 		version(gtk4) {
+			GdkRectangle rect;
+			window.window_toplevel_box.getAllocation(rect);
+			window.canvas.width  = rect.width;
 			window.canvas.height = rect.height+56;
 		}
 		version(gtk3) {
-			window.canvas.height = rect.height;
-			int x,y;
-			window.getPosition(x, y);
-			window.canvas.xpos = x;
-			window.canvas.ypos = y;
+			import gdk.Window;
+			import gdk.Rectangle;
+			import gdk.c.types;
+			GdkRectangle rectangle;
+			auto gdk_window = window.getWindow();
+			gdk_window.getFrameExtents(rectangle);
+			window.canvas.xpos   = rectangle.x;
+			window.canvas.ypos   = rectangle.y;
+			window.canvas.width  = rectangle.width;
+			window.canvas.height = rectangle.height;
+			int width, height;
+			window.getSize(width, height);
+			int frame_size = window.canvas.width-width;
+			window.canvas.width  -= frame_size;
+			window.canvas.height -= frame_size;
+
+			////window.getPosition(window.canvas.xpos, window.canvas.ypos);
+			//GdkRectangle header_rect;
+			//window.header_bar.getAllocation(header_rect);
+			//window.canvas.width  = rectangle.width;
+			//window.canvas.height = rectangle.height;
+
 		}
 	}
 	override void remove_item(string name) {
