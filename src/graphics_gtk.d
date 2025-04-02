@@ -198,6 +198,25 @@ import glib.Variant;
 
 import gtk.Application;
 import gtk.ApplicationWindow;
+
+// control the number of instances of a given ApplicationWindow
+// such that only one window can be open at a time
+class SingleWindow(WindowClass) 
+{
+	static WindowClass window = null;
+	this(Application application) {
+		if (window is null) {
+			window = new WindowClass(application);
+			import gtk.Widget;
+			window.addOnHide(delegate(Widget widget){ window = null; });
+		} else {
+			// rise window if it is already open
+			window.setKeepAbove(true);
+			window.setKeepAbove(false);
+		}
+	}
+}
+
 class MainWindow : ApplicationWindow
 {
 private:
@@ -240,6 +259,7 @@ private:
 				version(gtk3) { Popover menu_popover; }
 				version(gtk4) { PopoverMenu menu_popover; }
 		Button open_soundscope;
+		Button open_elderpt;
 		Label  header_title;
 	Paned workspace;
 		ScrolledWindow item_view_scrolled_window;
@@ -472,8 +492,17 @@ public:
 			header_bar.setShowTitleButtons(true);
 		}
 
+
+
+
 		//header_bar.packEnd(close_window);
 		header_bar.packStart(open_menu);
+
+		open_elderpt = new Button("Elderpt");
+		open_elderpt.addOnClicked((Button button) { new SingleWindow!ElderPtWindow(application); } );
+		header_bar.packStart(open_elderpt);
+
+
 
 		application.setAccelsForAction("win.new_window", ["<Control>n"]);
 		application.setAccelsForAction("win.open_session", ["<Control>o"]);
@@ -2007,4 +2036,249 @@ private:
 
 }
 
+
+
+version(elderpt) {
+
+
+class ElderPtWindow : ApplicationWindow
+{
+
+	import gtk.RadioButton;
+	import gtk.Box;
+	import gtk.Button;
+	import gtk.Label;
+	import gtk.Separator;
+	import gtk.Entry;
+	import gtk.ToggleButton;
+	import gtk.Button;
+	import std.stdio;
+	import gtk.FileChooserButton;
+
+	import elderpt;
+
+	//Tid _acquisition_thread;
+
+	Button        _start_acquisition_button;
+	Button        _pause_acquisition_button;
+	Button        _stop_acquisition_button;
+	Label         _status_label;
+	Label 		  _rate_label;
+	FileChooserButton _elder_config_file_chooser_button;
+	string _elder_toplevel_config_file;
+
+	Entry           _mbs_source;
+	Button          _mbs_source_select_button;
+	string[]        _mbs_source_files;
+	//void*           _mbs_channel;
+	//sMbsFileHeader* _mbs_file_header;
+	//bool            _mbs_file_open;
+	//bool            _mbs_end_of_file;
+	//void*           _elderpt_event;
+
+	bool _end_thread_idle_process = false;
+
+	this(Application application) {
+		super(application);
+		setDefaultSize( 100, 100 );
+
+		auto box = new Box(GtkOrientation.VERTICAL,0);
+
+		auto elder_config_file_box = new Box(GtkOrientation.HORIZONTAL,0);
+		elder_config_file_box.add(new Label(" ElderPT toplevel config file: "));
+		_elder_config_file_chooser_button = new FileChooserButton("choose file", FileChooserAction.OPEN);
+		_elder_config_file_chooser_button.addOnFileSet((button) {
+			auto filenamelist = button.getFilenames();
+			if (filenamelist !is null) {
+				string[]  filenames = filenamelist.toArray!string;
+				if (filenames !is null && filenames.length > 0) {
+					_elder_toplevel_config_file = filenames[0];
+				}
+			} else {
+				_elder_toplevel_config_file = null;
+			}
+		});
+		elder_config_file_box.add(_elder_config_file_chooser_button);
+		box.add(elder_config_file_box);
+
+		auto mbs_source_box = new Box(GtkOrientation.HORIZONTAL,0);
+		mbs_source_box.add(new Label(" MBS Source: "));
+		_mbs_source = new Entry;
+		mbs_source_box.add(_mbs_source);
+		_mbs_source_select_button = new Button("Choose file", (widget) {
+			import gtk.FileChooserDialog, gtk.Dialog, gtk.FileFilter; 
+			auto dialog = new FileChooserDialog("choose MBS source files", /*parent_window=*/this, FileChooserAction.OPEN);
+				auto lmd_fiter = new FileFilter; 
+				     lmd_fiter.addPattern("*.lmd");
+				     lmd_fiter.setName("*.lmd");
+				dialog.addFilter(lmd_fiter);
+				dialog.setSelectMultiple(true);
+				dialog.addOnResponse((int response, Dialog dialog) {
+					if (response == ResponseType.OK) {
+						import std.algorithm, std.path, std.file, std.string, std.stdio;
+						auto cwd = getcwd().fixWindowsPaths();
+						auto filenames = (cast(FileChooserDialog)dialog).getFilenames().toArray!string.map!(a=>a.fixWindowsPaths().chompPrefix(cwd~"/"));
+						string sources;
+						foreach(filename; filenames) { sources ~= filename ~ " "; }
+						writeln("sources = ", sources);
+						_mbs_source.setText(sources);
+					} 
+					if (response == ResponseType.CANCEL) dialog.close(); 
+				});
+			dialog.show();
+
+		});
+		mbs_source_box.add(_mbs_source_select_button);
+		box.add(mbs_source_box);
+
+
+
+		auto control_box = new Box(GtkOrientation.HORIZONTAL,0);
+		_status_label = new Label(false?" Running ":" Stopped ");
+		_rate_label = new Label(" Rate(evt/s) = 0");
+		control_box.add(new Label(" Acquisition Control: "));
+		_start_acquisition_button = new Button("start", 
+			delegate(Button button) {
+				import ui;
+				try { 
+					ui.elderpt("start"); 
+					_status_label.setLabel(" Running ");// ~ _filename);
+					_start_acquisition_button.setSensitive(false);
+					_pause_acquisition_button.setSensitive(true);
+					_stop_acquisition_button.setSensitive(true);
+				}
+				catch(Exception e) { }
+				//thisTid().setMaxMailboxSize(10000, OnCrowding.block);
+				//import std.concurrency;
+				//import gdk.Threads;
+
+				//if (_elder_toplevel_config_file !is null) {
+				//	import threads;
+				//	_acquisition_thread = spawn(&elderpt_thread_function, thisTid, _elder_toplevel_config_file);
+				//	register_thread(_acquisition_thread);
+				//	thisTid.setMaxMailboxSize(1024, OnCrowding.block);
+				//	import core.time;
+				//	//_events_per_second = 0;
+				//	//_t_events_per_second_reset = MonoTime.currTime();
+				//	_end_thread_idle_process = false;
+				//	elderpt_gdk_thread = gdk.Threads.threadsAddIdle(&elderptThreadIdleProcess, cast(void*)this);
+				//	elderpt_running = true;
+				//} else {
+				//	import gtk.MessageDialog, gtk.Dialog;
+				//	auto message = new MessageDialog(this, 
+				//									 DialogFlags.MODAL, 
+				//									 MessageType.ERROR, 
+				//									 ButtonsType.CLOSE, 
+				//									 "select device or file!");
+				//	message.addOnResponse( delegate void(int, Dialog d) {d.hide();} );
+				//	message.showAll();
+				//}
+			});
+		_pause_acquisition_button = new Button(false?"continue":"pause", delegate(Button button) {
+				//if (elderpt_paused) {
+				//	_status_label.setLabel(elderpt_old_status_label);
+				//	_pause_acquisition_button.setLabel("pause");
+				//	elderpt_paused = false;
+				//	//_events_per_second = 0;
+				//	//_t_events_per_second_reset = MonoTime.currTime();
+				//	_acquisition_thread.send(MsgContinue());
+				//} else {
+				//	elderpt_old_status_label = _status_label.getLabel();
+				//	_status_label.setLabel("Paused");
+				//	_pause_acquisition_button.setLabel("continue");
+				//	elderpt_paused = true;
+				//	_acquisition_thread.send(MsgPause());
+				//}
+			});
+
+		_stop_acquisition_button = new Button("stop", delegate(Button button) {
+				import ui;
+				try { 
+					ui.elderpt("stop"); 
+					_status_label.setLabel(" Stopped ");
+					_start_acquisition_button.setSensitive(true);
+					_stop_acquisition_button.setSensitive(false);
+					_pause_acquisition_button.setSensitive(false);	
+				}
+				catch(Exception e) {}
+				//if (elderpt_paused == true) {
+				//	_pause_acquisition_button.setLabel("pause");
+				//	elderpt_paused = false;
+				//}
+				//_end_thread_idle_process = true;
+				//version(MbsApi_support) {
+				//	_mbs_source_select_button.setSensitive(true);
+				//}
+				//elderpt_running = false;	
+				//_acquisition_thread.send(MsgStop());
+				//receiveTimeout(2000.msecs, (MsgStopAck stopack) { 
+				//		import std.stdio;
+				//		writeln("received MsgStopAck");
+				//	});
+			});
+		control_box.add(_start_acquisition_button);
+		control_box.add(_pause_acquisition_button);
+		control_box.add(_stop_acquisition_button);
+		//if (!elderpt_running) {
+		//	_pause_acquisition_button.setSensitive(false);
+		//	 _stop_acquisition_button.setSensitive(false);
+		//} else {
+		//	_start_acquisition_button.setSensitive(false);
+		//}
+		box.add(control_box);
+		box.add(new Separator(GtkOrientation.HORIZONTAL));
+
+		auto status_box = new Box(GtkOrientation.HORIZONTAL,0);
+		status_box.add(_status_label);
+		box.add(status_box);
+
+		auto rate_box = new Box(GtkOrientation.HORIZONTAL,0);
+		rate_box.add(_rate_label);
+		box.add(rate_box);
+
+
+		import gtk.Widget;
+		addOnHide(delegate(Widget widget){ 
+			//import std.stdio;
+			//_end_thread_idle_process = true;
+			//if (_acquisition_thread !is Tid.init) {
+			//	writeln("send MsgStop() to _acquisition_thread");
+			//	_acquisition_thread.send(MsgStop());
+			//	if (elderpt_running || elderpt_paused) {
+			//		writeln("_acquisition_thread active... wait for MsgStopAck");
+			//		receiveTimeout(2000.msecs, (MsgStopAck stopack) { 
+			//				import std.stdio;
+			//				writeln("received MsgStopAck");
+			//			});
+			//	}
+				
+			//}
+			//elderpt_running = false;
+			//elderpt_paused = false;
+			//elderpt_closed = true;
+			writeln("exit onHide callback");
+		});
+		add(box);
+		showAll();
+	}
+	//~this() {
+	//	_end_thread_idle_process = true;
+	//	_acquisition_thread.send(MsgStop());
+	//	receiveTimeout(2000.msecs, (MsgStopAck stopack) { 
+	//			import std.stdio;
+	//			writeln("elderpt destructor received MsgStopAck");
+	//		});		
+
+
+	//	//receive((MsgStopAck stopack) { 
+	//	//		import std.stdio;
+	//	//		writeln("elderpt-destructor received MsgStopAck");
+	//	//	});
+	//	//elderpt_running = false;
+	//	//elderpt_paused = false;
+	//	//elderpt_closed = true;		
+	//}
+}
+
+}
 
