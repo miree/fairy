@@ -848,7 +848,7 @@ class ItemView : TreeView {
 					});
 			}
 			import ui;
-			ui.update_window_gui(main_window.name, true);
+			ui.update_window_gui(main_window.name, false);
 
 			// check if a parent has to be toggled
 			import std.array;
