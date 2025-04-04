@@ -947,9 +947,10 @@ public:
 			auto bins_larger_0 = good_bins.filter!(x=>x>0.0);
 			double minimum_larger_0;
 			if (bins_larger_0.empty) return false;
-			minimum_larger_0 = _bin_data.filter!(x=>x>0.0).minElement();
-			bt[0] = t[1].log(minimum, minimum_larger_0/2.0);
-			bt[1] = t[1].log(maximum, minimum_larger_0/2.0);
+			minimum_larger_0 = good_bins.filter!(x=>x>0.0).minElement();
+			//writeln("minimumminimum_larger_0 = ", minimum_larger_0);
+			bt[0] = t[1].log(minimum/2.0, minimum_larger_0/2.0);
+			bt[1] = t[1].log(maximum    , minimum_larger_0/2.0);
 			return true;
 		}
 		bt[0] = minimum;
