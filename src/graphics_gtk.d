@@ -926,9 +926,16 @@ class ItemView : TreeView {
 			}
 		});
 
+		auto column = new TreeViewColumn();
+		column.setTitle("Items");
+		column.packStart(toggle_renderer, false);
+		column.addAttribute(toggle_renderer, "active", COLUMN_VISUALIZED);
+		column.packStart(text_renderer, false);
+		column.addAttribute(text_renderer, "text", COLUMN_NAME);
+		appendColumn(column);
 
-		appendColumn(new TreeViewColumn("Name", text_renderer,   "text",   COLUMN_NAME));
-		appendColumn(new TreeViewColumn("Show", toggle_renderer, "active", COLUMN_VISUALIZED));
+		//appendColumn(new TreeViewColumn("Name", text_renderer,   "text",   COLUMN_NAME));
+		//appendColumn(new TreeViewColumn("Show", toggle_renderer, "active", COLUMN_VISUALIZED));
 		getSelection().setMode(GtkSelectionMode.MULTIPLE);
 
 
