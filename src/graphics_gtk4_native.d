@@ -99,6 +99,11 @@ class Gtk4NativeGui : Gui {
 				window.canvas.height = h;
 				window.canvas.xpos   = x;
 				window.canvas.ypos   = y;
+				int width, height;
+				_cairo_rectangle_int allocation;
+				gtk_widget_get_allocation(cast(GtkWidget*)window.window, &allocation);
+				window.canvas.width = allocation.width;
+				window.canvas.height = allocation.height;
 				import std.stdio;
 				//writeln("save worked");
 			} else {
