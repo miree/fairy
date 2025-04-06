@@ -145,9 +145,9 @@ public:
 		foreach(idx, y; data.bins) {
 			double x = data.left+idx*(data.right-data.left)/data.bins.length;
 			x += bin_width/2;
-			if (x >= left && x < right) {
+			if (x >= left && x < right && y) {
 				import std.math;
-				double[3] dp = [x,y,y>1?sqrt(y):1];
+				double[3] dp = [x,(y is double.init)?0:y,y>1?sqrt(y):1];
 				result ~= dp;
 			}
 		}
@@ -346,7 +346,7 @@ class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 				x += bin_width/2;
 				if (x >= left && x < right) {
 					import std.math;
-					double[3] dp = [x,y,y>1?sqrt(y):1];
+					double[3] dp = [x,(y is double.init)?0:y,y>1?sqrt(y):1];
 					result ~= dp;
 				}
 			}
@@ -589,7 +589,7 @@ class Hist2Projection : Visual, FitDataSource, Item {
 			x += bin_width/2;
 			if (x >= region[0] && x < region[1]) {
 				import std.math;
-				double[3] dp = [x,y,y>1?sqrt(y):1];
+				double[3] dp = [x,(y is double.init)?0:y,y>1?sqrt(y):1];
 				result ~= dp;
 			}
 		}
