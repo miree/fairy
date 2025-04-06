@@ -543,6 +543,7 @@ public:
 
 		item_view.sync_with_session();
 		item_view.sync_with_canvas(canvas);
+		item_view.expand_all_shown_items(canvas);
 
 		item_view_scrolled_window = new ScrolledWindow();
 		item_view_scrolled_window.setPropagateNaturalWidth(true);
@@ -1165,8 +1166,22 @@ class ItemView : TreeView {
 			if (iter is null) continue;
 			auto path = treestore.getPath(iter);
 			if (path is null) continue;
-			expandToPath(path);
+			//expandToPath(path);
 			fix_parent_checkboxes(iter);
+		}
+	}
+
+	void expand_all_shown_items(CanvasProperties* canvas) {
+		import gobject.Value, std.typecons;
+		//auto area = main_window.get_draw_area();
+		foreach (name ; canvas.itemnames) {
+			TreeIter iter = find_iter_for_itemname(name, treestore);
+			//treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
+			if (iter is null) continue;
+			auto path = treestore.getPath(iter);
+			if (path is null) continue;
+			expandToPath(path);
+			//fix_parent_checkboxes(iter);
 		}
 	}
 
