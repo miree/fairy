@@ -289,6 +289,8 @@ struct MsgContinue {}
 struct MsgStop {}
 struct MsgAck {}
 struct MsgErr {}
+struct MsgGetRate{}
+struct MsgRate{double rate;}
 //struct MsgStopAck {} // sent in response to MsgStop
 //struct MsgEventsPerSecond {long events;}
 void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filename) {
@@ -396,7 +398,19 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 	bool paused = false;
 	bool stop = false;
 	bool done = false;
-	for (uint i; ;++i) {
+	double rate = 0;
+	ulong seconds = 0;
+	ulong events = 0;
+	import std.datetime, std.datetime.stopwatch;
+	StopWatch measure_time = StopWatch(AutoStart.yes);
+
+	for (ulong i; ;++i) {
+		ulong new_seconds = measure_time.peek.total!"seconds";
+		if (new_seconds > seconds) {
+			rate = (i - events)/(new_seconds-seconds);
+			events = i;
+			seconds = new_seconds;
+		}
 		elder_pt_controller_clear(ctrl);
 		if (paused||done) {
 			elder_pt_controller_idle(ctrl, iface);
@@ -406,7 +420,7 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 			auto timeval = t.toTimeVal;
 			uint timestamp = 0;
 			uint frac_msecs = cast(uint)(timeval.tv_usec/1e3);
-			elder_pt_event_clear(evt, i, 1, 1, time_secs, frac_msecs, timestamp);
+			elder_pt_event_clear(evt, cast(uint)i, 1, 1, time_secs, frac_msecs, timestamp);
 
 			if (mbs_filename !is null) { // fill with event with data from file
 				int *i_event_header;
@@ -460,7 +474,8 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 		receiveTimeout((paused||done)?(100.msecs):(Duration.zero),
 			(MsgPause    msg) { paused = true;  main_thread.send(MsgAck()); },
 			(MsgContinue msg) { paused = false; main_thread.send(MsgAck()); },
-			(MsgStop     msg) { stop   = true;  main_thread.send(MsgAck()); });
+			(MsgStop     msg) { stop   = true;  main_thread.send(MsgAck()); },
+			(MsgGetRate  msg) { main_thread.send(MsgRate(rate)); });
 		if (stop) break;
 	}
 	f_evt_get_close(mbs_channel);

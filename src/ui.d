@@ -942,7 +942,7 @@ string shell(string[] args) {
 version (elderpt) {
 
 @UI_EXPORT("control elderpt thread", 
-	["start restart pause continue stop",
+	["start restart pause continue stop rate",
 	 "elderpt configuration file",
 	 "mbs source: eg. file:run001.lmd or stream:x86l-xyz"])
 @trusted
@@ -989,6 +989,16 @@ string elderpt(string command, string config_file = "analysis.config", string mb
 		elderpt.running = false;
 		elderpt.tid.send(MsgStop());
 		receive((MsgAck msg) {});
+	}
+	if (command == "rate") {
+		if (!elderpt.running) throw new Exception("elderpt is not running");
+		elderpt.tid.send(MsgGetRate());
+		double rate_result = 0.0;
+		receive((MsgRate msg) {
+			rate_result = msg.rate;
+		});
+		import std.conv;
+		return rate_result.to!string;
 	}
 	return "";
 }

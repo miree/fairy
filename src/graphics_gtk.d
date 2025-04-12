@@ -2076,6 +2076,7 @@ class ElderPtWindow : ApplicationWindow
 	import gtk.Button;
 	import std.stdio;
 	import gtk.FileChooserButton;
+	import glib.Timeout;
 
 	import elderpt;
 
@@ -2086,6 +2087,7 @@ class ElderPtWindow : ApplicationWindow
 	Button        _stop_acquisition_button;
 	Label         _status_label;
 	Label 		  _rate_label;
+	Timeout       _rate_timeout;
 	FileChooserButton _elder_config_file_chooser_button;
 	string _elder_toplevel_config_file;
 
@@ -2168,6 +2170,18 @@ class ElderPtWindow : ApplicationWindow
 					_start_acquisition_button.setSensitive(false);
 					_pause_acquisition_button.setSensitive(true);
 					_stop_acquisition_button.setSensitive(true);
+
+					_rate_timeout = new Timeout(100, delegate bool() {
+						try {
+							string rate_str = ui.elderpt("rate");
+							_rate_label.setLabel(" Rate(evt/s) = " ~ rate_str);
+							return true;
+						} catch (Exception e) {
+							_rate_label.setLabel(" Rate(evt/s) = 0");
+							return false;
+						}
+					});
+
 				}
 				catch(Exception e) { }
 				//thisTid().setMaxMailboxSize(10000, OnCrowding.block);
