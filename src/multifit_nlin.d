@@ -131,40 +131,21 @@ double residues(double f, double v, double s)
 	return (f-v)/s;
 }
 
-//////////////////////////////////////////////////////////////
-/////////// LOG LIKELIHOOD ///////////////////////////////////
-//////////////////////////////////////////////////////////////
-double logpoisson(double k, double lambda) {
-	import std.math;
-	import core.stdc.math;
-	return k * std.math.log(lambda) - lgamma(k + 1.0) - lambda;
-}
-double logpoisson_max(double lambda, out double kout) {
-	double kmin = lambda-10; 
-	if (kmin < 0) kmin = 0;
-	double kmax = lambda+10;
-	if (kmax < 0) kmax = 0;
-	kout = kmin;
-	double result = logpoisson(kmin,lambda);
-	for (double k = kmin; k <= kmax; k+=0.01) {
-		double L = logpoisson(k,lambda);
-		if (L > result) {
-			result = L;
-			kout = k;
-		}
-	}
-	return result;
-}
 double loglikelihood(double f, double v, double s)
 {
-	double v0;
-	double result = -logpoisson(v,f) + logpoisson_max(f,v0);
-	if (v > v0) return -std.math.sqrt(result);
-	return std.math.sqrt(result);
+	import std.math;
+	if (f < 0) { // f should be larger then 0. Fallback to residues (with large penalty) in this case.
+		double r = residues(f,v,s);
+		return r*r*r*r*r*r*r;
+	}
+	if (v == 0) return sqrt(2*f);
+	double term = 2*(f - v+v*log(v/f));
+	if (term < 0) term = 0;
+	double result = sqrt(term);
+	if (f<v) result = -result;
+	//writeln("res=",residues(f,v,s), "   result=",result);
+	return result;
 }
-//////////////////////////////////////////////////////////////
-/////////// END OF LOG LIKELIHOOD ////////////////////////////
-//////////////////////////////////////////////////////////////
 
 struct MultifitNlin(C,F,E=typeof(&residues))
 {
