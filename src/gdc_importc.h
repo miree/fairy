@@ -9,11 +9,17 @@
  */
 
 /**********************
+ * Silence noisy warnings for this file
+ */
+#ifdef __GNUC__
+#pragma GCC system_header
+#endif
+
+/**********************
  * For special casing ImportC code.
  */
-#ifndef __IMPORTC__ 
 #define __IMPORTC__ 1
-
+#define __STDC_VERSION__ 199901L
 /********************
  * Some compilers define `__restrict` instead of `restrict` as C++ compilers don't
  * recognize `restrict` as a keyword.
@@ -35,6 +41,7 @@
 #define __alignof _Alignof
 #define __vector_size__ vector_size
 #define __typeof typeof
+#define __typeof__ typeof
 
 /********************
  * Clang nullability extension used by macOS headers.
@@ -65,18 +72,24 @@
 /* Linux builtin types */
 typedef unsigned short __uint16_t;
 typedef unsigned int __uint32_t;
-// typedef unsigned long long __uint64_t;
+//typedef unsigned long long __uint64_t;
 
 /*********************
  * Obsolete detritus
  */
 #define __cdecl
+#define __pascal
+
+/*********************
+ * DMC-specific extensions, https://digitalmars.com/ctg/pointers16.html
+ */
+#ifdef __DMC__
 #define __ss
 #define __cs
 #define __far
 #define __near
 #define __handle
-#define __pascal
+#endif
 
 /****************************
  * __extension__ is a GNU C extension. It suppresses warnings
@@ -86,19 +99,18 @@ typedef unsigned int __uint32_t;
 
 #define __builtin_isnan(x) isnan(x)
 #define __builtin_isfinite(x) finite(x)
-// IN_LLVM: replaced by symbol in __builtins.di
-//#define __builtin_alloca(x) alloca(x)
+#define __builtin_alloca(x) alloca(x)
 
 /********************************
  * __has_extension is a clang thing:
  *    https://clang.llvm.org/docs/LanguageExtensions.html
  * ImportC no has extensions.
  */
-// #undef __has_feature
-// #define __has_feature(x) 0
+#undef __has_feature
+#define __has_feature(x) 0
 
-// #undef __has_extension
-// #define __has_extension(x) 0
+#undef __has_extension
+#define __has_extension(x) 0
 
 /*************************************
  * OS-specific macros
@@ -136,6 +148,7 @@ typedef unsigned int __uint32_t;
 #define __ptr64
 #define __unaligned
 #define _NO_CRT_STDIO_INLINE 1
+#define _stdcall __stdcall
 
 // This header disables the Windows API Annotations macros
 // Need to include sal.h to get the pragma once to prevent macro redefinition.
@@ -160,6 +173,7 @@ typedef unsigned int __uint32_t;
 #define __PRETTY_FUNCTION__ __func__
 
 #ifndef __aarch64__
+#define _Float16 float
 #define _Float32 float
 #define _Float32x double
 #define _Float64 double
@@ -171,6 +185,4 @@ typedef unsigned int __uint32_t;
 
 #if __APPLE__
 #undef __SIZEOF_INT128__
-#endif
-
 #endif

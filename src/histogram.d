@@ -169,7 +169,7 @@ class Hist2Factory : ItemFactory {
 	}
 }
 
-class Hist2 : Visual, Item, Hist2ProjectionSource
+class Hist2 : Visual, Item, Hist2ProjectionSource, FitDataSource
 {
 public:
 	struct Data{
@@ -277,6 +277,37 @@ public:
 		return Hist2ProjectionSource.Data(data.bins, data.bins_x, data.bins_y,
 			                              data.left, data.right, data.bottom, data.top);
 	}
+
+	double[3][] get_data(double[2] region) {
+		double[3][] result;
+		import std.stdio;
+		auto file = File("fit.data","w+");
+		double yold;
+		double max;
+		double xmax,ymax;
+		foreach(i, bin; data.bins) {
+			if (bin is double.init) continue;
+			double xbin = i%data.bins_x;
+			double ybin = i/data.bins_y;
+			double x = data.left   + xbin*(data.right-data.left)/data.bins_x;
+			if (x < region[0] || x > region[1]) continue;
+			double y = data.bottom + ybin*(data.top-data.bottom)/data.bins_y;
+			if (yold !is double.init && yold != ybin) {
+				result ~= [xmax,ymax,1];
+				file.writeln(xmax," ",ymax," ",1);
+			}
+			if (yold is double.init || yold != ybin || max < bin) {
+				max = bin;
+				xmax = x;
+				ymax = y;
+			}
+			yold = ybin;
+		}
+		import std.stdio;
+		writeln(result);
+		return result;
+	}
+
 
 private:
 	ulong item_version = 0;
