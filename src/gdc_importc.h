@@ -19,7 +19,7 @@
  * For special casing ImportC code.
  */
 #define __IMPORTC__ 1
-#define __STDC_VERSION__ 199901L
+#define __STDC_VERSION__ 201112L
 /********************
  * Some compilers define `__restrict` instead of `restrict` as C++ compilers don't
  * recognize `restrict` as a keyword.
