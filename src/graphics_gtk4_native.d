@@ -661,6 +661,7 @@ struct MyItemView {
 	GSimpleAction* reset_all_selected;
 	GSimpleAction* expand_all_recursive;
 	GSimpleAction* remove_all_selected;
+	GSimpleAction* itemname_to_clipboard;
 
 	GMenu*           menu;        // the menu structure
 	GtkPopoverMenu*  popup;       // the widget
@@ -813,6 +814,31 @@ struct MyItemView {
 			g_timeout_add(refresh_period_ms, &Gtk4NativeGui.remove_callback, null);
 
 		}
+
+
+		static extern(C) void itemname_to_clipboard_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			MainWindow main_window = cast(MainWindow)user_data;
+
+			GdkClipboard *clipboard = gdk_display_get_clipboard(gdk_display_get_default());
+
+			for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)main_window.item_view.treelistmodel); ++i) {
+				GtkTreeListRow* row = gtk_tree_list_model_get_row(main_window.item_view.treelistmodel, i);
+				if (gtk_selection_model_is_selected(cast(GtkSelectionModel*)main_window.item_view.selection_model, i)) {
+					auto str_obj  = cast(GtkStringObject*)gtk_tree_list_row_get_item(row);
+					const char* str = gtk_string_object_get_string(cast(GtkStringObject*)str_obj);
+					import std.conv;
+					auto fullname = str.to!string;
+					fullname = fullname[6..$];
+					gdk_clipboard_set_text(clipboard,fullname.toStringz);
+					//import fairy;
+					//if (fairy.session.items.byKey.canFind(fullname)) Gtk4NativeGui.removed ~= fullname;
+				}
+			}
+			immutable ulong refresh_period_ms = 1;
+			g_timeout_add(refresh_period_ms, &Gtk4NativeGui.remove_callback, null);
+
+		}
+
 		//// for some reasond this crashes
 		//static extern(C) void collapse_all_recursive_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
 		//	MainWindow main_window = cast(MainWindow)user_data;
@@ -850,6 +876,10 @@ struct MyItemView {
 		g_signal_connect(remove_all_selected, "activate", &remove_all_selected_activate_callback, cast(void*)main_window);
 		g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)remove_all_selected);
 
+		itemname_to_clipboard = cast(GSimpleAction*)g_simple_action_new("itemname_to_clipboard", null);
+		g_signal_connect(itemname_to_clipboard, "activate", &itemname_to_clipboard_activate_callback, cast(void*)main_window);
+		g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)itemname_to_clipboard);
+
 
 		//collapse_all_recursive = cast(GSimpleAction*)g_simple_action_new("collapse_all_recursive", null);
 		//g_signal_connect(collapse_all_recursive, "activate", &collapse_all_recursive_activate_callback, cast(void*)main_window);
@@ -863,6 +893,7 @@ struct MyItemView {
 		g_menu_append(menu, "reset selected",    "win.reset_all_selected");
 		g_menu_append(menu, "expand all",        "win.expand_all_recursive");
 		g_menu_append(menu, "remove selected",   "win.remove_all_selected");
+		g_menu_append(menu, "copy to clipboard", "win.itemname_to_clipboard");
 
 		//g_menu_append(menu, "collapse all",    "win.collapse_all_recursive");
 		popup = cast(GtkPopoverMenu*)gtk_popover_menu_new_from_model(cast(GMenuModel*)menu);
