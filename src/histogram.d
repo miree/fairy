@@ -531,6 +531,12 @@ class Hist2Projection : Visual, FitDataSource, Item {
 
 	void do_project() {
 		import fairy;
+		if ((data.hist2name in session.items) is null) {
+			throw new Exception("Hist2Projection fails: no item (source histogram) with name " ~ data.hist2name);
+		}
+		if ((data.gate1name in session.items) is null) {
+			throw new Exception("Hist2Projection fails: no item (gate) with name " ~ data.gate1name);
+		}
 		source_item = cast(Visual)session.items[data.hist2name].item;
 		source      = cast(Hist2ProjectionSource)session.items[data.hist2name].item;
 		region      = cast(Gate1D)session.items[data.gate1name].item;
