@@ -70,7 +70,12 @@ class Gtk4NativeGui : Gui {
 		return false; // don't continue
 	}
 
-
+	extern(C) static gboolean update_callback(gpointer user_data) 
+	{
+		MainWindow main_window = cast(MainWindow)user_data;
+		main_window.update_from_canvas();
+		return false; // don't continue
+	}
 
 	override void add_window(string name, ref CanvasProperties canvas) {
 		main_windows[name] = new MainWindow(name, &canvas, application);
@@ -163,7 +168,7 @@ class Gtk4NativeGui : Gui {
 	 
 	 	g_application_hold(cast(GApplication*)app);
 		immutable ulong refresh_period_ms = 20;
-		g_timeout_add(refresh_period_ms, &timeout_callback, null);
+		g_timeout_add(refresh_period_ms, &timeout_callback, user_data);
 		foreach(name, ref canvas; session.windows) {
 			self.add_window(name, canvas);
 		}
@@ -662,6 +667,7 @@ struct MyItemView {
 	GSimpleAction* expand_all_recursive;
 	GSimpleAction* remove_all_selected;
 	GSimpleAction* itemname_to_clipboard;
+	GSimpleAction* hist2d_projection_y;
 
 	GMenu*           menu;        // the menu structure
 	GtkPopoverMenu*  popup;       // the widget
@@ -830,13 +836,64 @@ struct MyItemView {
 					auto fullname = str.to!string;
 					fullname = fullname[6..$];
 					gdk_clipboard_set_text(clipboard,fullname.toStringz);
-					//import fairy;
-					//if (fairy.session.items.byKey.canFind(fullname)) Gtk4NativeGui.removed ~= fullname;
 				}
 			}
-			immutable ulong refresh_period_ms = 1;
-			g_timeout_add(refresh_period_ms, &Gtk4NativeGui.remove_callback, null);
+		}
 
+
+		static extern(C) void hist2d_projection_y_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			MainWindow main_window = cast(MainWindow)user_data;
+
+			for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)main_window.item_view.treelistmodel); ++i) {
+				GtkTreeListRow* row = gtk_tree_list_model_get_row(main_window.item_view.treelistmodel, i);
+				if (gtk_selection_model_is_selected(cast(GtkSelectionModel*)main_window.item_view.selection_model, i)) {
+					import std.stdio;
+					auto str_obj  = cast(GtkStringObject*)gtk_tree_list_row_get_item(row);
+					const char* str = gtk_string_object_get_string(cast(GtkStringObject*)str_obj);
+					import std.conv;
+					auto fullname = str.to!string;
+					fullname = fullname[6..$];
+					import fairy, ui;
+					if (session.items.byKey.canFind(fullname)) {
+						import histogram, gate;
+						auto source = cast(Hist2ProjectionSource)session.items[fullname].item;
+						if (source !is null) {
+						//writeln("found selected projection source: ", fullname);
+							auto gatename = fullname ~ "_y_gate";
+							auto projname = fullname ~ "_y_projection";
+							auto left  = main_window.canvas.transform[0].min; 
+							auto right = main_window.canvas.transform[0].max;
+							auto w = right-left;
+							left += w/3;
+							right -= w/3; 
+							import cmdline;
+							thisTid.send(cmdline.Command("gate1d "~gatename~" "~left.to!string~" "~right.to!string~" x", thisTid));
+							thisTid.send(cmdline.Command("hist2projector "~projname~" "~fullname~" "~gatename, thisTid));
+
+							foreach(n  ;0..100) {
+								string windowname = "projection"~n.to!string;
+								if ((windowname in Gtk4NativeGui.main_windows) !is null) continue;
+								try {
+									thisTid.send(cmdline.Command("win       "~windowname, thisTid));									
+									thisTid.send(cmdline.Command("show      "~projname~" "~windowname, thisTid));									
+									thisTid.send(cmdline.Command("winpoll   "~windowname, thisTid));									
+									thisTid.send(cmdline.Command("autoscale "~windowname~" y", thisTid));									
+									thisTid.send(cmdline.Command("winfit    "~windowname, thisTid));									
+									thisTid.send(cmdline.Command("colorbar  "~windowname, thisTid));									
+									thisTid.send(cmdline.Command("show      "~gatename~" "~main_window.name, thisTid));									
+
+									//immutable ulong refresh_period_ms = 1;
+									//g_timeout_add(refresh_period_ms, &Gtk4NativeGui.update_callback);
+									return;
+								} catch (Exception e) {
+									writeln("exception while creating a new window: ", e.msg);
+									// nothing
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 
 		//// for some reasond this crashes
@@ -880,6 +937,10 @@ struct MyItemView {
 		g_signal_connect(itemname_to_clipboard, "activate", &itemname_to_clipboard_activate_callback, cast(void*)main_window);
 		g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)itemname_to_clipboard);
 
+		hist2d_projection_y = cast(GSimpleAction*)g_simple_action_new("hist2d_projection_y", null);
+		g_signal_connect(hist2d_projection_y, "activate", &hist2d_projection_y_activate_callback, cast(void*)main_window);
+		g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)hist2d_projection_y);
+
 
 		//collapse_all_recursive = cast(GSimpleAction*)g_simple_action_new("collapse_all_recursive", null);
 		//g_signal_connect(collapse_all_recursive, "activate", &collapse_all_recursive_activate_callback, cast(void*)main_window);
@@ -894,6 +955,7 @@ struct MyItemView {
 		g_menu_append(menu, "expand all",        "win.expand_all_recursive");
 		g_menu_append(menu, "remove selected",   "win.remove_all_selected");
 		g_menu_append(menu, "copy to clipboard", "win.itemname_to_clipboard");
+		g_menu_append(menu, "hist2d project y",  "win.hist2d_projection_y");
 
 		//g_menu_append(menu, "collapse all",    "win.collapse_all_recursive");
 		popup = cast(GtkPopoverMenu*)gtk_popover_menu_new_from_model(cast(GMenuModel*)menu);
