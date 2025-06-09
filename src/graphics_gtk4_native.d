@@ -667,6 +667,7 @@ struct MyItemView {
 	GSimpleAction* expand_all_recursive;
 	GSimpleAction* remove_all_selected;
 	GSimpleAction* itemname_to_clipboard;
+	GSimpleAction* hist2d_projection_x;
 	GSimpleAction* hist2d_projection_y;
 
 	GMenu*           menu;        // the menu structure
@@ -840,8 +841,7 @@ struct MyItemView {
 			}
 		}
 
-
-		static extern(C) void hist2d_projection_y_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+		static extern(C) void hist2d_projection_xy_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data, char xy) {
 			MainWindow main_window = cast(MainWindow)user_data;
 
 			for (int i = 0; i < g_list_model_get_n_items(cast(GListModel*)main_window.item_view.treelistmodel); ++i) {
@@ -859,15 +859,17 @@ struct MyItemView {
 						auto source = cast(Hist2ProjectionSource)session.items[fullname].item;
 						if (source !is null) {
 						//writeln("found selected projection source: ", fullname);
-							auto gatename = fullname ~ "_y_gate";
-							auto projname = fullname ~ "_y_projection";
-							auto left  = main_window.canvas.transform[0].min; 
-							auto right = main_window.canvas.transform[0].max;
+							auto gatename = fullname ~ "_"~xy~"_gate";
+							auto projname = fullname ~ "_"~xy~"_projection";
+							int dim = (xy=='x')?1:0;
+							auto left  = main_window.canvas.transform[dim].min; 
+							auto right = main_window.canvas.transform[dim].max;
 							auto w = right-left;
-							left += w/3;
-							right -= w/3; 
+							left += 3*w/8;
+							right -= 3*w/8; 
 							import cmdline;
-							thisTid.send(cmdline.Command("gate1d "~gatename~" "~left.to!string~" "~right.to!string~" x", thisTid));
+							xy = (xy=='x')?'y':'x';
+							thisTid.send(cmdline.Command("gate1d "~gatename~" "~left.to!string~" "~right.to!string~" "~xy, thisTid));
 							thisTid.send(cmdline.Command("hist2projector "~projname~" "~fullname~" "~gatename, thisTid));
 
 							foreach(n  ;0..100) {
@@ -895,6 +897,13 @@ struct MyItemView {
 				}
 			}
 		}
+		static extern(C) void hist2d_projection_x_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			hist2d_projection_xy_activate_callback(self, parameter, user_data, 'x');
+		}
+		static extern(C) void hist2d_projection_y_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
+			hist2d_projection_xy_activate_callback(self, parameter, user_data, 'y');
+		}
+
 
 		//// for some reasond this crashes
 		//static extern(C) void collapse_all_recursive_activate_callback(GSimpleAction* self, GVariant* parameter, gpointer user_data) {
@@ -941,6 +950,10 @@ struct MyItemView {
 		g_signal_connect(hist2d_projection_y, "activate", &hist2d_projection_y_activate_callback, cast(void*)main_window);
 		g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)hist2d_projection_y);
 
+		hist2d_projection_x = cast(GSimpleAction*)g_simple_action_new("hist2d_projection_x", null);
+		g_signal_connect(hist2d_projection_x, "activate", &hist2d_projection_x_activate_callback, cast(void*)main_window);
+		g_action_map_add_action(cast(GActionMap*)main_window.window, cast(GAction*)hist2d_projection_x);
+
 
 		//collapse_all_recursive = cast(GSimpleAction*)g_simple_action_new("collapse_all_recursive", null);
 		//g_signal_connect(collapse_all_recursive, "activate", &collapse_all_recursive_activate_callback, cast(void*)main_window);
@@ -956,6 +969,7 @@ struct MyItemView {
 		g_menu_append(menu, "remove selected",   "win.remove_all_selected");
 		g_menu_append(menu, "copy to clipboard", "win.itemname_to_clipboard");
 		g_menu_append(menu, "hist2d project y",  "win.hist2d_projection_y");
+		g_menu_append(menu, "hist2d project x",  "win.hist2d_projection_x");
 
 		//g_menu_append(menu, "collapse all",    "win.collapse_all_recursive");
 		popup = cast(GtkPopoverMenu*)gtk_popover_menu_new_from_model(cast(GMenuModel*)menu);
