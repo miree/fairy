@@ -211,8 +211,11 @@ class SingleWindow(WindowClass)
 			window.addOnHide(delegate(Widget widget){ window = null; });
 		} else {
 			// rise window if it is already open
-			window.setKeepAbove(true);
-			window.setKeepAbove(false);
+			version (gtk3) {
+				window.setKeepAbove(true);
+				window.setKeepAbove(false);
+
+			}
 		}
 	}
 }
@@ -271,6 +274,8 @@ private:
 	SimpleAction open_session;
 	SimpleAction quit_program;
 	SimpleAction expand_all_selected;
+	SimpleAction hist2d_projection_y;
+	SimpleAction hist2d_projection_x;
 	SimpleAction remove_all_selected;
 	SimpleAction show_all_selected;
 	SimpleAction show_all_recursive;
@@ -411,6 +416,18 @@ public:
 			item_view.expand_all_selected();
 		});
 		addAction(expand_all_selected);
+
+		hist2d_projection_y = new SimpleAction("hist2d_projection_y", null);
+		hist2d_projection_y.addOnActivate(delegate(Variant var, SimpleAction action) {
+			item_view.hist2d_projection_xy('y');
+		});
+		addAction(hist2d_projection_y);
+
+		hist2d_projection_x = new SimpleAction("hist2d_projection_x", null);
+		hist2d_projection_x.addOnActivate(delegate(Variant var, SimpleAction action) {
+			item_view.hist2d_projection_xy('x');
+		});
+		addAction(hist2d_projection_x);
 
 		show_all_selected = new SimpleAction("show_all_selected", null);
 		show_all_selected.addOnActivate(delegate(Variant var, SimpleAction action) {
@@ -742,6 +759,47 @@ class ItemView : TreeView {
 		}
 	}
 
+	void hist2d_projection_xy(char xy) {
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			import std.conv, std.algorithm;
+			import fairy, ui;
+			if (session.items.byKey.canFind(fullname)) {
+				import histogram, gate;
+				auto source = cast(Hist2ProjectionSource)session.items[fullname].item;
+				if (source !is null) {
+				//writeln("found selected projection source: ", fullname);
+					auto gatename = fullname ~ "_"~xy~"_gate";
+					auto projname = fullname ~ "_"~xy~"_projection";
+					int dim = (xy=='x')?1:0;
+					auto left  = main_window.canvas.transform[dim].min; 
+					auto right = main_window.canvas.transform[dim].max;
+					auto w = right-left;
+					left += 3*w/8;
+					right -= 3*w/8; 
+					import cmdline;
+					xy = (xy=='x')?'y':'x';
+					string windowname;
+					foreach(n  ;0..100) {
+						windowname = "projection"~n.to!string;
+						if ((windowname in GtkGui.main_windows) is null) break;
+					}
+					string command =
+						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~" "~xy~"\n"~
+						"hist2projector "~projname~" "~fullname~" "~gatename~"\n"~
+						"win       "~windowname~"\n"~
+						"show      "~projname~" "~windowname~"\n"~
+						"winpoll   "~windowname~"\n"~
+						"autoscale "~windowname~" y"~"\n"~
+						"winfit    "~windowname~"\n"~
+						"colorbar  "~windowname~"\n"~
+						"show      "~gatename~" "~main_window.name;
+					thisTid.send(cmdline.Command(command, thisTid));									
+				}
+			}
+		}
+	}
+
 	void remove_all_selected() {
 		string[] names; 
 		foreach(selected_iter; getSelectedIters()) {
@@ -943,6 +1001,8 @@ class ItemView : TreeView {
 		version(gtk3) {
 			popup_menu = new Menu;
 			popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
+			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
+			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "hist2d project x", "interactively project 2d histogram along x axis" ));
 			popup_menu.append( new MenuItem( (m) => show_all_recursive(),  "show recursive", "show selected items and their children"));
 			popup_menu.append( new MenuItem( (m) => hide_all_recursive(),  "hide recursive", "hide selected items and their children"));
 			popup_menu.append( new MenuItem( (m) => reset_all_recursive(), "reset recursive", "reset selected items and their children"));
@@ -966,6 +1026,8 @@ class ItemView : TreeView {
 		version(gtk4) {
 			menu = new Menu;
 			menu.append("expand recursive", "win.expand_all");
+			menu.append("hist2d project y", "win.hist2d_projection_y");
+			menu.append("hist2d project x", "win.hist2d_projection_x");
 			menu.append("show recursive",   "win.show_all_recursive");
 			menu.append("hide recursive",   "win.hide_all_recursive");
 			menu.append("reset recursive",  "win.reset_all_recursive");
@@ -1782,9 +1844,17 @@ class PlotArea :  DrawingArea, BackendInterface {
 		                                  double dx, double dy, double dw, double dh) {
 		import cairo.ImageSurface, cairo.Pattern;//, gdk.Cairo;
 		cairo_save(cr);
+			//cairo_matrix_t mat;
+			//cairo_matrix_init(&mat,
+			//	1, 1, 
+			//	0, 1,
+			//	1, 0
+			//	);
+
 			cairo_translate(cr, dx,dy);
 			cairo_scale(cr, dw/sw, dh/sh);
 			cairo_translate(cr,-sx,-sy);
+			//cairo_transform(cr,&mat);
 			cairo_rectangle(cr, sx,sy, sw,sh);
 			cairo_set_source(cr, bitmaps[handle].pattern.getPatternStruct());
 			cairo_fill(cr);
@@ -2066,7 +2136,19 @@ version(elderpt) {
 class ElderPtWindow : ApplicationWindow
 {
 
-	import gtk.RadioButton;
+	version(gtk3) {
+		import gtk.RadioButton;
+		import gtk.FileChooserButton;
+		alias CheckOrRadioButton = RadioButton;
+		alias CheckOrToggleButton = ToggleButton;
+	} else {
+		import gtk.CheckButton;
+		import gtk.FileChooserDialog;
+		alias CheckOrRadioButton = CheckButton;
+		alias CheckOrToggleButton = CheckButton;
+		alias FileChooserButton = FileChooserDialog;
+	}
+
 	import gtk.Box;
 	import gtk.Button;
 	import gtk.Label;
@@ -2075,7 +2157,6 @@ class ElderPtWindow : ApplicationWindow
 	import gtk.ToggleButton;
 	import gtk.Button;
 	import std.stdio;
-	import gtk.FileChooserButton;
 	import glib.Timeout;
 
 	import elderpt;
@@ -2109,193 +2190,198 @@ class ElderPtWindow : ApplicationWindow
 		auto box = new Box(GtkOrientation.VERTICAL,0);
 
 		auto elder_config_file_box = new Box(GtkOrientation.HORIZONTAL,0);
-		elder_config_file_box.add(new Label(" ElderPT toplevel config file: "));
-		_elder_config_file_chooser_button = new FileChooserButton("choose file", FileChooserAction.OPEN);
-		_elder_config_file_chooser_button.addOnFileSet((button) {
-			auto filenamelist = button.getFilenames();
-			if (filenamelist !is null) {
-				string[]  filenames = filenamelist.toArray!string;
-				if (filenames !is null && filenames.length > 0) {
-					_elder_toplevel_config_file = filenames[0];
+		elder_config_file_box.append(new Label(" ElderPT toplevel config file: "));
+		version(gtk3) {
+			_elder_config_file_chooser_button = new FileChooserButton("choose file", FileChooserAction.OPEN);
+			_elder_config_file_chooser_button.addOnFileSet((button) {
+				auto filenamelist = button.getFilenames();
+				if (filenamelist !is null) {
+					string[]  filenames = filenamelist.toArray!string;
+					if (filenames !is null && filenames.length > 0) {
+						_elder_toplevel_config_file = filenames[0];
+					}
+				} else {
+					_elder_toplevel_config_file = null;
 				}
-			} else {
-				_elder_toplevel_config_file = null;
-			}
-		});
-		elder_config_file_box.add(_elder_config_file_chooser_button);
-		box.add(elder_config_file_box);
+			});
+			elder_config_file_box.append(_elder_config_file_chooser_button);
+			box.append(elder_config_file_box);
 
-		auto mbs_source_box = new Box(GtkOrientation.HORIZONTAL,0);
-		mbs_source_box.add(new Label(" MBS Source: "));
-		_mbs_source = new Entry;
-		mbs_source_box.add(_mbs_source);
-		_mbs_source_select_button = new Button("Choose file", (widget) {
-			import gtk.FileChooserDialog, gtk.Dialog, gtk.FileFilter; 
-			auto dialog = new FileChooserDialog("choose MBS source files", /*parent_window=*/this, FileChooserAction.OPEN);
-				auto lmd_fiter = new FileFilter; 
-				     lmd_fiter.addPattern("*.lmd");
-				     lmd_fiter.setName("*.lmd");
-				dialog.addFilter(lmd_fiter);
-				dialog.setSelectMultiple(true);
-				dialog.addOnResponse((int response, Dialog dialog) {
-					if (response == ResponseType.OK) {
-						import std.algorithm, std.path, std.file, std.string, std.stdio;
-						auto cwd = getcwd().fixWindowsPaths();
-						auto filenames = (cast(FileChooserDialog)dialog).getFilenames().toArray!string.map!(a=>a.fixWindowsPaths().chompPrefix(cwd~"/"));
-						string sources;
-						foreach(filename; filenames) { sources ~= filename ~ " "; }
-						writeln("sources = ", sources);
-						_mbs_source.setText(sources);
-					} 
-					if (response == ResponseType.CANCEL) dialog.close(); 
-				});
-			dialog.show();
-
-		});
-		mbs_source_box.add(_mbs_source_select_button);
-		box.add(mbs_source_box);
-
-
-
-		auto control_box = new Box(GtkOrientation.HORIZONTAL,0);
-		_status_label = new Label(false?" Running ":" Stopped ");
-		_rate_label = new Label(" Rate(evt/s) = 0");
-		control_box.add(new Label(" Acquisition Control: "));
-		_start_acquisition_button = new Button("start", 
-			delegate(Button button) {
-				import ui;
-				try { 
-					ui.elderpt("start"); 
-					_status_label.setLabel(" Running ");// ~ _filename);
-					_start_acquisition_button.setSensitive(false);
-					_pause_acquisition_button.setSensitive(true);
-					_stop_acquisition_button.setSensitive(true);
-
-					_rate_timeout = new Timeout(100, delegate bool() {
-						try {
-							string rate_str = ui.elderpt("rate");
-							_rate_label.setLabel(" Rate(evt/s) = " ~ rate_str);
-							return true;
-						} catch (Exception e) {
-							_rate_label.setLabel(" Rate(evt/s) = 0");
-							return false;
-						}
+			auto mbs_source_box = new Box(GtkOrientation.HORIZONTAL,0);
+			mbs_source_box.append(new Label(" MBS Source: "));
+			_mbs_source = new Entry;
+			mbs_source_box.append(_mbs_source);
+			_mbs_source_select_button = new Button("Choose file", (widget) {
+				import gtk.FileChooserDialog, gtk.Dialog, gtk.FileFilter; 
+				auto dialog = new FileChooserDialog("choose MBS source files", /*parent_window=*/this, FileChooserAction.OPEN);
+					auto lmd_fiter = new FileFilter; 
+					     lmd_fiter.addPattern("*.lmd");
+					     lmd_fiter.setName("*.lmd");
+					dialog.addFilter(lmd_fiter);
+					dialog.setSelectMultiple(true);
+					dialog.addOnResponse((int response, Dialog dialog) {
+						if (response == ResponseType.OK) {
+							import std.algorithm, std.path, std.file, std.string, std.stdio;
+							auto cwd = getcwd().fixWindowsPaths();
+							auto filenames = (cast(FileChooserDialog)dialog).getFilenames().toArray!string.map!(a=>a.fixWindowsPaths().chompPrefix(cwd~"/"));
+							string sources;
+							foreach(filename; filenames) { sources ~= filename ~ " "; }
+							writeln("sources = ", sources);
+							_mbs_source.setText(sources);
+						} 
+						if (response == ResponseType.CANCEL) dialog.close(); 
 					});
+				dialog.show();
 
-				}
-				catch(Exception e) { }
-				//thisTid().setMaxMailboxSize(10000, OnCrowding.block);
-				//import std.concurrency;
-				//import gdk.Threads;
-
-				//if (_elder_toplevel_config_file !is null) {
-				//	import threads;
-				//	_acquisition_thread = spawn(&elderpt_thread_function, thisTid, _elder_toplevel_config_file);
-				//	register_thread(_acquisition_thread);
-				//	thisTid.setMaxMailboxSize(1024, OnCrowding.block);
-				//	import core.time;
-				//	//_events_per_second = 0;
-				//	//_t_events_per_second_reset = MonoTime.currTime();
-				//	_end_thread_idle_process = false;
-				//	elderpt_gdk_thread = gdk.Threads.threadsAddIdle(&elderptThreadIdleProcess, cast(void*)this);
-				//	elderpt_running = true;
-				//} else {
-				//	import gtk.MessageDialog, gtk.Dialog;
-				//	auto message = new MessageDialog(this, 
-				//									 DialogFlags.MODAL, 
-				//									 MessageType.ERROR, 
-				//									 ButtonsType.CLOSE, 
-				//									 "select device or file!");
-				//	message.addOnResponse( delegate void(int, Dialog d) {d.hide();} );
-				//	message.showAll();
-				//}
 			});
-		_pause_acquisition_button = new Button(false?"continue":"pause", delegate(Button button) {
-				//if (elderpt_paused) {
-				//	_status_label.setLabel(elderpt_old_status_label);
-				//	_pause_acquisition_button.setLabel("pause");
-				//	elderpt_paused = false;
-				//	//_events_per_second = 0;
-				//	//_t_events_per_second_reset = MonoTime.currTime();
-				//	_acquisition_thread.send(MsgContinue());
-				//} else {
-				//	elderpt_old_status_label = _status_label.getLabel();
-				//	_status_label.setLabel("Paused");
-				//	_pause_acquisition_button.setLabel("continue");
-				//	elderpt_paused = true;
-				//	_acquisition_thread.send(MsgPause());
-				//}
-			});
+			mbs_source_box.append(_mbs_source_select_button);
+			box.append(mbs_source_box);
+			auto control_box = new Box(GtkOrientation.HORIZONTAL,0);
+			_status_label = new Label(false?" Running ":" Stopped ");
+			_rate_label = new Label(" Rate(evt/s) = 0");
+			control_box.append(new Label(" Acquisition Control: "));
+			_start_acquisition_button = new Button("start", 
+				delegate(Button button) {
+					import ui;
+					try { 
+						ui.elderpt("start"); 
+						_status_label.setLabel(" Running ");// ~ _filename);
+						_start_acquisition_button.setSensitive(false);
+						_pause_acquisition_button.setSensitive(true);
+						_stop_acquisition_button.setSensitive(true);
 
-		_stop_acquisition_button = new Button("stop", delegate(Button button) {
-				import ui;
-				try { 
-					ui.elderpt("stop"); 
-					_status_label.setLabel(" Stopped ");
-					_start_acquisition_button.setSensitive(true);
-					_stop_acquisition_button.setSensitive(false);
-					_pause_acquisition_button.setSensitive(false);	
-				}
-				catch(Exception e) {}
-				//if (elderpt_paused == true) {
-				//	_pause_acquisition_button.setLabel("pause");
-				//	elderpt_paused = false;
-				//}
-				//_end_thread_idle_process = true;
-				//version(MbsApi_support) {
-				//	_mbs_source_select_button.setSensitive(true);
-				//}
-				//elderpt_running = false;	
-				//_acquisition_thread.send(MsgStop());
-				//receiveTimeout(2000.msecs, (MsgStopAck stopack) { 
-				//		import std.stdio;
-				//		writeln("received MsgStopAck");
-				//	});
-			});
-		control_box.add(_start_acquisition_button);
-		control_box.add(_pause_acquisition_button);
-		control_box.add(_stop_acquisition_button);
-		//if (!elderpt_running) {
-		//	_pause_acquisition_button.setSensitive(false);
-		//	 _stop_acquisition_button.setSensitive(false);
-		//} else {
-		//	_start_acquisition_button.setSensitive(false);
-		//}
-		box.add(control_box);
-		box.add(new Separator(GtkOrientation.HORIZONTAL));
+						_rate_timeout = new Timeout(100, delegate bool() {
+							try {
+								string rate_str = ui.elderpt("rate");
+								_rate_label.setLabel(" Rate(evt/s) = " ~ rate_str);
+								return true;
+							} catch (Exception e) {
+								_rate_label.setLabel(" Rate(evt/s) = 0");
+								return false;
+							}
+						});
 
-		auto status_box = new Box(GtkOrientation.HORIZONTAL,0);
-		status_box.add(_status_label);
-		box.add(status_box);
+					}
+					catch(Exception e) { }
+					//thisTid().setMaxMailboxSize(10000, OnCrowding.block);
+					//import std.concurrency;
+					//import gdk.Threads;
 
-		auto rate_box = new Box(GtkOrientation.HORIZONTAL,0);
-		rate_box.add(_rate_label);
-		box.add(rate_box);
+					//if (_elder_toplevel_config_file !is null) {
+					//	import threads;
+					//	_acquisition_thread = spawn(&elderpt_thread_function, thisTid, _elder_toplevel_config_file);
+					//	register_thread(_acquisition_thread);
+					//	thisTid.setMaxMailboxSize(1024, OnCrowding.block);
+					//	import core.time;
+					//	//_events_per_second = 0;
+					//	//_t_events_per_second_reset = MonoTime.currTime();
+					//	_end_thread_idle_process = false;
+					//	elderpt_gdk_thread = gdk.Threads.threadsAddIdle(&elderptThreadIdleProcess, cast(void*)this);
+					//	elderpt_running = true;
+					//} else {
+					//	import gtk.MessageDialog, gtk.Dialog;
+					//	auto message = new MessageDialog(this, 
+					//									 DialogFlags.MODAL, 
+					//									 MessageType.ERROR, 
+					//									 ButtonsType.CLOSE, 
+					//									 "select device or file!");
+					//	message.addOnResponse( delegate void(int, Dialog d) {d.hide();} );
+					//	message.showAll();
+					//}
+				});
+			_pause_acquisition_button = new Button(false?"continue":"pause", delegate(Button button) {
+					//if (elderpt_paused) {
+					//	_status_label.setLabel(elderpt_old_status_label);
+					//	_pause_acquisition_button.setLabel("pause");
+					//	elderpt_paused = false;
+					//	//_events_per_second = 0;
+					//	//_t_events_per_second_reset = MonoTime.currTime();
+					//	_acquisition_thread.send(MsgContinue());
+					//} else {
+					//	elderpt_old_status_label = _status_label.getLabel();
+					//	_status_label.setLabel("Paused");
+					//	_pause_acquisition_button.setLabel("continue");
+					//	elderpt_paused = true;
+					//	_acquisition_thread.send(MsgPause());
+					//}
+				});
 
-
-		import gtk.Widget;
-		addOnHide(delegate(Widget widget){ 
-			//import std.stdio;
-			//_end_thread_idle_process = true;
-			//if (_acquisition_thread !is Tid.init) {
-			//	writeln("send MsgStop() to _acquisition_thread");
-			//	_acquisition_thread.send(MsgStop());
-			//	if (elderpt_running || elderpt_paused) {
-			//		writeln("_acquisition_thread active... wait for MsgStopAck");
-			//		receiveTimeout(2000.msecs, (MsgStopAck stopack) { 
-			//				import std.stdio;
-			//				writeln("received MsgStopAck");
-			//			});
-			//	}
-				
+			_stop_acquisition_button = new Button("stop", delegate(Button button) {
+					import ui;
+					try { 
+						ui.elderpt("stop"); 
+						_status_label.setLabel(" Stopped ");
+						_start_acquisition_button.setSensitive(true);
+						_stop_acquisition_button.setSensitive(false);
+						_pause_acquisition_button.setSensitive(false);	
+					}
+					catch(Exception e) {}
+					//if (elderpt_paused == true) {
+					//	_pause_acquisition_button.setLabel("pause");
+					//	elderpt_paused = false;
+					//}
+					//_end_thread_idle_process = true;
+					//version(MbsApi_support) {
+					//	_mbs_source_select_button.setSensitive(true);
+					//}
+					//elderpt_running = false;	
+					//_acquisition_thread.send(MsgStop());
+					//receiveTimeout(2000.msecs, (MsgStopAck stopack) { 
+					//		import std.stdio;
+					//		writeln("received MsgStopAck");
+					//	});
+				});
+			control_box.append(_start_acquisition_button);
+			control_box.append(_pause_acquisition_button);
+			control_box.append(_stop_acquisition_button);
+			//if (!elderpt_running) {
+			//	_pause_acquisition_button.setSensitive(false);
+			//	 _stop_acquisition_button.setSensitive(false);
+			//} else {
+			//	_start_acquisition_button.setSensitive(false);
 			//}
-			//elderpt_running = false;
-			//elderpt_paused = false;
-			//elderpt_closed = true;
-			writeln("exit onHide callback");
-		});
-		add(box);
-		showAll();
+			box.append(control_box);
+			box.append(new Separator(GtkOrientation.HORIZONTAL));
+
+			auto status_box = new Box(GtkOrientation.HORIZONTAL,0);
+			status_box.append(_status_label);
+			box.append(status_box);
+
+			auto rate_box = new Box(GtkOrientation.HORIZONTAL,0);
+			rate_box.append(_rate_label);
+			box.append(rate_box);
+			import gtk.Widget;
+			addOnHide(delegate(Widget widget){ 
+				//import std.stdio;
+				//_end_thread_idle_process = true;
+				//if (_acquisition_thread !is Tid.init) {
+				//	writeln("send MsgStop() to _acquisition_thread");
+				//	_acquisition_thread.send(MsgStop());
+				//	if (elderpt_running || elderpt_paused) {
+				//		writeln("_acquisition_thread active... wait for MsgStopAck");
+				//		receiveTimeout(2000.msecs, (MsgStopAck stopack) { 
+				//				import std.stdio;
+				//				writeln("received MsgStopAck");
+				//			});
+				//	}
+					
+				//}
+				//elderpt_running = false;
+				//elderpt_paused = false;
+				//elderpt_closed = true;
+				writeln("exit onHide callback");
+			});
+			add(box);
+			showAll();
+		} else {
+			// nothing yet for gtk4
+			//_elder_config_file_chooser_button = new FileChooserButton("choose file", this, FileChooserAction.OPEN);
+		}
+
+
+
+
+
 	}
 	//~this() {
 	//	_end_thread_idle_process = true;
