@@ -477,6 +477,18 @@ class Hist2Projection : Visual, FitDataSource, Item {
 			return 0;
 		}
 
+		// test if the item disappeared and a new item appeared under the same name
+		import fairy;
+		auto test_source_item = cast(Visual)session.items[data.hist2name].item;
+		auto test_source      = cast(Hist2ProjectionSource)session.items[data.hist2name].item;
+		auto test_region      = cast(Gate1D)session.items[data.gate1name].item;
+		if (test_source_item !is null && test_source !is null && test_source_item !is source_item) { // reset the source
+			source_item = test_source_item;
+			source      = test_source;
+			source_version = -1;
+		}
+		if (test_region !is null && test_region !is region) region = test_region;
+
 		if (source_version == -1 || source_item.getVersion() > source_version) {
 			//import std.stdio;
 			//writeln("source was updated");
