@@ -869,29 +869,22 @@ struct MyItemView {
 							right -= 3*w/8; 
 							import cmdline;
 							xy = (xy=='x')?'y':'x';
-							thisTid.send(cmdline.Command("gate1d "~gatename~" "~left.to!string~" "~right.to!string~" "~xy, thisTid));
-							thisTid.send(cmdline.Command("hist2projector "~projname~" "~fullname~" "~gatename, thisTid));
-
+							string windowname;
 							foreach(n  ;0..100) {
-								string windowname = "projection"~n.to!string;
-								if ((windowname in Gtk4NativeGui.main_windows) !is null) continue;
-								try {
-									thisTid.send(cmdline.Command("win       "~windowname, thisTid));									
-									thisTid.send(cmdline.Command("show      "~projname~" "~windowname, thisTid));									
-									thisTid.send(cmdline.Command("winpoll   "~windowname, thisTid));									
-									thisTid.send(cmdline.Command("autoscale "~windowname~" y", thisTid));									
-									thisTid.send(cmdline.Command("winfit    "~windowname, thisTid));									
-									thisTid.send(cmdline.Command("colorbar  "~windowname, thisTid));									
-									thisTid.send(cmdline.Command("show      "~gatename~" "~main_window.name, thisTid));									
-
-									//immutable ulong refresh_period_ms = 1;
-									//g_timeout_add(refresh_period_ms, &Gtk4NativeGui.update_callback);
-									return;
-								} catch (Exception e) {
-									writeln("exception while creating a new window: ", e.msg);
-									// nothing
-								}
+								windowname = "projection"~n.to!string;
+								if ((windowname in Gtk4NativeGui.main_windows) is null) break;
 							}
+							string command =
+								"gate1d "~gatename~" "~left.to!string~" "~right.to!string~" "~xy~"\n"~
+								"hist2projector "~projname~" "~fullname~" "~gatename~"\n"~
+								"win       "~windowname~"\n"~
+								"show      "~projname~" "~windowname~"\n"~
+								"winpoll   "~windowname~"\n"~
+								"autoscale "~windowname~" y"~"\n"~
+								"winfit    "~windowname~"\n"~
+								"colorbar  "~windowname~"\n"~
+								"show      "~gatename~" "~main_window.name;
+							thisTid.send(cmdline.Command(command, thisTid));									
 						}
 					}
 				}

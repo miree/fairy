@@ -17,12 +17,16 @@ void handle_Command(cmdline.Command cmd) {
 	import std.stdio;
 	try {
 		import std.array: split;
-		auto tokens = cmd.command.split;
-		cmdline.run_with_args(tokens).writeln;
+		auto lines = cmd.command.split('\n');
+		foreach(line; lines) {
+			auto tokens = line.split;
+			cmdline.run_with_args(tokens).writeln;
+			//import core.thread;
+			//Thread.sleep(10.msecs);
+		}
 	} catch (Exception e) {
 		writeln("Error: ", e.msg);
 	}
-
 	cmd.tid.send(cmdline.Continue());
 }
 
