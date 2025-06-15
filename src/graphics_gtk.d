@@ -2169,6 +2169,7 @@ class ElderPtWindow : ApplicationWindow
 	Label         _status_label;
 	Label 		  _rate_label;
 	Timeout       _rate_timeout;
+	Timeout       _status_update_timeout;
 	FileChooserButton _elder_config_file_chooser_button;
 	string _elder_toplevel_config_file;
 
@@ -2184,6 +2185,9 @@ class ElderPtWindow : ApplicationWindow
 	bool _end_thread_idle_process = false;
 
 	this(Application application) {
+		import ui;
+
+
 		super(application);
 		setDefaultSize( 100, 100 );
 
@@ -2237,7 +2241,13 @@ class ElderPtWindow : ApplicationWindow
 			mbs_source_box.append(_mbs_source_select_button);
 			box.append(mbs_source_box);
 			auto control_box = new Box(GtkOrientation.HORIZONTAL,0);
-			_status_label = new Label(false?" Running ":" Stopped ");
+			_status_label = new Label(" Stopped ");
+			try {
+				auto status = ui.elderpt("status");
+				if (status == "stopped") _status_label.setLabel(" Stopped ");
+				if (status == "running") _status_label.setLabel(" Running ");
+				if (status == "paused")  _status_label.setLabel(" Paused ");
+			} catch(Exception e) {}
 			_rate_label = new Label(" Rate(evt/s) = 0");
 			control_box.append(new Label(" Acquisition Control: "));
 			_start_acquisition_button = new Button("start", 
@@ -2245,101 +2255,71 @@ class ElderPtWindow : ApplicationWindow
 					import ui;
 					try { 
 						ui.elderpt("start"); 
-						_status_label.setLabel(" Running ");// ~ _filename);
+						_status_label.setLabel(" Running ");
 						_start_acquisition_button.setSensitive(false);
 						_pause_acquisition_button.setSensitive(true);
 						_stop_acquisition_button.setSensitive(true);
-
-						_rate_timeout = new Timeout(100, delegate bool() {
-							try {
-								string rate_str = ui.elderpt("rate");
-								_rate_label.setLabel(" Rate(evt/s) = " ~ rate_str);
-								return true;
-							} catch (Exception e) {
-								_rate_label.setLabel(" Rate(evt/s) = 0");
-								return false;
-							}
-						});
-
 					}
 					catch(Exception e) { }
-					//thisTid().setMaxMailboxSize(10000, OnCrowding.block);
-					//import std.concurrency;
-					//import gdk.Threads;
-
-					//if (_elder_toplevel_config_file !is null) {
-					//	import threads;
-					//	_acquisition_thread = spawn(&elderpt_thread_function, thisTid, _elder_toplevel_config_file);
-					//	register_thread(_acquisition_thread);
-					//	thisTid.setMaxMailboxSize(1024, OnCrowding.block);
-					//	import core.time;
-					//	//_events_per_second = 0;
-					//	//_t_events_per_second_reset = MonoTime.currTime();
-					//	_end_thread_idle_process = false;
-					//	elderpt_gdk_thread = gdk.Threads.threadsAddIdle(&elderptThreadIdleProcess, cast(void*)this);
-					//	elderpt_running = true;
-					//} else {
-					//	import gtk.MessageDialog, gtk.Dialog;
-					//	auto message = new MessageDialog(this, 
-					//									 DialogFlags.MODAL, 
-					//									 MessageType.ERROR, 
-					//									 ButtonsType.CLOSE, 
-					//									 "select device or file!");
-					//	message.addOnResponse( delegate void(int, Dialog d) {d.hide();} );
-					//	message.showAll();
-					//}
 				});
-			_pause_acquisition_button = new Button(false?"continue":"pause", delegate(Button button) {
-					//if (elderpt_paused) {
-					//	_status_label.setLabel(elderpt_old_status_label);
-					//	_pause_acquisition_button.setLabel("pause");
-					//	elderpt_paused = false;
-					//	//_events_per_second = 0;
-					//	//_t_events_per_second_reset = MonoTime.currTime();
-					//	_acquisition_thread.send(MsgContinue());
-					//} else {
-					//	elderpt_old_status_label = _status_label.getLabel();
-					//	_status_label.setLabel("Paused");
-					//	_pause_acquisition_button.setLabel("continue");
-					//	elderpt_paused = true;
-					//	_acquisition_thread.send(MsgPause());
-					//}
+			_pause_acquisition_button = new Button("pause", delegate(Button button) {
+					try { 
+						auto status = ui.elderpt("status");
+						if (status == "paused") {
+							ui.elderpt("continue");
+							_status_label.setLabel(" Running ");
+							_pause_acquisition_button.setLabel(" pause ");
+						}
+						if (status == "running") {
+							ui.elderpt("pause");
+							_status_label.setLabel(" Paused ");
+							_pause_acquisition_button.setLabel(" continue ");
+						}
+					}
+					catch(Exception e) {}
 				});
+			try {
+				auto status = ui.elderpt("status");
+				if (status == "stopped") _pause_acquisition_button.setLabel(" pause ");
+				if (status == "running") _pause_acquisition_button.setLabel(" pause ");
+				if (status == "paused")  _pause_acquisition_button.setLabel(" continue ");
+			} catch(Exception e) {}
 
 			_stop_acquisition_button = new Button("stop", delegate(Button button) {
 					import ui;
 					try { 
 						ui.elderpt("stop"); 
 						_status_label.setLabel(" Stopped ");
+						_pause_acquisition_button.setLabel(" pause ");
 						_start_acquisition_button.setSensitive(true);
 						_stop_acquisition_button.setSensitive(false);
 						_pause_acquisition_button.setSensitive(false);	
 					}
 					catch(Exception e) {}
-					//if (elderpt_paused == true) {
-					//	_pause_acquisition_button.setLabel("pause");
-					//	elderpt_paused = false;
-					//}
-					//_end_thread_idle_process = true;
-					//version(MbsApi_support) {
-					//	_mbs_source_select_button.setSensitive(true);
-					//}
-					//elderpt_running = false;	
-					//_acquisition_thread.send(MsgStop());
-					//receiveTimeout(2000.msecs, (MsgStopAck stopack) { 
-					//		import std.stdio;
-					//		writeln("received MsgStopAck");
-					//	});
 				});
+
+			try {
+				import ui;
+				auto status = ui.elderpt("status");
+				if (status == "stopped") {
+					_start_acquisition_button.setSensitive(true);
+					_stop_acquisition_button.setSensitive(false);
+					_pause_acquisition_button.setSensitive(false);
+				}
+				if (status == "running") {
+					_start_acquisition_button.setSensitive(false);
+					_stop_acquisition_button.setSensitive(true);
+					_pause_acquisition_button.setSensitive(true);
+				}
+				if (status == "paused") {
+					_start_acquisition_button.setSensitive(false);
+					_stop_acquisition_button.setSensitive(true);
+					_pause_acquisition_button.setSensitive(false);
+				}
+			} catch (Exception e) {}
 			control_box.append(_start_acquisition_button);
 			control_box.append(_pause_acquisition_button);
 			control_box.append(_stop_acquisition_button);
-			//if (!elderpt_running) {
-			//	_pause_acquisition_button.setSensitive(false);
-			//	 _stop_acquisition_button.setSensitive(false);
-			//} else {
-			//	_start_acquisition_button.setSensitive(false);
-			//}
 			box.append(control_box);
 			box.append(new Separator(GtkOrientation.HORIZONTAL));
 
@@ -2372,6 +2352,49 @@ class ElderPtWindow : ApplicationWindow
 				writeln("exit onHide callback");
 			});
 			add(box);
+
+
+			_status_update_timeout = new Timeout(100, delegate bool() {
+				try {
+					string status = ui.elderpt("status"); // check frequently if the status was changed from console user interface
+					if (status == "running") {
+						_status_label.setLabel(" Running ");
+						_pause_acquisition_button.setLabel(" pause ");
+						_start_acquisition_button.setSensitive(false);
+						_stop_acquisition_button.setSensitive(true);
+						_pause_acquisition_button.setSensitive(true);	
+					}
+					if (status == "paused") {
+						_status_label.setLabel(" Paused ");
+						_pause_acquisition_button.setLabel(" continue ");
+						_start_acquisition_button.setSensitive(false);
+						_stop_acquisition_button.setSensitive(true);
+						_pause_acquisition_button.setSensitive(true);	
+					}
+					if (status == "stopped") {
+						_status_label.setLabel(" Stopped ");
+						_pause_acquisition_button.setLabel(" pause ");
+						_start_acquisition_button.setSensitive(true);
+						_stop_acquisition_button.setSensitive(false);
+						_pause_acquisition_button.setSensitive(false);	
+					}								
+				} catch (Exception e) {
+				}
+				return true;
+			});
+
+			_rate_timeout = new Timeout(100, delegate bool() {
+				try {
+					string rate_str = ui.elderpt("rate");
+					_rate_label.setLabel(" Rate(evt/s) = " ~ rate_str);
+				} catch (Exception e) {
+					_rate_label.setLabel(" Rate(evt/s) = 0");
+				}
+				return true;
+			});
+
+
+
 			showAll();
 		} else {
 			// nothing yet for gtk4

@@ -474,7 +474,7 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 		receiveTimeout((paused||done)?(100.msecs):(Duration.zero),
 			(MsgPause    msg) { paused = true;  main_thread.send(MsgAck()); },
 			(MsgContinue msg) { paused = false; main_thread.send(MsgAck()); },
-			(MsgStop     msg) { stop   = true;  main_thread.send(MsgAck()); },
+			(MsgStop     msg) { paused = false; stop = true;  main_thread.send(MsgAck()); },
 			(MsgGetRate  msg) { main_thread.send(MsgRate(rate)); });
 		if (stop) break;
 	}
