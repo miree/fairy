@@ -352,16 +352,22 @@ class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 
 	// Visual Interface
 	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) {
-		HistData hist_data = read_file(data.filename);
-		switch(hist_data.dim) {
-			case 1: return new Hist1Visualizer(old, item_version, hist_data.data, hist_data.left, hist_data.right);
-			break;
-			case 2: 
-				return new Hist2Visualizer(old, item_version, backend, hist_data.data, 
-										   hist_data.bins_x, hist_data.bins_y, 
-										   hist_data.left, hist_data.right, hist_data.bottom, hist_data.top);
-			break;
-			default: return null; //assert(false);
+		try {
+			HistData hist_data = read_file(data.filename);
+			switch(hist_data.dim) {
+				case 1: return new Hist1Visualizer(old, item_version, hist_data.data, hist_data.left, hist_data.right);
+				break;
+				case 2: 
+					return new Hist2Visualizer(old, item_version, backend, hist_data.data, 
+											   hist_data.bins_x, hist_data.bins_y, 
+											   hist_data.left, hist_data.right, hist_data.bottom, hist_data.top);
+				break;
+				default: return null; //assert(false);
+			}
+		} catch (Exception e) {
+			import std.stdio;
+			writeln("cannot read file: ", data.filename);
+			return null;
 		}
 	}
 

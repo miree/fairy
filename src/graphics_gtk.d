@@ -777,6 +777,11 @@ class ItemView : TreeView {
 					auto w = right-left;
 					left += 3*w/8;
 					right -= 3*w/8; 
+					if (main_window.canvas.transform[dim].logscale) {
+						import std.math;
+						left = exp(left);
+						right = exp(right);
+					}
 					import cmdline;
 					xy = (xy=='x')?'y':'x';
 					string windowname;
@@ -2233,7 +2238,7 @@ class ElderPtWindow : ApplicationWindow
 							writeln("sources = ", sources);
 							_mbs_source.setText(sources);
 						} 
-						if (response == ResponseType.CANCEL) dialog.close(); 
+						if (response == ResponseType.CANCEL || response == ResponseType.OK) dialog.close(); 
 					});
 				dialog.show();
 
