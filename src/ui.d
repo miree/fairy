@@ -467,11 +467,12 @@ string filewaveform(string filename) {
 @UI_EXPORT("add 1D-histogram that refers to a file on disk",
 	["name of histogram",
 	 "number of bins",
+	 "x-axis label",
 	 "left border of leftmost bin",
 	 "right border of rightmost bin"])
-string hist1(string name, ulong bins, double left = double.init, double right = double.init) {
+string hist1(string name, ulong bins, string xlabel, double left = double.init, double right = double.init) {
 	import fairy, histogram;
-	fairy.session.add_item(name, new Hist1(bins,left,right));
+	fairy.session.add_item(name, new Hist1(bins,left,right,xlabel));
 	return "";
 }
 

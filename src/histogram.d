@@ -23,13 +23,15 @@ public:
 		@SERIALIZE double[] bins;
 		@SERIALIZE double left;
 		@SERIALIZE double right;
+		@SERIALIZE string xlabel;
 		@SERIALIZE double overflow;
 		@SERIALIZE double underflow;
 	}
-	this(ulong length, double left, double right) { 
+	this(ulong length, double left, double right, string xlabel) { 
 		data.bins = new double[length];
 		data.left = left;
 		data.right = right;
+		data.xlabel = xlabel;
 		data.underflow = 0.0;
 		data.overflow = 0.0;
 		if (data.left is double.init) {
@@ -134,7 +136,7 @@ public:
 
 	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) 
 	{
-		return new Hist1Visualizer(old, item_version, data.bins, data.left, data.right);
+		return new Hist1Visualizer(old, item_version, data.bins, data.xlabel, data.left, data.right);
 	}
 
 	override double[3][] get_data(double[2] region) {
@@ -355,7 +357,7 @@ class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 		try {
 			HistData hist_data = read_file(data.filename);
 			switch(hist_data.dim) {
-				case 1: return new Hist1Visualizer(old, item_version, hist_data.data, hist_data.left, hist_data.right);
+				case 1: return new Hist1Visualizer(old, item_version, hist_data.data, hist_data.xlabel, hist_data.left, hist_data.right);
 				break;
 				case 2: 
 					return new Hist2Visualizer(old, item_version, backend, hist_data.data, 
@@ -629,7 +631,7 @@ class Hist2Projection : Visual, FitDataSource, Item {
 		do_project();
 
 		dirty = false;
-		return new Hist1Visualizer(null, 1, bins, left, right);
+		return new Hist1Visualizer(null, 1, bins, "xlabel", left, right);
 	}
 
 	// FitDataSource override
@@ -685,7 +687,9 @@ private:
 struct HistData {
 	double[] data;
 	ulong    dim;
+	string xlabel;
 	double left, right;
+	string ylabel;
 	double bottom, top;
 	ulong bins_x, bins_y;
 }
@@ -713,6 +717,7 @@ auto read_file(string filename) {
 		ulong max_width = 0;
 		bool has_fairy_header_1d = false;
 		bool has_fairy_header_2d = false;
+		string xlabel, ylabel;
 		foreach(line; readText!string(filename).split("\n"))	{
 			if (line.startsWith("#")) {
 				import std.format;
@@ -722,7 +727,6 @@ auto read_file(string filename) {
 				string name;
 				double left, binwidth;
 				int nbinsx, nbinsy;
-				string xlabel, ylabel;
 				double bottom, binheight;
 				if (!(has_fairy_header_1d || has_fairy_header_2d)) {
 					try { // try to read 2d fairy histogram
@@ -815,7 +819,7 @@ auto read_file(string filename) {
 				hist_left = 0;
 				hist_right = bin_data.length;
 			}
-			return HistData(bin_data, dim, hist_left, hist_right);
+			return HistData(bin_data, dim, xlabel, hist_left, hist_right);
 		} else if (bin_data.length % max_width == 0) {
 			dim = 2;
 			ulong w = max_width;
@@ -831,7 +835,7 @@ auto read_file(string filename) {
 			//		bin = double.init;
 			//	}
 			//}
-			return HistData(bin_data, dim, hist_left, hist_right, hist_bottom, hist_top, w, h);
+			return HistData(bin_data, dim, xlabel, hist_left, hist_right, ylabel, hist_bottom, hist_top, w, h);
 		}
 		return HistData();
 		//// if the file didn't contain left/right information
@@ -870,7 +874,7 @@ class Hist1Visualizer : Visualizer
 public:
 
 	import std.stdio;
-	this(Visualizer old, ulong itemversion,/+ulong colorIdx, +/double[] data, double left, double right)//, string xlabel = null, string ylabel = null)
+	this(Visualizer old, ulong itemversion,/+ulong colorIdx, +/double[] data, string xlabel, double left, double right)//, string xlabel = null, string ylabel = null)
 	{
 		//writeln("Hist1Visualizer constructor ", left, " ", right);
 		ulong dim;
@@ -880,7 +884,7 @@ public:
 		_left     = left;
 		_right    = right;
 		_mipmap_data = make_mipmap_data();
-		//_xlabel = xlabel;
+		_xlabel = xlabel;
 		//_ylabel = ylabel;
 	}
 	//override string getLabelX() {
@@ -919,6 +923,12 @@ public:
 			//d.set_color(0.0,0.0,1.0);
 			d.set_color(0x44/255.0, 0x01/255.0, 0x54/255.0);
 			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, false);
+			double w_text, h_text;
+			d.text_extent(_xlabel,w_text,h_text);
+			double x_text = t[0].world2canvas((t[0].min+t[0].max)/2)-w_text/2;
+			double y_text = t[1].world2canvas(t[1].min)-h_text;
+			d.set_color(0,0,0);
+			d.text(x_text,y_text, _xlabel);
 		} catch(Exception e) {
 			import std.stdio;
 			writeln ("there was an Exception: ", e.file, ":", e.line, " -> ", e.msg, "\r");
