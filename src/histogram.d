@@ -284,6 +284,12 @@ public:
 		return Hist2ProjectionSource.Data(data.bins, data.bins_x, data.bins_y,
 			                              data.left, data.right, data.bottom, data.top);
 	}
+	string getXlabel() {
+		return data.xlabel;
+	}
+	string getYlabel() {
+		return data.ylabel;
+	}
 
 	double[3][] get_data(double[2] region) {
 		double[3][] result;
@@ -339,6 +345,8 @@ class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 		@SERIALIZE string filename;
 	}
 	Data data;
+	string xlabel = "";
+	string ylabel = "";
 	this(Data d)             { data = d; }
 	this(ref JSONValue json) { data = deserialize!Data(json); }
 	// Item Interface
@@ -362,12 +370,17 @@ class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 		try {
 			HistData hist_data = read_file(data.filename);
 			switch(hist_data.dim) {
-				case 1: return new Hist1Visualizer(old, item_version, hist_data.data, hist_data.xlabel, hist_data.left, hist_data.right);
+				case 1:
+					xlabel = hist_data.xlabel; 
+					return new Hist1Visualizer(old, item_version, hist_data.data, hist_data.xlabel, hist_data.left, hist_data.right);
 				break;
 				case 2: 
+					xlabel = hist_data.xlabel;
+					ylabel = hist_data.ylabel;
 					return new Hist2Visualizer(old, item_version, backend, hist_data.data, 
 											   hist_data.bins_x, hist_data.bins_y, 
-											   hist_data.left, hist_data.right, hist_data.bottom, hist_data.top);
+											   hist_data.left, hist_data.right, hist_data.bottom, hist_data.top,
+											   hist_data.xlabel, hist_data.ylabel);
 				break;
 				default: return null; //assert(false);
 			}
@@ -411,6 +424,14 @@ class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 		} 
 		throw new Exception("Projection for 1D-histograms not implemented ");
 	}
+	string getXlabel() {
+		return xlabel;
+	}
+	string getYlabel() {
+		return xlabel;
+	}
+
+
 
 private:
 	import std.datetime : abs, DateTime, hnsecs, SysTime;
@@ -445,6 +466,8 @@ interface Hist2ProjectionSource {
 		double left,right, bottom,top;
 	}
 	Data get_projection_data();
+	string getXlabel();
+	string getYlabel();
 }
 
 
@@ -463,6 +486,7 @@ class Hist2Projection : Visual, FitDataSource, Item {
 		@SERIALIZE string gate1name;
 	}
 	Data data;
+	string xlabel = "";
 
 	this(string hist2name, string gate1name) { 
 		data.hist2name = hist2name;
@@ -473,6 +497,7 @@ class Hist2Projection : Visual, FitDataSource, Item {
 		data = deserialize!Data(json); 
 		item_version = 0;
 	}
+
 	// Item Interface
 	override JSONValue toJSON()  { 
 		return serialize(data); 
@@ -571,10 +596,10 @@ class Hist2Projection : Visual, FitDataSource, Item {
 		if (region is null) {
 			throw new Exception("Hist2Projection fails: " ~ data.gate1name ~ " is not a Gate1D");
 		}
-
 		import std.math;
 		auto data = source.get_projection_data();
 		if (region.data.direction == 1) {
+			xlabel = source.getXlabel();
 			double source_bin_width = (data.top-data.bottom)/data.bins_y;
 			long n_bins = cast(long)floor((max-min)/source_bin_width);
 			long min_y = cast(long)floor(data.bins_y*(min-data.bottom)/(data.top-data.bottom)-0.5);
@@ -601,6 +626,7 @@ class Hist2Projection : Visual, FitDataSource, Item {
 	 		} 
 		}
 		if (region.data.direction == 0) {
+			xlabel = source.getYlabel();
 			double source_bin_width = (data.right-data.left)/data.bins_x;
 			long n_bins = cast(long)floor((max-min)/source_bin_width);
 			long min_x = cast(long)floor(data.bins_x*(min-data.left)/(data.right-data.left)-0.5);                     //y = bottom+idx*(top-bottom)/bins-0.5_y
@@ -636,7 +662,7 @@ class Hist2Projection : Visual, FitDataSource, Item {
 		do_project();
 
 		dirty = false;
-		return new Hist1Visualizer(null, 1, bins, "xlabel", left, right);
+		return new Hist1Visualizer(null, 1, bins, xlabel, left, right);
 	}
 
 	// FitDataSource override
