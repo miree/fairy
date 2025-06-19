@@ -286,6 +286,13 @@ public:
 	}
 	import graphics, transform;
 
+	override string getXlabel() {
+		return "x";
+	}
+	override string getYlabel() {
+		return funct.data.definition;
+	}
+
 	override void draw(BackendInterface d, in Transform[3] t) const
 	{
 		import std.algorithm;
