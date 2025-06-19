@@ -514,8 +514,8 @@ struct CanvasPainter {
 					string xlabel = visualizers[itemname].getXlabel();
 					string ylabel = visualizers[itemname].getYlabel();
 					import std.algorithm;
-					if (!xlabels.canFind(xlabel)) xlabels ~= xlabel;
-					if (!ylabels.canFind(ylabel)) ylabels ~= ylabel;
+					if (xlabel !is null  && xlabel != "" && !xlabels.canFind(xlabel)) xlabels ~= xlabel;
+					if (ylabel !is null  && ylabel != "" && !ylabels.canFind(ylabel)) ylabels ~= ylabel;
 				} catch (Exception e) {
 					writeln("cannot draw ", itemname , " because ", e.msg);
 				}

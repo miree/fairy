@@ -1171,14 +1171,14 @@ struct MyPlotWidget {
 			GtkSeparator*   sep1;
 			
 			GtkBox* box_fit_log;
-			GtkBox* box_fit; GtkLabel*       label_fit;      GtkCheckButton* check_fit_x,      check_fit_y,      check_fit_z;
-			GtkBox* box_log; GtkLabel*       label_log;      GtkCheckButton* check_log_x,      check_log_y,      check_log_z;
+			GtkBox* box_fit; GtkLabel*  label_fit;      GtkCheckButton* check_fit_x, check_fit_y, check_fit_z;
+			GtkBox* box_log; GtkLabel*  label_log;      GtkCheckButton* check_log_x, check_log_y, check_log_z;
 
 			GtkSeparator*   sep2;
 
 			GtkBox* box_grid_nums;
-			GtkBox* box_grid; GtkLabel*       label_grid;      GtkCheckButton* check_grid_x,      check_grid_y,      check_grid_top;
-			GtkBox* box_nums; GtkLabel*       label_nums;      GtkCheckButton* check_nums_x,      check_nums_y,      check_nums_top;
+			GtkBox* box_grid; GtkLabel* label_grid;      GtkCheckButton* check_grid_x, check_grid_y,  check_grid_top,  check_xlabel;
+			GtkBox* box_nums; GtkLabel* label_nums;      GtkCheckButton* check_nums_x, check_nums_y,  check_nums_top,  check_ylabel;
 
 			GtkSeparator*   sep3;
 
@@ -1470,9 +1470,13 @@ struct MyPlotWidget {
 		check_grid_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
 		check_grid_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
 		check_grid_top = cast(GtkCheckButton*)gtk_check_button_new_with_label("top");
+		check_xlabel = cast(GtkCheckButton*)gtk_check_button_new_with_label("xlab");
+		check_ylabel = cast(GtkCheckButton*)gtk_check_button_new_with_label("ylab");
 		gtk_check_button_set_active(check_grid_x, canvas.grid[0]);
 		gtk_check_button_set_active(check_grid_y, canvas.grid[1]);
 		gtk_check_button_set_active(check_grid_top, canvas.grid_ontop);
+		gtk_check_button_set_active(check_xlabel, canvas.axislabel[0]);
+		gtk_check_button_set_active(check_ylabel, canvas.axislabel[1]);
 		extern(C) static void check_grid_x_toggled(GtkToggleButton* self, gpointer user_data) {
 			ui.grid(*(cast(string*)user_data), "x", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
@@ -1482,9 +1486,17 @@ struct MyPlotWidget {
 		extern(C) static void check_grid_top_toggled(GtkToggleButton* self, gpointer user_data) {
 			ui.grid(*(cast(string*)user_data), "top", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
-		g_signal_connect(check_grid_x, "toggled", &check_grid_x_toggled, cast(void*)&window_name);
-		g_signal_connect(check_grid_y, "toggled", &check_grid_y_toggled, cast(void*)&window_name);
+		extern(C) static void check_xlabel_toggled(GtkToggleButton* self, gpointer user_data) {
+			ui.label(*(cast(string*)user_data), "x", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		extern(C) static void check_ylabel_toggled(GtkToggleButton* self, gpointer user_data) {
+			ui.label(*(cast(string*)user_data), "y", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		g_signal_connect(check_grid_x,   "toggled", &check_grid_x_toggled,   cast(void*)&window_name);
+		g_signal_connect(check_grid_y,   "toggled", &check_grid_y_toggled,   cast(void*)&window_name);
 		g_signal_connect(check_grid_top, "toggled", &check_grid_top_toggled, cast(void*)&window_name);
+		g_signal_connect(check_xlabel,   "toggled", &check_xlabel_toggled,   cast(void*)&window_name);
+		g_signal_connect(check_ylabel,   "toggled", &check_ylabel_toggled,   cast(void*)&window_name);
 
 		// numbers for all 3 axis
 		label_nums = cast(GtkLabel*)gtk_label_new("nums:");
@@ -1518,12 +1530,14 @@ struct MyPlotWidget {
 		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_x);
 		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_y);
 		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_top);
+		gtk_box_append(box_grid, cast(GtkWidget*)check_xlabel);
 
 		gtk_widget_set_size_request(cast(GtkWidget*)label_nums, 50,0);
 		gtk_box_append(box_nums, cast(GtkWidget*)label_nums);
 		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_x);
 		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_y);
 		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_top);
+		gtk_box_append(box_nums, cast(GtkWidget*)check_ylabel);
 
 		gtk_box_append(controls_box, cast(GtkWidget*)box_grid_nums);
 
