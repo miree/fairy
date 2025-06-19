@@ -179,8 +179,10 @@ public:
 		@SERIALIZE double[] bins;
 		@SERIALIZE ulong  bins_x;
 		@SERIALIZE ulong  bins_y;
+		@SERIALIZE string xlabel;
 		@SERIALIZE double left;
 		@SERIALIZE double right;
+		@SERIALIZE string ylabel;
 		@SERIALIZE double bottom;
 		@SERIALIZE double top;
 		@SERIALIZE double overflow;
@@ -193,14 +195,16 @@ public:
 		                                 // counts[1] are above the histogram
 		                                 // counts[5] are right outside
 	}
-	this(ulong nbins_x, ulong nbins_y, double left, double right, double bottom, double top, double initial = double.init) {
+	this(ulong nbins_x, ulong nbins_y, double left, double right, string xlabel, double bottom, double top, string ylabel, double initial = double.init) {
 		data.initial     = initial;
 		data.bins        = new double[cast(uint)nbins_x*cast(uint)nbins_y];
 		data.bins[]      = initial;
 		data.bins_x      = nbins_x;
 		data.bins_y      = nbins_y;
+		data.xlabel      = xlabel;
 		data.left        = left;
 		data.right       = right;
+		data.ylabel      = ylabel;
 		data.bottom      = bottom;
 		data.top         = top;	
 		data.quadrants[] = initial;
@@ -261,8 +265,9 @@ public:
 	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) 
 	{
 		return new Hist2Visualizer(old, item_version, backend, data.bins, 
-								   data.bins_x, data.bins_y, 
-								   data.left, data.right, data.bottom, data.top);
+								   data.bins_x, data.bins_y,  
+								   data.left, data.right, data.bottom, data.top,
+								   data.xlabel, data.ylabel);
 	}
 	override ulong getVersion() {
 		return item_version;
@@ -885,7 +890,9 @@ public:
 		_right    = right;
 		_mipmap_data = make_mipmap_data();
 		_xlabel = xlabel;
-		//_ylabel = ylabel;
+		double binwidth = (right-left)/data.length;
+		import std.conv;
+		_ylabel = "counts ["~binwidth.to!string~"]";
 	}
 	//override string getLabelX() {
 	//	return _xlabel;
@@ -923,16 +930,18 @@ public:
 			//d.set_color(0.0,0.0,1.0);
 			d.set_color(0x44/255.0, 0x01/255.0, 0x54/255.0);
 			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, false);
-			double w_text, h_text;
-			d.text_extent(_xlabel,w_text,h_text);
-			double x_text = t[0].world2canvas((t[0].min+t[0].max)/2)-w_text/2;
-			double y_text = t[1].world2canvas(t[1].min)-h_text;
-			d.set_color(0,0,0);
-			d.text(x_text,y_text, _xlabel);
 		} catch(Exception e) {
 			import std.stdio;
 			writeln ("there was an Exception: ", e.file, ":", e.line, " -> ", e.msg, "\r");
 		}
+	}
+
+	override string getXlabel() {
+		return _xlabel;
+	}
+
+	override string getYlabel() {
+		return _ylabel;
 	}
 
 	double getBinWidth() const pure
@@ -1589,6 +1598,15 @@ public:
 		//	d.rectangle(x1-0.2,y1+0.2, x2+0.2,y2-0.2);
 		//	d.fill();
 		//}
+
+
+	}
+
+	override string getXlabel() {
+		return _xlabel;
+	}
+	override string getYlabel() {
+		return _ylabel;
 	}
 
 	double getBinWidth() const

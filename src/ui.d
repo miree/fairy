@@ -534,13 +534,15 @@ string fill1(string name, double position, double amount = 1.0) {
 	["name of histogram",
 	 "number of bins in x-direction",
 	 "number of bins in y-direction",
+	 "x-axis label",
+	 "y-axis label",
 	 "left border of leftmost bin",
 	 "right border of rightmost bin",
 	 "bottom border of lowest bin",
 	 "top border of highest bin"])
-string hist2(string name, ulong bins_x, ulong bins_y, double left = double.init, double right = double.init, double bottom = double.init, double top = double.init) {
+string hist2(string name, ulong bins_x, ulong bins_y, string xlabel, string ylabel, double left = double.init, double right = double.init, double bottom = double.init, double top = double.init) {
 	import fairy, histogram;
-	fairy.session.add_item(name, new Hist2(bins_x,bins_y, left,right, bottom,top));
+	fairy.session.add_item(name, new Hist2(bins_x,bins_y, left,right,xlabel, bottom,top,ylabel));
 	return "";
 }
 
@@ -884,6 +886,17 @@ void numbers(string window_name, string axis, string action="toggle") {
 			update_window_gui(window_name, true);
 		}
 	} else if (toggle_action(action, fairy.session.get_canvas(window_name).numbers[axis_helper_xy(axis[0])])) {
+		update_window_gui(window_name, true);
+	}
+}
+
+@UI_EXPORT("show axis label for given axis", 
+	[ "name of the window",
+	  "name of axis (x or y)",
+	  "true enables, false disables, toggle changes current setting"] )
+void label(string window_name, string axis, string action="toggle") {
+	import graphics, fairy;
+  if (toggle_action(action, fairy.session.get_canvas(window_name).axislabel[axis_helper_xy(axis[0])])) {
 		update_window_gui(window_name, true);
 	}
 }

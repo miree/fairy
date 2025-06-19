@@ -1366,8 +1366,10 @@ class PlotWidget : Box {
 	Box         grid_nums_checks_x;
 	Box         grid_nums_checks_y;
 	Box         grid_nums_checks_top;
+	Box         label_checks;
 	Label       grid_label;
 	CheckButton check_grid_x, check_grid_y, check_grid_top;
+	CheckButton check_label_x, check_label_y;
 	Label       nums_label;
 	CheckButton check_nums_x, check_nums_y, check_nums_top;
 	Box         colorbar_overlay;
@@ -1407,6 +1409,8 @@ class PlotWidget : Box {
 		check_nums_x.setActive(canvas.numbers[0]);
 		check_nums_y.setActive(canvas.numbers[1]);
 		check_nums_top.setActive(canvas.numbers_ontop);
+		check_label_x.setActive(canvas.axislabel[0]);
+		check_label_y.setActive(canvas.axislabel[1]);
 		check_colorbar.setActive(canvas.color_bar);
 		spin_n_columns.setValue(canvas.columns_or_rows);
 		if (canvas.display_mode == DisplayMode.overlay) radio_overlay.setActive(true);
@@ -1484,6 +1488,9 @@ class PlotWidget : Box {
 		check_grid_y.addOnToggled((button)   => grid(name,  "y",  button.getActive()?"true":"false"));
 		check_grid_top.addOnToggled((button) => grid(name, "top", button.getActive()?"true":"false"));
 
+		check_label_x   = new CheckButton("xlb");
+		check_label_y   = new CheckButton("ylb");
+
 		nums_label     = new Label("nums");
 		check_nums_x   = new CheckButton("X");
 		check_nums_y   = new CheckButton("Y");
@@ -1494,6 +1501,11 @@ class PlotWidget : Box {
 		check_nums_x.addOnToggled(  (button) => ui.numbers(name,  "x" , button.getActive()?"true":"false"));
 		check_nums_y.addOnToggled(  (button) => ui.numbers(name,  "y" , button.getActive()?"true":"false"));
 		check_nums_top.addOnToggled((button) => ui.numbers(name, "top", button.getActive()?"true":"false"));
+
+		check_label_x.setActive(canvas.axislabel[0]);
+		check_label_y.setActive(canvas.axislabel[1]);
+		check_label_x.addOnToggled(  (button) => ui.label(name,  "x" , button.getActive()?"true":"false"));
+		check_label_y.addOnToggled(  (button) => ui.label(name,  "y" , button.getActive()?"true":"false"));
 
 
 		check_colorbar = new CheckButton("colorbar");
@@ -1591,10 +1603,15 @@ class PlotWidget : Box {
 		grid_nums_checks_top.append(check_grid_top);
 		grid_nums_checks_top.append(check_nums_top);
 
+		label_checks = new Box(GtkOrientation.VERTICAL, 0);
+		label_checks.append(check_label_x);
+		label_checks.append(check_label_y);
+
 		controls.append(grid_nums_label);
 		controls.append(grid_nums_checks_x);
 		controls.append(grid_nums_checks_y);
 		controls.append(grid_nums_checks_top);
+		controls.append(label_checks);
 
 		colorbar_overlay = new Box(GtkOrientation.VERTICAL, 0);
 		colorbar_overlay.append(check_colorbar);

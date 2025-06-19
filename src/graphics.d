@@ -79,6 +79,15 @@ public:
 	double getValue(double x, double y) {
 		return double.init;
 	}
+	string getXlabel() {
+		return "";
+	}
+	string getYlabel() {
+		return "";
+	}
+	string getZlabel() {
+		return "";
+	}
 
 	bool get_leftright(out double[2] leftright, in Transform[3] t)  {
 		return false;
@@ -139,6 +148,7 @@ struct CanvasProperties {
 	@SERIALIZE int          columns_or_rows  = 1;
 	@SERIALIZE double       color_key_width  = 0.05; // percent of canvas width
 	@SERIALIZE bool[3]      autoscale        = [false,false,false];
+	@SERIALIZE bool[3]      axislabel        = [true,true,false];
 	@SERIALIZE bool         autorefresh      = false;
 	@SERIALIZE string[]     itemnames        = [];
 	@SERIALIZE Transform[3] transform;
@@ -249,6 +259,48 @@ struct CanvasPainter {
 	void draw_grid_numbers() {
 		if (canvas.numbers[0]) vertical_grid_numbers(backend, canvas);
 		if (canvas.numbers[1]) horizontal_grid_numbers(backend, canvas);			
+	}
+
+	void draw_xaxislabels(string[] xlabels) {
+		import std.array;
+		string label = xlabels.join(" , ");
+		double w_text, h_text;
+		backend.text_extent(label,w_text,h_text);
+		double x_text = canvas.transform[0].world2canvas((canvas.transform[0].min+canvas.transform[0].max)/2)-w_text/2;
+		double y_text = canvas.transform[1].world2canvas(canvas.transform[1].min)-h_text;
+		if (backend.text_with_border()) {
+			backend.set_color(0.9,0.9,0.9);
+			backend.text(x_text-1, y_text-1, label);
+			backend.text(x_text-1, y_text+1, label);
+			backend.text(x_text+1, y_text-1, label);
+			backend.text(x_text+1, y_text+1, label);
+			backend.stroke();
+		}
+		backend.set_color(0,0,0);
+		backend.text(x_text,y_text, label);
+
+	}
+
+	void draw_yaxislabels(string[] ylabels) {
+		import std.array;
+		string label = ylabels.join(" , ");
+		double w_text, h_text;
+		backend.text_extent(label,w_text,h_text);
+		double x_text = canvas.transform[0].world2canvas(canvas.transform[0].min);//-w_text/2;
+		double y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_text;
+		if (backend.text_with_border()) {
+			backend.set_color(0.9,0.9,0.9);
+			backend.text(x_text-1, y_text-1, label);
+			backend.text(x_text-1, y_text+1, label);
+			backend.text(x_text+1, y_text-1, label);
+			backend.text(x_text+1, y_text+1, label);
+			backend.stroke();
+		}
+		backend.rectangle(x_text,y_text, x_text+w_text,y_text-h_text);
+		backend.fill();
+		backend.set_color(0,0,0);
+		backend.text(x_text,y_text, label);
+
 	}
 
 	static void get_rgb(double c, out uint rgb) {
@@ -436,6 +488,8 @@ struct CanvasPainter {
 			backend.set_text_size(canvas.text_size);
 		}
 
+		string[] xlabels;
+		string[] ylabels;
 		if (canvas.display_mode == DisplayMode.overlay) {
 
 			canvas.transform[0].update_coefficients(0, 1, canvas.width);
@@ -457,12 +511,19 @@ struct CanvasPainter {
 						canvas.dim = cast(int)visualizers[itemname].getDim;
 					}
 					visualizers[itemname].draw(backend, canvas.transform);
+					string xlabel = visualizers[itemname].getXlabel();
+					string ylabel = visualizers[itemname].getYlabel();
+					import std.algorithm;
+					if (!xlabels.canFind(xlabel)) xlabels ~= xlabel;
+					if (!ylabels.canFind(ylabel)) ylabels ~= ylabel;
 				} catch (Exception e) {
 					writeln("cannot draw ", itemname , " because ", e.msg);
 				}
 			}
 			if (canvas.grid_ontop)    draw_grid();
 			if (canvas.numbers_ontop) draw_grid_numbers();
+			if (canvas.axislabel[0])  draw_xaxislabels(xlabels);
+			if (canvas.axislabel[1])  draw_yaxislabels(ylabels);
 			if (canvas.color_bar) {
 				draw_colorkey();
 				color_grid_numbers(backend, canvas, canvas.color_key_width);
@@ -493,7 +554,7 @@ struct CanvasPainter {
 
 			foreach(row; 0..rows) {
 				foreach(column; 0..columns) {
-
+					string xlabel, ylabel;
 					uint idx = column * rows + row;
 					if (canvas.display_mode == DisplayMode.columns) {
 						idx = row * columns + column;
@@ -569,6 +630,9 @@ struct CanvasPainter {
 							//	visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
 							//}
 							visualizers[itemname].draw(backend, canvas.transform);
+							xlabel = visualizers[itemname].getXlabel();
+							ylabel = visualizers[itemname].getYlabel();
+
 						} catch (Exception e) {
 							import std.stdio;
 							writeln("cannot draw ", itemname , " because ", e.msg);
@@ -577,6 +641,8 @@ struct CanvasPainter {
 
 					if (canvas.grid_ontop)    draw_grid();
 					if (canvas.numbers_ontop) draw_grid_numbers();
+					if (canvas.axislabel[0])  draw_xaxislabels([xlabel]);
+					if (canvas.axislabel[1])  draw_yaxislabels([ylabel]);
 
 					if (canvas.color_bar) {
 						draw_colorkey();

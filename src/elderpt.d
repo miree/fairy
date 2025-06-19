@@ -82,7 +82,7 @@ extern(C) int hist1d_create(const char *name,
 		elder_histograms_1D_is_smart.length = handle+1;
 	}
 
-	elder_histograms_1D[handle] = new Hist1(n_bins, left, right, title.to!string);
+	elder_histograms_1D[handle] = new Hist1(n_bins, left, right, axis.to!string);
 	elder_histograms_1D_is_smart[handle] = is_smart;
 	main_thread.send(MsgHist1dCreate(itemname, cast(shared Hist1)(elder_histograms_1D[handle])));
 	return handle;
@@ -125,8 +125,8 @@ extern(C) int hist2d_create(const char *name,
 		elder_histograms_2D.length = handle+1;
 	}
 	elder_histograms_2D[handle] = new Hist2(n_bins1, n_bins2, 
-											left1, right1, 
-											left2, right2);
+											left1, right1, axis1.to!string,
+											left2, right2, axis2.to!string);
 	main_thread.send(MsgHist2dCreate(itemname, cast(shared Hist2)(elder_histograms_2D[handle])));
 	return handle;
 }
