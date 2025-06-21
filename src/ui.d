@@ -987,12 +987,15 @@ version (elderpt) {
 	 "elderpt configuration file",
 	 "mbs source: eg. file:run001.lmd or stream:x86l-xyz"])
 @trusted
-string elderpt(string command, string config_file = "analysis.config", string mbs_file = null) {
+string elderpt(string command, string config_file = "analysis.config", string mbs_source = null, string[] more_sources = null) {
 	import elderpt;
 	import std.concurrency;
+	string[] sources;
+	if (mbs_source !is null && mbs_source != "") sources ~= mbs_source;
+	if (more_sources !is null) sources ~= more_sources;
 	if (command == "start") {
 		if (elderpt.running) throw new Exception("elderpt already running, try \"elderpt stop\" or \"elderpt restart\"");
-		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, mbs_file);
+		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, sources.idup);
 		receive(
 			(MsgAck msg) {elderpt.running = true;},
 			(MsgErr msg) {throw new Exception("elderpt couldn't start");}	
@@ -1005,7 +1008,7 @@ string elderpt(string command, string config_file = "analysis.config", string mb
 			receive((MsgAck msg) {});
 			elderpt.running = false;
 		}
-		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, mbs_file);
+		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, sources.idup);
 		receive(
 			(MsgAck msg) {elderpt.running = true;},
 			(MsgErr msg) {throw new Exception("elderpt couldn't start");}	

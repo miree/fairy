@@ -294,7 +294,8 @@ struct MsgGetRate{}
 struct MsgRate{double rate;}
 //struct MsgStopAck {} // sent in response to MsgStop
 //struct MsgEventsPerSecond {long events;}
-void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filename) {
+void run_elderpt(Tid main_thread_tid, const string config_filename, const string[] mbs_sourcesc) {
+	auto mbs_sources = mbs_sourcesc.dup;
 	import mbsapi_import;
 	enum GETEVT_FILE       = 1;
 	enum GETEVT_STREAM     = 2;
@@ -328,38 +329,64 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 	enum PUTEVT_WRERR      = 106;
 	enum PUTEVT_NOCHANNEL  = 107;
 	import std.stdio, std.conv;
+	bool zipped = false;
 	auto mbs_channel = f_evt_control();
 	scope(exit) { 
 		import core.stdc.stdlib;
 		free(mbs_channel); 
 	}
-	if (mbs_filename !is null) {
-		import std.algorithm, std.array;
-		int source_type = GETEVT_STREAM;
-		if (mbs_filename.canFind(':')) {
-			auto parts = mbs_filename.split(':');
-			if (parts[0] == "file")    source_type = GETEVT_FILE;
-			else if (parts[0] == "stream")  source_type = GETEVT_STREAM;
-			else if (parts[0] == "trans")   source_type = GETEVT_TRANS;
-			else if (parts[0] == "event")   source_type = GETEVT_EVENT;
-			else if (parts[0] == "revserv") source_type = GETEVT_REVSERV;
-			else throw new Exception("unknown source type: " ~ parts[0] ~ ".  Possible source types are: file stream trans event revserv");
-			mbs_filename = parts[1];
-		} else if (mbs_filename.endsWith(".lmd")) {
-			source_type = GETEVT_FILE;
+	int source_idx = 0;
+	string mbs_source;
+
+	string open_mbs_source(ref s_evt_channel* mbs, string mbs_source) {
+		if (mbs_source !is null && mbs_source.length > 0) {
+			import std.stdio;
+			writeln("mbs_source: ", mbs_source);
+			import std.algorithm, std.array;
+			int source_type = GETEVT_STREAM; // stream server is the default
+			if (mbs_source.canFind(':')) {
+				auto parts = mbs_source.split(':');
+				if (parts[0] == "file")    source_type = GETEVT_FILE;
+				else if (parts[0] == "stream")  source_type = GETEVT_STREAM;
+				else if (parts[0] == "trans")   source_type = GETEVT_TRANS;
+				else if (parts[0] == "event")   source_type = GETEVT_EVENT;
+				else if (parts[0] == "revserv") source_type = GETEVT_REVSERV;
+				else throw new Exception("unknown source type: " ~ parts[0] ~ ".  Possible source types are: file stream trans event revserv");
+				mbs_source = parts[1];
+			} else if (mbs_source.endsWith(".lmd")) {
+				source_type = GETEVT_FILE;
+			} else if (mbs_source.endsWith(".lmd.gz")) {
+				writeln("zipped lmd file");
+				import std.process;
+				auto command = "gunzip -k -c " ~mbs_source~ " > /tmp/current.lmd";
+				writeln("unzip command: ", command);
+				auto unzip = pipeShell(command);
+				wait(unzip.pid);
+				mbs_source = "/tmp/current.lmd";
+				//auto tmp = File(mbs_source);
+				//foreach(chunk; unzip.stdout.byChunk(256)) 
+				//	tmp.rawWrite(chunk);
+				writeln("source name ", mbs_source);
+				source_type = GETEVT_FILE;
+				zipped = true;
+			}
+			import std.string;
+			char *file_header;
+			if (f_evt_get_open(source_type,
+				           cast(char*)mbs_source.dup.toStringz, 
+				           mbs,
+				           &file_header,
+				           1,0) != GETEVT_SUCCESS) {
+				writeln("failed to open file \'", mbs_source,"\'");
+				return null;
+			}
+			writeln("opening file ", mbs_source);
+			return mbs_source;
 		}
-		import std.string;
-		char *file_header;
-		if (f_evt_get_open(source_type,
-			           cast(char*)mbs_filename.dup.toStringz, 
-			           mbs_channel,
-			           &file_header,
-			           1,0) != GETEVT_SUCCESS) {
-			writeln("failed to open file ", mbs_filename);
-			return;
-		}
-		writeln("opening file ", mbs_filename);
+		return null;
 	}
+	if (mbs_sources !is null && mbs_sources.length > 0)
+		mbs_source = open_mbs_source(mbs_channel, mbs_sources[0]);
 
 	elder_histograms_2D_count = 0;
 	elder_histograms_1D_count = 0;
@@ -371,6 +398,8 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 	string name = "analysis.config";
 	if (config_filename !is null) {
 		name = config_filename;
+		import std.stdio;
+		writeln("config_filename ", config_filename);
 	}
 	name ~= '\0';
 	void *ctrl = elder_pt_controller_create(name.ptr, iface);
@@ -406,6 +435,7 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 	StopWatch measure_time = StopWatch(AutoStart.yes);
 
 	for (ulong i; ;++i) {
+		//writeln("event ", i);
 		ulong new_seconds = measure_time.peek.total!"seconds";
 		if (new_seconds > seconds) {
 			rate = (i - events)/(new_seconds-seconds);
@@ -423,13 +453,21 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 			uint frac_msecs = cast(uint)(timeval.tv_usec/1e3);
 			elder_pt_event_clear(evt, cast(uint)i, 1, 1, time_secs, frac_msecs, timestamp);
 
-			if (mbs_filename !is null) { // fill with event with data from file
+			if (mbs_source !is null) { // fill with event with data from file
 				int *i_event_header;
 				int *i_buffer_header;
 				int result = f_evt_get_event(mbs_channel, &i_event_header, &i_buffer_header);
 				if (result != GETEVT_SUCCESS) {
 					writeln("end of file");
-					done = true;
+					mbs_sources = mbs_sources[1..$];
+					if (mbs_sources !is null && mbs_sources.length > 0) {
+						mbs_source = open_mbs_source(mbs_channel, mbs_sources[0]);
+					}
+					if (mbs_source is null || mbs_sources is null || mbs_sources.length == 0) {
+						writeln("all files processed");
+						f_evt_get_close(mbs_channel);
+						done = true;						
+					}
 					continue;
 				}
 				auto event_header = cast(sMbsEventHeader*) i_event_header;
@@ -468,6 +506,8 @@ void run_elderpt(Tid main_thread_tid, string config_filename, string mbs_filenam
 				        index += subevent_length;       
 					}
 				}
+			} else {
+				//writeln("mbs source is null");
 			}
 			elder_pt_controller_unpack(ctrl, iface, evt);
 			elder_pt_controller_process(ctrl, iface);

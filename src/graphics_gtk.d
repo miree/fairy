@@ -2229,6 +2229,8 @@ class ElderPtWindow : ApplicationWindow
 				} else {
 					_elder_toplevel_config_file = null;
 				}
+				import std.stdio;
+				writeln("config file chosen\'", _elder_toplevel_config_file,"\'");
 			});
 			elder_config_file_box.append(_elder_config_file_chooser_button);
 			box.append(elder_config_file_box);
@@ -2243,6 +2245,8 @@ class ElderPtWindow : ApplicationWindow
 					auto lmd_fiter = new FileFilter; 
 					     lmd_fiter.addPattern("*.lmd");
 					     lmd_fiter.setName("*.lmd");
+					     lmd_fiter.addPattern("*.lmd.gz");
+					     lmd_fiter.setName("*.lmd.gz");
 					dialog.addFilter(lmd_fiter);
 					dialog.setSelectMultiple(true);
 					dialog.addOnResponse((int response, Dialog dialog) {
@@ -2253,7 +2257,7 @@ class ElderPtWindow : ApplicationWindow
 							string sources;
 							foreach(filename; filenames) { sources ~= filename ~ " "; }
 							writeln("sources = ", sources);
-							_mbs_source.setText(sources);
+							_mbs_source.setText(sources.strip());
 						} 
 						if (response == ResponseType.CANCEL || response == ResponseType.OK) dialog.close(); 
 					});
@@ -2276,7 +2280,18 @@ class ElderPtWindow : ApplicationWindow
 				delegate(Button button) {
 					import ui;
 					try { 
-						ui.elderpt("start"); 
+						import std.stdio;
+						import std.string;
+						//string config_filename = strip(_elder_config_file_chooser_button.getFilename());
+						writeln("config file: ", _elder_toplevel_config_file);
+						string[] sources = _mbs_source.getText().strip.split;
+						string source;
+						string[] more_sources;
+						if (sources.length > 0) {
+							source = sources[0];
+							more_sources = sources[1..$];
+						}
+						ui.elderpt("start", _elder_toplevel_config_file, source, more_sources); 
 						_status_label.setLabel(" Running ");
 						_start_acquisition_button.setSensitive(false);
 						_pause_acquisition_button.setSensitive(true);
