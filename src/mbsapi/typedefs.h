@@ -16,6 +16,9 @@
 #ifndef TYPEDEF_H
 #define TYPEDEF_H
 
+#include <sys/select.h>
+#include <time.h>
+
 #define Linux
 /* Platform independent definitions */
 

@@ -515,9 +515,11 @@ public:
 		//header_bar.packEnd(close_window);
 		header_bar.packStart(open_menu);
 
-		open_elderpt = new Button("Elderpt");
-		open_elderpt.addOnClicked((Button button) { new SingleWindow!ElderPtWindow(application); } );
-		header_bar.packStart(open_elderpt);
+		version(elderpt) {
+			open_elderpt = new Button("Elderpt");
+			open_elderpt.addOnClicked((Button button) { new SingleWindow!ElderPtWindow(application); } );
+			header_bar.packStart(open_elderpt);
+		}
 
 
 

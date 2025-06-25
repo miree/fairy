@@ -562,7 +562,8 @@ INTS4 f_stc_connectserver(CHARS *c_node, INTS4 l_port, INTS4 *pi_channel, struct
    s_client.sock.sin_family =   s_client.hostentstruct.h_addrtype;
    s_client.sock.sin_port   =   htons(l_port);
    s_client.sock.sin_addr   =
-         * ((struct in_addr *) s_client.hostentstruct.h_addr);
+         // * ((struct in_addr *) s_client.hostentstruct.h_addr); // this doesn't work anymore (h_addr was there for backwards compatibility it refers to first element of h_addr_list array)
+         * ((struct in_addr *) s_client.hostentstruct.h_addr_list[0]);
 
    retval = connect( s_client.socket,
          ( struct sockaddr *) &s_client.sock,
