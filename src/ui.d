@@ -365,6 +365,64 @@ string fitLL(string function_name, string histogram_name, double left, double ri
 	return "";
 }
 
+
+@UI_EXPORT("series of log likelihood fit function to 2dhistogram line by line",
+	["name of functiton item",
+	 "name of 2d histogram item",
+	 "left end of fit region",
+	 "right end of fit region",
+	 "sum that many y bins together"])
+string fit2dseriesLL(string function_name, string histogram2d_name, double left, double right, int nybins) {
+	import fairy, functions, histogram, gate;
+	auto h2_ptr = histogram2d_name in fairy.session.items;
+	if (h2_ptr is null) {
+		throw new Exception("no item with name " ~ histogram2d_name);
+	}
+	Hist2ProjectionSource source = cast(Hist2ProjectionSource)(h2_ptr.item);
+	if (source is null) {
+		throw new Exception("item " ~ histogram2d_name ~ " is not of type functions.Hist2ProjectionSource");
+	}
+	auto f1_ptr = function_name in fairy.session.items;
+	if (f1_ptr is null) {
+		throw new Exception("no item with name " ~ function_name);
+	}
+	Function fun = cast(Function)(f1_ptr.item);
+	if (fun is null) {
+		throw new Exception("item " ~ function_name ~ " is not of type functions.Function");
+	}
+
+	// prepare projector
+	auto data = source.get_projection_data();
+	double bottom = data.bottom;
+	double height = (data.top-data.bottom)/data.bins_y;
+	double top = bottom + height*nybins;
+	bottom -= height*0.1;
+	top    += height*0.1;
+	string tmp_gatename = histogram2d_name~"_tmp_gate__";
+	gate1d(tmp_gatename, bottom,top, 'y');
+	auto gate_ptr = tmp_gatename in fairy.session.items;
+	assert(gate_ptr !is null);
+	auto tmpgate = cast(Gate1D)(gate_ptr.item);
+	assert(tmpgate !is null);
+	scope(exit) rm(tmp_gatename);
+	auto projection = new Hist2Projection(histogram2d_name, tmp_gatename);
+
+	foreach(i;0..data.bins_y) {
+		tmpgate.item_version++;
+		projection.getVersion();
+		projection.do_project();
+		import std.stdio;
+		write(0.5*(tmpgate.data.min+tmpgate.data.max), "    ");
+		fun.fit_loglikelihood(projection,[left,right], false);
+		tmpgate.data.min += height; 
+		tmpgate.data.max += height;
+		tmpgate.item_version++;
+		//import std.stdio;
+		//writeln("minmax = ", tmpgate.data.min, " ", tmpgate.data.max);
+	}
+	return "";
+}
+
 @UI_EXPORT("fit function to data
   example: fit a+b*x*x [\"a=40\",\"b=2\"] fitpoints.dat",
 	["fit function to datapoints in file using given start parameters"])

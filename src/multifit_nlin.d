@@ -216,7 +216,7 @@ struct MultifitNlin(C,F,E=typeof(&residues))
 		
 		return iter;
 	}
-	int run(int steps = 50, double epsilon = 1e-5)
+	int run(int steps = 250, double epsilon = 1e-5)
 	{
 		int iter = 0;
 		do 

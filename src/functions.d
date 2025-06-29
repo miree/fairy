@@ -218,14 +218,15 @@ public:
 
 
 
-	void fit_loglikelihood(FitDataSource source, double[2] region) {
+	void fit_loglikelihood(FitDataSource source, double[2] region, bool verbose = true) {
 		import multifit_nlin;
 		import std.algorithm, std.array;
 
 		auto datapoints = source.get_data(region).map!(xyd=>Dp!double(xyd[0],xyd[1],xyd[2])).array;
-
+		//import std.stdio;
+		//writeln(datapoints);
 		import std.stdio;
-		writeln("fit with ", datapoints.length, " points");
+		if (verbose) writeln("fit with ", datapoints.length, " points");
 
 		const x_idx = expr.param_index_lookup["x"];
 		double[] all_params = data.parameters.dup;
@@ -241,16 +242,18 @@ public:
 				fit_params ~= par;
 			}
 		}
-		auto fitter = MultifitNlin!(double,typeof(fitdelegate),typeof(&loglikelihood))(fitdelegate, datapoints, fit_params, true, &loglikelihood);
+		auto fitter = MultifitNlin!(double,typeof(fitdelegate),typeof(&loglikelihood))(fitdelegate, datapoints, fit_params, verbose, &loglikelihood);
 		fitter.run();
 		foreach(i,rpar; fitter.result_params) {
-			writeln("par ", i, ": ", fitter.result_params[i], " +- " , fitter.result_errors[i]);
+			if (verbose) writeln("par ", i, ": ", fitter.result_params[i], " +- " , fitter.result_errors[i]);
+			else         write(fitter.result_params[i], " ", fitter.result_errors[i], " ");
 			if (i<x_idx) {
 				data.fitresult[i] = rpar;
 			} else {
 				data.fitresult[i+1] = rpar;
 			}
-		}	
+		}
+		if (!verbose) writeln;
 
 	}
 
