@@ -180,7 +180,7 @@ public:
 	}
 
 
-	void fit(FitDataSource source, double[2] region) {
+	void fit(FitDataSource source, double[2] region, bool verbose = true) {
 		import multifit_nlin;
 		import std.algorithm, std.array;
 
@@ -206,7 +206,13 @@ public:
 		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, fit_params, true);
 		fitter.run();
 		foreach(i,rpar; fitter.result_params) {
-			writeln("par ", i, ": ", fitter.result_params[i], " +- " , fitter.result_errors[i]);
+			string parameter_name;
+			foreach(name,idx; expr.param_index_lookup) if (idx == i) {
+				parameter_name = name;
+				break;
+			}
+			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i], fitter.result_errors[i]);
+			else         write(fitter.result_params[i], " ", fitter.result_errors[i], " ");
 			if (i<x_idx) {
 				data.fitresult[i] = rpar;
 			} else {
@@ -245,7 +251,12 @@ public:
 		auto fitter = MultifitNlin!(double,typeof(fitdelegate),typeof(&loglikelihood))(fitdelegate, datapoints, fit_params, verbose, &loglikelihood);
 		fitter.run();
 		foreach(i,rpar; fitter.result_params) {
-			if (verbose) writeln("par ", i, ": ", fitter.result_params[i], " +- " , fitter.result_errors[i]);
+			string parameter_name;
+			foreach(name,idx; expr.param_index_lookup) if (idx == i) {
+				parameter_name = name;
+				break;
+			}
+			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i], fitter.result_errors[i]);
 			else         write(fitter.result_params[i], " ", fitter.result_errors[i], " ");
 			if (i<x_idx) {
 				data.fitresult[i] = rpar;
