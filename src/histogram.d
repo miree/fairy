@@ -1761,7 +1761,6 @@ public:
 				}
 				ulong idx = _bins_x*j+i;
 				double d = _bin_data[cast(uint)idx];
-				//writeln("d = ", d);
 				if (d !is double.init) {
 					if (initialize) {
 						minimum = d;
@@ -1781,7 +1780,10 @@ public:
 		if (!initialize) {
 			if (minimum is double.init || maximum is double.init) return false;
 			if (t[2].logscale && minimum <= 0 && maximum <= 0) return false;
-			if (minimum == maximum) return false;
+			if (abs(minimum - maximum) < 1e-8) {
+				minimum = maximum-0.5;
+				maximum = maximum+0.5;
+			}
 
 			minmax[0] = t[2].log(minimum, minimum_larger0/2.0);
 			minmax[1] = t[2].log(maximum);
