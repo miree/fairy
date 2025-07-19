@@ -760,6 +760,18 @@ class ItemView : TreeView {
 			this.expandRow(treestore.getPath(selected_iter), true);
 		}
 	}
+	void copy_selected_to_clipboard() {
+		string result;
+		foreach(selected_iter; getSelectedIters()) {
+			result ~= treestore.getString(selected_iter, COLUMN_FULLNAME);
+		}
+		//import std.string;
+		//immutable char* cstr = result.toStringz;
+		import gtk.Clipboard;
+		import gdk.Display;
+		Clipboard clipboard = Clipboard.getDefault(Display.getDefault()); 	
+		clipboard.setText(result, cast(int)result.length);
+	}
 
 	void hist2d_projection_xy(char xy) {
 		foreach(selected_iter; getSelectedIters()) {
@@ -1008,6 +1020,7 @@ class ItemView : TreeView {
 		version(gtk3) {
 			popup_menu = new Menu;
 			popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
+			popup_menu.append( new MenuItem( (m) => copy_selected_to_clipboard(), "copy to clipboard", "copy fullname of all selected items to the clipboard" ));
 			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
 			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "hist2d project x", "interactively project 2d histogram along x axis" ));
 			popup_menu.append( new MenuItem( (m) => show_all_recursive(),  "show recursive", "show selected items and their children"));
