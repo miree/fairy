@@ -761,14 +761,10 @@ class ItemView : TreeView {
 		}
 	}
 	void copy_selected_to_clipboard() {
-		string result;
-		foreach(selected_iter; getSelectedIters()) {
-			result ~= treestore.getString(selected_iter, COLUMN_FULLNAME);
-		}
-		//import std.string;
-		//immutable char* cstr = result.toStringz;
+		import std.array, std.algorithm;
 		import gtk.Clipboard;
 		import gdk.Display;
+		string result = getSelectedIters().map!(iter => treestore.getString(iter, COLUMN_FULLNAME)).join(' ');
 		Clipboard clipboard = Clipboard.getDefault(Display.getDefault()); 	
 		clipboard.setText(result, cast(int)result.length);
 	}
