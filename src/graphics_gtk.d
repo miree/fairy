@@ -765,8 +765,7 @@ class ItemView : TreeView {
 		import gtk.Clipboard;
 		import gdk.Display;
 		string result = getSelectedIters().map!(iter => treestore.getString(iter, COLUMN_FULLNAME)).join(' ');
-		Clipboard clipboard = Clipboard.getDefault(Display.getDefault()); 	
-		clipboard.setText(result, cast(int)result.length);
+		Clipboard.getDefault(Display.getDefault()).setText(result, cast(int)result.length);
 	}
 
 	void hist2d_projection_xy(char xy) {
