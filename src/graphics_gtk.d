@@ -2301,7 +2301,8 @@ class ElderPtWindow : ApplicationWindow
 							source = sources[0];
 							more_sources = sources[1..$];
 						}
-						ui.elderpt("start", _elder_toplevel_config_file, source, more_sources); 
+						import std.path;
+						ui.elderpt("start", relativePath(_elder_toplevel_config_file), source, more_sources); 
 						_status_label.setLabel(" Running ");
 						_start_acquisition_button.setSensitive(false);
 						_pause_acquisition_button.setSensitive(true);
