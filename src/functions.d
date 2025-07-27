@@ -205,20 +205,17 @@ public:
 		}
 		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, fit_params, true);
 		fitter.run();
-		foreach(i,rpar; fitter.result_params) {
-			string parameter_name;
-			foreach(name,idx; expr.param_index_lookup) if (idx == i) {
-				parameter_name = name;
-				break;
-			}
+		foreach(parameter_name,idx;expr.param_index_lookup) {
+			if (idx==x_idx) continue;
+			uint i = idx;
+			if (idx>x_idx) --i;
+
 			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i], fitter.result_errors[i]);
 			else         write(fitter.result_params[i], " ", fitter.result_errors[i], " ");
-			if (i<x_idx) {
-				data.fitresult[i] = rpar;
-			} else {
-				data.fitresult[i+1] = rpar;
-			}
-		}	
+
+			data.fitresult[i] = fitter.result_params[i];
+		}
+		if (!verbose) writeln;
 
 	}
 
@@ -250,20 +247,16 @@ public:
 		}
 		auto fitter = MultifitNlin!(double,typeof(fitdelegate),typeof(&loglikelihood))(fitdelegate, datapoints, fit_params, verbose, &loglikelihood);
 		fitter.run();
-		foreach(i,rpar; fitter.result_params) {
-			string parameter_name;
-			foreach(name,idx; expr.param_index_lookup) if (idx == i) {
-				parameter_name = name;
-				break;
-			}
+		foreach(parameter_name,idx;expr.param_index_lookup) {
+			if (idx==x_idx) continue;
+			uint i = idx;
+			if (idx>x_idx) --i;
+
 			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i], fitter.result_errors[i]);
 			else         write(fitter.result_params[i], " ", fitter.result_errors[i], " ");
-			if (i<x_idx) {
-				data.fitresult[i] = rpar;
-			} else {
-				data.fitresult[i+1] = rpar;
-			}
-		}
+
+			data.fitresult[i] = fitter.result_params[i];
+		}		
 		if (!verbose) writeln;
 
 	}
