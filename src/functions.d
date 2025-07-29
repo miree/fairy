@@ -212,10 +212,18 @@ public:
 
 			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i], fitter.result_errors[i]);
 			else         write(fitter.result_params[i], " ", fitter.result_errors[i], " ");
-
-			data.fitresult[i] = fitter.result_params[i];
 		}
 		if (!verbose) writeln;
+
+		// copy result parameters back into our local array
+		foreach(i,rpar; fitter.result_params) {
+			if (i<x_idx) {
+				data.fitresult[i] = rpar;
+			} else {
+				data.fitresult[i+1] = rpar;
+			}
+		}
+
 
 	}
 
@@ -254,10 +262,17 @@ public:
 
 			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i], fitter.result_errors[i]);
 			else         write(fitter.result_params[i], " ", fitter.result_errors[i], " ");
-
-			data.fitresult[i] = fitter.result_params[i];
 		}		
 		if (!verbose) writeln;
+
+		// copy result parameters back into our local array
+		foreach(i,rpar; fitter.result_params) {
+			if (i<x_idx) {
+				data.fitresult[i] = rpar;
+			} else {
+				data.fitresult[i+1] = rpar;
+			}
+		}
 
 	}
 
