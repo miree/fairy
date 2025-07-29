@@ -58,6 +58,30 @@ public:
 		++item_version;
 	}
 
+	void write_stats(double left, double right) {
+		double sum_w = 0;
+		double sum_wx = 0;
+		double sum_wx2 = 0;
+		if (left is double.init) left = data.left;
+		if (right is double.init) right = data.right;
+		double bin_width = (data.right-data.left)/data.bins.length;
+		foreach(i,w;data.bins) {
+			if (w is double.init) continue;
+			double x = 0.5*bin_width + data.left + i*(data.right-data.left)/data.bins.length;
+			double x2 = x*x;
+			if (x >= left && x < right) {
+				sum_w += w;
+				sum_wx += w*x;
+				sum_wx2 += w*x2;
+			}
+		}
+		import std.math;
+		double mu = sum_wx / sum_w;
+		double sigma = sqrt(sum_wx2/sum_w - mu*mu);
+		import std.stdio;
+		writeln("mu = ", mu, "   sigma = ", sigma);
+	}
+
 	void fill(double position, double value = 1.0, bool expand = false) {
 		++item_version;
 		ulong idx = cast(ulong)(1.0*data.bins.length*(position - data.left)/(data.right-data.left));
@@ -951,8 +975,8 @@ public:
 			//}
 			double line_width = 2.0;
 			//d.set_color(0.2,0.8,1.0);
-			d.set_color(0x2a/255.0, 0x78/255.0, 0x8e/255.0);
-			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
+			//d.set_color(0x2a/255.0, 0x78/255.0, 0x8e/255.0);
+			//drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
 			//d.set_color(0.0,0.0,1.0);
 			d.set_color(0x44/255.0, 0x01/255.0, 0x54/255.0);
 			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, false);

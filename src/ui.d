@@ -534,6 +534,26 @@ string hist1(string name, ulong bins, string xlabel, double left = double.init, 
 	return "";
 }
 
+@UI_EXPORT("get statistics for histogram",
+	["name of histogram",
+	 "left of region of interest",
+	 "right or region of interest"])
+string stats(string name, double left = double.init, double right = double.init) {
+	import fairy, histogram;
+	auto h1_ptr = name in fairy.session.items;
+	if (h1_ptr is null) {
+		throw new Exception("no item with name " ~ name);
+	}
+	Hist1 h1 = cast(Hist1)(h1_ptr.item);
+	if (h1 is null) {
+		throw new Exception("item " ~ name ~ " is not of type histogram.Hist1");
+	}
+	h1.write_stats(left,right);
+	return "";
+}
+
+
+
 @UI_EXPORT("add projection from 2D-histogram to 1D-histogram using a 1D-gate",
 	["name of projector",
 	 "name of 2D source histogram",
