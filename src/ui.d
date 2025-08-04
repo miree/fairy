@@ -534,6 +534,8 @@ string hist1(string name, ulong bins, string xlabel, double left = double.init, 
 	return "";
 }
 
+
+
 @UI_EXPORT("get statistics for histogram",
 	["name of histogram",
 	 "left of region of interest",
@@ -552,6 +554,28 @@ string stats(string name, double left = double.init, double right = double.init)
 	return "";
 }
 
+@UI_EXPORT("get statistics for histogram",
+	["name of histogram",
+	"filename to write to",
+	"rebin so many bins before exporting"])
+string hist1export(string name, string filename, int rebin = 1) {
+	import fairy, histogram;
+	auto h1_ptr = name in fairy.session.items;
+	if (h1_ptr is null) {
+		throw new Exception("no item with name " ~ name);
+	}
+	Hist1Export h1 = cast(Hist1Export)(h1_ptr.item);
+	if (h1 is null) {
+		throw new Exception("item " ~ name ~ " is not of type histogram.Hist1");
+	}
+	try {
+		h1.export_to_file(filename, rebin);
+	} catch (Exception e) {
+		import std.stdio;
+		writeln("cannot export ", name, " because ", e.msg);
+	}
+	return "";
+}
 
 
 @UI_EXPORT("add projection from 2D-histogram to 1D-histogram using a 1D-gate",

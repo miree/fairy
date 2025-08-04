@@ -14,9 +14,34 @@ class Hist1Factory : ItemFactory {
 	}
 }
 
+
+
+interface Hist1Export {
+	void export_to_file(string filename, int rebin);
+}
+void export_hist1_to_file(double[] bins, double left, double right, string filename, int rebin) {
+	import std.stdio;
+	double bin_width = rebin*(right-left)/bins.length;
+	auto f = File(filename,"w+");
+	double bin = 0;
+	int count = rebin;
+	foreach(i,w;bins) {
+		--count;
+		if (w !is double.init) bin += w;
+		if (count == 0 ) {
+			double x = 0.5*bin_width + left + (i/rebin)*(right-left)/(bins.length/rebin);
+			f.writeln(x, " ", bin);
+			count = rebin;
+			bin = 0;
+		}
+	}
+}	
+
+
+
 import graphics;
 
-class Hist1 : Visual, FitDataSource, Item
+class Hist1 : Visual, Hist1Export, FitDataSource, Item
 {
 public:
 	struct Data{
@@ -80,6 +105,10 @@ public:
 		double sigma = sqrt(sum_wx2/sum_w - mu*mu);
 		import std.stdio;
 		writeln("mu = ", mu, "   sigma = ", sigma);
+	}
+
+	void export_to_file(string filename, int rebin) {
+		export_hist1_to_file(data.bins, data.left, data.right, filename, rebin);
 	}
 
 	void fill(double position, double value = 1.0, bool expand = false) {
@@ -503,7 +532,7 @@ class Hist2ProjectionFactory : ItemFactory {
 }
 
 import graphics, functions;
-class Hist2Projection : Visual, FitDataSource, Item {
+class Hist2Projection : Visual, Hist1Export, FitDataSource, Item {
 	import gate;
 	struct Data {
 		@SERIALIZE string hist2name;
@@ -521,6 +550,12 @@ class Hist2Projection : Visual, FitDataSource, Item {
 		data = deserialize!Data(json); 
 		item_version = 0;
 	}
+
+	void export_to_file(string filename, int rebin) {
+		do_project();
+		export_hist1_to_file(bins, left, right, filename, rebin);
+	}
+
 
 	// Item Interface
 	override JSONValue toJSON()  { 
