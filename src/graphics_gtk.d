@@ -704,6 +704,7 @@ public:
 			case 'm': ui.winautozoom(name, "toggle");                      break;
 			case 't': ui.winshowstats(name, "toggle");                     break;
 			case 'i': ui.windrawfilled(name, "toggle");                    break;
+			case 'g':ui.grid(name,"x","toggle");ui.grid(name,"y","toggle");break;
 			default: {}
 		}
 	}

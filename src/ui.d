@@ -638,8 +638,9 @@ string ellipse(string name) {
 @UI_EXPORT("fill value into the bin of a 1D-histogram",
 	["name of histogram",
 	 "position",
-	 "add so much to the bin content(default is 1.0)"])
-string fill1(string name, double position, double amount = 1.0) {
+	 "add so much to the bin content(default is 1.0)",
+	 "rebin histogram to capture the count if it is not covered"])
+string fill1(string name, double position, double amount = 1.0, bool expand = false) {
 	import fairy, histogram;
 	auto h1_ptr = name in fairy.session.items;
 	if (h1_ptr is null) {
@@ -649,7 +650,7 @@ string fill1(string name, double position, double amount = 1.0) {
 	if (h1 is null) {
 		throw new Exception("item " ~ name ~ " is not of type histogram.Hist1");
 	}
-	h1.fill(position,amount);
+	h1.fill(position,amount,expand);
 	return "";
 }
 

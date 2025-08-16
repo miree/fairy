@@ -147,8 +147,9 @@ public:
 
 	void fill(double position, double value = 1.0, bool expand = false) {
 		++item_version;
-		ulong idx = cast(ulong)(1.0*data.bins.length*(position - data.left)/(data.right-data.left));
-		//import std.stdio; writeln("fill pos ", idx);
+		import std.math;
+		long idx = cast(long)floor(1.0*data.bins.length*(position - data.left)/(data.right-data.left));
+		import std.stdio; writeln("fill pos ", idx);
 		if (expand) {
 			//import std.stdio;
 			//writeln("histogram is filled in expand mode");
@@ -160,9 +161,14 @@ public:
 					long nfrom1 = cast(long)data.bins.length-2*(i+1);
 					long nfrom2 = cast(long)data.bins.length-2*(i+1)+1;
 					long nto    = cast(long)data.bins.length-(i+1);
-					double sum = data.bins[cast(uint)nfrom1];
-					if (nfrom2 >= 0) sum += data.bins[cast(uint)nfrom2];
-					data.bins[nto] = sum;
+					if (data.bins[cast(uint)nfrom1] is double.init && data.bins[cast(uint)nfrom2] is double.init) {
+						data.bins[nto] = double.init;
+					} else {
+						double sum = 0;
+						if (data.bins[cast(uint)nfrom1] !is double.init) sum += data.bins[cast(uint)nfrom1];
+						if (data.bins[cast(uint)nfrom2] !is double.init) sum += data.bins[cast(uint)nfrom2];
+						data.bins[nto] = sum;
+					}
 				}
 				for(uint i = 0; i < data.bins.length/2; ++i) {
 					data.bins[i] = double.init;
@@ -176,9 +182,14 @@ public:
 					uint nfrom1 = 2*i;
 					uint nfrom2 = 2*i+1;
 					uint nto    = i;
-					double sum = data.bins[nfrom1];
-					if (nfrom2 < data.bins.length) sum += data.bins[nfrom2];
-					data.bins[nto] = sum;
+					if (data.bins[cast(uint)nfrom1] is double.init && data.bins[cast(uint)nfrom2] is double.init) {
+						data.bins[nto] = double.init;
+					} else {
+						double sum = 0;
+						if (data.bins[cast(uint)nfrom1] !is double.init) sum += data.bins[cast(uint)nfrom1];
+						if (data.bins[cast(uint)nfrom2] !is double.init) sum += data.bins[cast(uint)nfrom2];
+						data.bins[nto] = sum;
+					}
 				}
 				for(uint i = 0; i < data.bins.length/2; ++i) {
 					data.bins[data.bins.length-(i+1)] = double.init;
@@ -196,10 +207,10 @@ public:
 			     if (idx < 0)                 data.underflow += value;
 			else if (idx >= data.bins.length) data.overflow  += value;
 			else {
-				if (data.bins[cast(uint)idx] is double.init) {
-					data.bins[cast(uint)idx] = value;
+				if (data.bins[cast(ulong)idx] is double.init) {
+					data.bins[cast(ulong)idx] = value;
 				} else {
-					data.bins[cast(uint)idx] += value;
+					data.bins[cast(ulong)idx] += value;
 				} 
 			}
 
@@ -1037,6 +1048,9 @@ public:
 			double width = max-min;
 			min -= 0.1*width;
 			max += 0.1*width;
+		} else {
+			min = 0;
+			max = _bin_data.length;
 		}
 		_min = min;
 		_max = max;
@@ -1136,6 +1150,8 @@ public:
 
 	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) 
 	{
+		assert(lr[0] !is double.init);
+		assert(lr[1] !is double.init);
 		import std.stdio;
 		if (_bin_data is null) {
 			return false;
@@ -1173,7 +1189,7 @@ public:
 		int rightbin = min(cast(int)(right+1),_bin_data.length);
 		if (leftbin > rightbin) {
 			import std.stdio;
-			writeln("unexpected leftbin,rightbin: ", leftbin, "," , rightbin, "\r");
+			writeln("unexpected leftbin,rightbin: ", leftbin, "," , rightbin, " ", _bin_data.length, "\r");
 			return false;
 		}
 		import std.algorithm;

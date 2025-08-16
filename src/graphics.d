@@ -697,7 +697,7 @@ struct CanvasPainter {
 
 							import histogram;
 							auto hstats = cast(Hist1Stats)visualizers[itemname];
-							if (hstats !is null) {
+							if (hstats !is null && canvas.transform[0].min !is double.init && canvas.transform[0].max !is double.init) {
 								stats_available = hstats.get_stats(mu, sigma, counts, canvas.transform[0].min, canvas.transform[0].max);
 							}
 
