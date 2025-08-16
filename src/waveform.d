@@ -536,7 +536,7 @@ public:
 		return double.init;
 	}
 
-	override bool get_leftright(out double[2] lr, in Transform[3] t) 
+	override bool get_leftright(out double[2] lr, in Transform[3] t, bool zoom = false) 
 	{
 		import std.stdio;
 		if (t[0].logscale && _left <= 0 && _right <= 0) return false;

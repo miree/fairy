@@ -38,6 +38,40 @@ void export_hist1_to_file(double[] bins, double left, double right, string filen
 }	
 
 
+interface Hist1Stats {
+	bool get_stats(out double mean, out double stddev, double left, double right);
+}
+bool get_stats_hist1(const(double[]) bins, double h_left, double h_right, double left, double right, out double mean, out double stddev) {
+	double sum_w = 0;
+	double sum_wx = 0;
+	double sum_wx2 = 0;
+	assert (left !is double.init);
+	assert (right !is double.init);
+	if (left > right) {
+		import std.algorithm;
+		swap(left,right);
+	}
+	double bin_width = (h_right-h_left)/bins.length;
+	foreach(i,w;bins) {
+		if (w is double.init) continue;
+		double x = 0.5*bin_width + h_left + i*(h_right-h_left)/bins.length;
+		double x2 = x*x;
+		if (x >= left && x < right) {
+			sum_w += w;
+			sum_wx += w*x;
+			sum_wx2 += w*x2;
+		}
+	}
+	if (sum_w == 0) return false;
+	import std.math;
+	double mu = sum_wx / sum_w;
+	double sigma = sqrt(sum_wx2/sum_w - mu*mu);
+	mean = mu;
+	stddev = sigma;
+	return true;
+}
+
+
 
 import graphics;
 
@@ -977,7 +1011,7 @@ auto read_file(string filename) {
 
 
 
-class Hist1Visualizer : Visualizer 
+class Hist1Visualizer : Visualizer, Hist1Stats
 {
 public:
 
@@ -991,12 +1025,32 @@ public:
 		_bin_data = data.idup;
 		_left     = left;
 		_right    = right;
+		double binwidth = (right-left)/data.length;
+		double min, max;
+		foreach(i,v;_bin_data) { // find highest and lowest populated bin position
+			if (v is double.init) continue;
+			double pos = _left + i*(_right-_left)/_bin_data.length;
+			if (min is double.init) min = pos;
+			if (max is double.init || pos+binwidth > max) max = pos+binwidth;
+		}
+		if (min !is double.init && max !is double.init) {
+			double width = max-min;
+			min -= 0.1*width;
+			max += 0.1*width;
+		}
+		_min = min;
+		_max = max;
 		_mipmap_data = make_mipmap_data();
 		_xlabel = xlabel;
-		double binwidth = (right-left)/data.length;
 		import std.conv;
 		_ylabel = "counts ["~binwidth.to!string~"]";
 	}
+
+	// for Hist1Stats interface
+	bool get_stats(out double mean, out double stddev, double left, double right) {
+		return get_stats_hist1(_bin_data, _left, _right, left, right, mean, stddev);
+	}
+
 	//override string getLabelX() {
 	//	return _xlabel;
 	//}
@@ -1060,14 +1114,22 @@ public:
 		return double.init;
 	}
 
-	override bool get_leftright(out double[2] lr, in Transform[3] t) 
+	override bool get_leftright(out double[2] lr, in Transform[3] t, bool zoom = false) 
 	{
 		import std.stdio;
-		if (t[0].logscale && _left <= 0 && _right <= 0) return false;
-		if (_left == _right)                      return false;
-		lr[0] = t[0].log(_left, getBinWidth()/2.0);
-		lr[1] = t[0].log(_right);
-		return true;
+		if (zoom) {
+			if (t[0].logscale && _min <= 0 && _max <= 0) return false;
+			if (_min == _max)                      return false;
+			lr[0] = t[0].log(_min, getBinWidth()/2.0);
+			lr[1] = t[0].log(_max);
+			return true;
+		} else {
+			if (t[0].logscale && _left <= 0 && _right <= 0) return false;
+			if (_left == _right)                      return false;
+			lr[0] = t[0].log(_left, getBinWidth()/2.0);
+			lr[1] = t[0].log(_right);
+			return true;
+		}
 	}
 
 	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) 
@@ -1194,6 +1256,7 @@ private: // state
 	// mipmap data // TODO implement
 	struct MinMax {double min; double max;} ;
 	immutable(MinMax[][]) _mipmap_data;
+	immutable(double) _min, _max; // left of _min  and right of _max all bins are empty 
 
 	string _xlabel;
 	string _ylabel;
@@ -1746,7 +1809,7 @@ public:
 		}
 		return double.init;
 	}
-	override bool get_leftright(out double[2] lr, in Transform[3] t) {
+	override bool get_leftright(out double[2] lr, in Transform[3] t, bool zoom = false) {
 		import std.stdio;
 		if (t[0].logscale && _left <= 0 && _right <= 0) return false;
 		if (_left == _right)                      return false;

@@ -918,6 +918,28 @@ void winpoll(string window_name, string action="toggle") {
 	}
 }
 
+@UI_EXPORT("histogram width will be measured on the filled bins instead of histogram borders", 
+	["name of the window",
+	 "\"true\" enables, \"false\" disables, \"toggle\" toggles autozoom setting for the given window"])
+void winautozoom(string window_name, string action="toggle") {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	if (toggle_action(action, canvas.zoom)) {
+		update_window_gui(window_name,true);
+	}
+}
+
+@UI_EXPORT("show histogram statistics in the window", 
+	["name of the window",
+	 "\"true\" enables, \"false\" disables, \"toggle\" toggles statistics display for the given window"])
+void winshowstats(string window_name, string action="toggle") {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	if (toggle_action(action, canvas.stats)) {
+		update_window_gui(window_name,true);
+	}
+}
+
 @UI_EXPORT("enable/disable logscale for given axis",
 		["name of window to affect",
 		 "name of axis: x y z",

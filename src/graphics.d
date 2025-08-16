@@ -89,7 +89,7 @@ public:
 		return "";
 	}
 
-	bool get_leftright(out double[2] leftright, in Transform[3] t)  {
+	bool get_leftright(out double[2] leftright, in Transform[3] t, bool zoom = false)  {
 		return false;
 	}
 	bool get_bottomtop_in_leftright(out double[2] bottomtop, 
@@ -150,6 +150,8 @@ struct CanvasProperties {
 	@SERIALIZE bool[3]      autoscale        = [false,false,false];
 	@SERIALIZE bool[3]      axislabel        = [true,true,false];
 	@SERIALIZE bool         autorefresh      = false;
+	@SERIALIZE bool         zoom             = false;
+	@SERIALIZE bool         stats            = false;
 	@SERIALIZE string[]     itemnames        = [];
 	@SERIALIZE Transform[3] transform;
 
@@ -286,6 +288,7 @@ struct CanvasPainter {
 		string label = ylabels.join(" , ");
 		double w_text, h_text;
 		backend.text_extent(label,w_text,h_text);
+		h_text*=1.2;
 		double x_text = canvas.transform[0].world2canvas(canvas.transform[0].min);//-w_text/2;
 		double y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_text;
 		if (backend.text_with_border()) {
@@ -302,6 +305,35 @@ struct CanvasPainter {
 		backend.text(x_text,y_text, label);
 
 	}
+
+	void draw_stats(double mean, double stddev) {
+		import std.array;
+		import std.conv;
+		string label = "mean: " ~ mean.to!string;
+		double w_text, h_text;
+		backend.text_extent(label,w_text,h_text);
+		h_text*=1.2;
+		double x_text = canvas.transform[0].world2canvas(canvas.transform[0].min);//-w_text/2;
+		double y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_text*2.4;
+		backend.set_color(0.9,0.9,0.9);
+		backend.rectangle(x_text,y_text, x_text+w_text,y_text-h_text);
+		backend.fill();
+		backend.set_color(0,0,0);
+		backend.text(x_text,y_text, label);
+
+		label = "stddev: " ~ stddev.to!string;
+		backend.text_extent(label,w_text,h_text);
+		h_text*=1.2;
+		x_text = canvas.transform[0].world2canvas(canvas.transform[0].min);//-w_text/2;
+		y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_text*3.8;
+		backend.set_color(0.9,0.9,0.9);
+		backend.rectangle(x_text,y_text, x_text+w_text,y_text-h_text);
+		backend.fill();
+		backend.set_color(0,0,0);
+		backend.text(x_text,y_text, label);
+
+	}
+
 
 	static void get_rgb(double c, out uint rgb) {
 		// grayscale
@@ -354,7 +386,7 @@ struct CanvasPainter {
 		double left,right;
 		foreach(name, ref vis; visualizers) {
 			double[2] lr; 
-			if (!vis.get_leftright(lr,canvas.transform)) continue;
+			if (!vis.get_leftright(lr,canvas.transform, canvas.zoom)) continue;
 			left =(left  is double.init)?lr[0]:min(left,lr[0]);
 			right=(right is double.init)?lr[1]:max(right,lr[1]);
 		}
@@ -578,7 +610,7 @@ struct CanvasPainter {
 							}
 							double left,right, bottom,top, zmin,zmax;
 							double[2] lr;
-							if (canvas.autoscale[0] && visualizer.get_leftright(lr,canvas.transform)) {
+							if (canvas.autoscale[0] && visualizer.get_leftright(lr,canvas.transform,canvas.zoom)) {
 								left = lr[0];
 								right = lr[1];
 								canvas.transform[0].set_minmax(left,right);
@@ -622,6 +654,9 @@ struct CanvasPainter {
 					if (!canvas.grid_ontop)    draw_grid();
 					if (!canvas.numbers_ontop) draw_grid_numbers();
 
+					double mu,sigma;
+					bool stats_available;
+
 					if (idx < canvas.itemnames.length) {
 						string itemname = canvas.itemnames[idx];
 						import fairy;
@@ -633,6 +668,12 @@ struct CanvasPainter {
 							xlabel = visualizers[itemname].getXlabel();
 							ylabel = visualizers[itemname].getYlabel();
 
+							import histogram;
+							auto hstats = cast(Hist1Stats)visualizers[itemname];
+							if (hstats !is null) {
+								stats_available = hstats.get_stats(mu, sigma, canvas.transform[0].min, canvas.transform[0].max);
+							}
+
 						} catch (Exception e) {
 							import std.stdio;
 							writeln("cannot draw ", itemname , " because ", e.msg);
@@ -643,6 +684,7 @@ struct CanvasPainter {
 					if (canvas.numbers_ontop) draw_grid_numbers();
 					if (canvas.axislabel[0])  draw_xaxislabels([xlabel]);
 					if (canvas.axislabel[1])  draw_yaxislabels([ylabel]);
+					if (canvas.stats && stats_available) draw_stats(mu,sigma);
 
 					if (canvas.color_bar) {
 						draw_colorkey();

@@ -167,7 +167,7 @@ public:
 
 	}
 	override double getValue(double x, double y) { return 0.0; }
-	override bool get_leftright(out double[2] minmax, in Transform[3] t)  {
+	override bool get_leftright(out double[2] minmax, in Transform[3] t, bool zoom = false)  {
 		if (gate.data.direction == 1) {
 			return false;
 		}
@@ -621,7 +621,7 @@ public:
 		}
 	}
 	override double getValue(double x, double y) { return 0.0; }
-	override bool get_leftright(out double[2] minmax, in Transform[3] t)  {
+	override bool get_leftright(out double[2] minmax, in Transform[3] t, bool zoom = false)  {
 		import std.algorithm, std.math;
 		if (gate.data.xmin > gate.data.xmax) swap(gate.data.xmin, gate.data.xmax);
 		minmax[0] = gate.data.xmin;
@@ -1176,7 +1176,7 @@ public:
 	import graphics, transform;
 
 	override double getValue(double x, double y) { return 0.0; }
-	override bool get_leftright(out double[2] minmax, in Transform[3] t)  {
+	override bool get_leftright(out double[2] minmax, in Transform[3] t, bool zoom = false)  {
 		bool result = false;
 		double left, right;
 		foreach(point; gate.data.points) {
