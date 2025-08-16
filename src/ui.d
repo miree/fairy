@@ -566,7 +566,7 @@ string hist1export(string name, string filename, int rebin = 1) {
 	}
 	Hist1Export h1 = cast(Hist1Export)(h1_ptr.item);
 	if (h1 is null) {
-		throw new Exception("item " ~ name ~ " is not of type histogram.Hist1");
+		throw new Exception("item " ~ name ~ " is not of type histogram.Hist1Export");
 	}
 	try {
 		h1.export_to_file(filename, rebin);
@@ -577,6 +577,27 @@ string hist1export(string name, string filename, int rebin = 1) {
 	return "";
 }
 
+@UI_EXPORT("get statistics for histogram",
+	["name of histogram",
+	"filename to write to"])
+string hist2export(string name, string filename) {
+	import fairy, histogram;
+	auto h2_ptr = name in fairy.session.items;
+	if (h2_ptr is null) {
+		throw new Exception("no item with name " ~ name);
+	}
+	Hist2Export h2 = cast(Hist2Export)(h2_ptr.item);
+	if (h2 is null) {
+		throw new Exception("item " ~ name ~ " is not of type histogram.Hist2Export");
+	}
+	try {
+		h2.export_to_file(filename);
+	} catch (Exception e) {
+		import std.stdio;
+		writeln("cannot export ", name, " because ", e.msg);
+	}
+	return "";
+}
 
 @UI_EXPORT("add projection from 2D-histogram to 1D-histogram using a 1D-gate",
 	["name of projector",

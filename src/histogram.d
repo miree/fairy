@@ -224,7 +224,21 @@ class Hist2Factory : ItemFactory {
 	}
 }
 
-class Hist2 : Visual, Item, Hist2ProjectionSource, FitDataSource
+interface Hist2Export {
+	void export_to_file(string filename);
+}
+void export_hist2_to_file(double[] bins, ulong xbins, ulong ybins, string filename) {
+	import std.stdio;
+	auto f = File(filename,"w+");
+	foreach(i,w;bins) {
+		if (w is double.init) f.write(0, " ");
+		else                  f.write(w, " ");
+		if ((i+1)%xbins == 0) f.writeln;
+	}
+}	
+
+
+class Hist2 : Visual, Item, Hist2Export, Hist2ProjectionSource, FitDataSource
 {
 public:
 	struct Data{
@@ -285,6 +299,10 @@ public:
 	override void reset() {
 		data.bins[] = data.initial;
 		++item_version;
+	}
+
+	void export_to_file(string filename) {
+		export_hist2_to_file(data.bins, data.bins_x, data.bins_y, filename);
 	}
 
 	void fill(double position_x, double position_y, double value = 1.0) {
@@ -1010,8 +1028,8 @@ public:
 			//}
 			double line_width = 2.0;
 			//d.set_color(0.2,0.8,1.0);
-			//d.set_color(0x2a/255.0, 0x78/255.0, 0x8e/255.0);
-			//drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
+			d.set_color(0x2a/255.0, 0x78/255.0, 0x8e/255.0);
+			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
 			//d.set_color(0.0,0.0,1.0);
 			d.set_color(0x44/255.0, 0x01/255.0, 0x54/255.0);
 			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, false);
