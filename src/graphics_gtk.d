@@ -703,6 +703,7 @@ public:
 			case 'f': ui.winfit(name);                                     break;
 			case 'm': ui.winautozoom(name, "toggle");                      break;
 			case 't': ui.winshowstats(name, "toggle");                     break;
+			case 'i': ui.windrawfilled(name, "toggle");                    break;
 			default: {}
 		}
 	}
