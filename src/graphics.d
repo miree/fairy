@@ -575,6 +575,18 @@ struct CanvasPainter {
 				draw_colorkey();
 				color_grid_numbers(backend, canvas, canvas.color_key_width);
 			}	
+			if (canvas.itemnames.length == 1) {
+				double mu,sigma,counts;
+				bool stats_available;
+				import histogram;
+				auto hstats = cast(Hist1Stats)visualizers[canvas.itemnames[0]];
+				if (hstats !is null) {
+					stats_available = hstats.get_stats(mu, sigma, counts, canvas.transform[0].min, canvas.transform[0].max);
+				}
+				if (canvas.stats && stats_available) draw_stats(mu,sigma,counts, canvas.axislabel[1]);
+			}
+
+
 			if (draw_selection_box) draw_selection_box_helper();
 			
 			// help debugging BoundingBoxes in the selection process
