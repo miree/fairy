@@ -315,7 +315,7 @@ public:
 		return funct.data.definition;
 	}
 
-	override void draw(BackendInterface d, in Transform[3] t) const
+	override void draw(BackendInterface d, in Transform[3] t, bool modified) const
 	{
 		import std.algorithm;
 		auto local_fitresults = funct.data.fitresult.dup;  
@@ -368,7 +368,7 @@ public:
 			d.stroke();
 
 		}
-		super.draw(d,t);
+		super.draw(d,t,modified);
 	}
 
 	override double getValue(double x, double y) {

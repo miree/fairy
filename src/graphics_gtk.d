@@ -1380,10 +1380,12 @@ class PlotWidget : Box {
 	Box         grid_nums_checks_top;
 	Box         label_checks;
 	Box         zoom_stats;
+	Box         filled_box;
 	Label       grid_label;
 	CheckButton check_grid_x, check_grid_y, check_grid_top;
 	CheckButton check_label_x, check_label_y;
 	CheckButton check_zoom, check_stats;
+	CheckButton check_filled;
 	Label       nums_label;
 	CheckButton check_nums_x, check_nums_y, check_nums_top;
 	Box         colorbar_overlay;
@@ -1427,6 +1429,7 @@ class PlotWidget : Box {
 		check_label_y.setActive(canvas.axislabel[1]);
 		check_zoom.setActive(canvas.zoom);
 		check_stats.setActive(canvas.stats);
+		check_filled.setActive(canvas.filled);
 		check_colorbar.setActive(canvas.color_bar);
 		spin_n_columns.setValue(canvas.columns_or_rows);
 		if (canvas.display_mode == DisplayMode.overlay) radio_overlay.setActive(true);
@@ -1507,12 +1510,17 @@ class PlotWidget : Box {
 		check_label_x   = new CheckButton("xlb");
 		check_label_y   = new CheckButton("ylb");
 
-		check_zoom    = new CheckButton("zoom");
+		check_zoom    = new CheckButton("zm");
 		check_zoom.setActive(canvas.zoom);
 		check_zoom.addOnToggled( (button) => ui.winautozoom(name, button.getActive()?"true":"false"));
-		check_stats   = new CheckButton("stat");
+		check_stats   = new CheckButton("st");
 		check_stats.setActive(canvas.stats);
 		check_stats.addOnToggled( (button) => ui.winshowstats(name, button.getActive()?"true":"false"));
+
+		check_filled    = new CheckButton("fill");
+		check_filled.setActive(canvas.filled);
+		check_filled.addOnToggled( (button) => ui.windrawfilled(name, button.getActive()?"true":"false"));
+
 
 		nums_label     = new Label("nums");
 		check_nums_x   = new CheckButton("X");
@@ -1634,12 +1642,16 @@ class PlotWidget : Box {
 		zoom_stats.append(check_zoom);
 		zoom_stats.append(check_stats);
 
+		filled_box = new Box(GtkOrientation.VERTICAL, 0);
+		filled_box.append(check_filled);
+
 		controls.append(grid_nums_label);
 		controls.append(grid_nums_checks_x);
 		controls.append(grid_nums_checks_y);
 		controls.append(grid_nums_checks_top);
 		controls.append(label_checks);
 		controls.append(zoom_stats);
+		controls.append(filled_box);
 
 		colorbar_overlay = new Box(GtkOrientation.VERTICAL, 0);
 		colorbar_overlay.append(check_colorbar);

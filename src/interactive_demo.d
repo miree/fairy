@@ -224,7 +224,7 @@ public:
 		}
 	}
 
-	override void draw(BackendInterface d, in Transform[3] t) const  
+	override void draw(BackendInterface d, in Transform[3] t, bool modified) const  
 	{
 		for (int color = 0; color < 2; ++color)
 		foreach(i, p; points) {
@@ -513,7 +513,7 @@ public:
 	//		}
 	//	}
 	//}
-	override void draw(BackendInterface d, in Transform[3] t) const  
+	override void draw(BackendInterface d, in Transform[3] t, bool modified) const  
 	{
 		assert(points.length == 3 && deltas.length == 3);
 

@@ -106,7 +106,7 @@ public:
 		return false;
 	}	
 
-	void draw(BackendInterface gi, in Transform[3] t) 
+	void draw(BackendInterface gi, in Transform[3] t, bool modified) 
 	{}
 
 	final ulong getVersion() {
@@ -152,6 +152,7 @@ struct CanvasProperties {
 	@SERIALIZE bool         autorefresh      = false;
 	@SERIALIZE bool         zoom             = false;
 	@SERIALIZE bool         stats            = false;
+	@SERIALIZE bool         filled           = true;
 	@SERIALIZE string[]     itemnames        = [];
 	@SERIALIZE Transform[3] transform;
 
@@ -556,7 +557,7 @@ struct CanvasPainter {
 					if (canvas.dim == 0 && idx == 0) {
 						canvas.dim = cast(int)visualizers[itemname].getDim;
 					}
-					visualizers[itemname].draw(backend, canvas.transform);
+					visualizers[itemname].draw(backend, canvas.transform, canvas.filled);
 					string xlabel = visualizers[itemname].getXlabel();
 					string ylabel = visualizers[itemname].getYlabel();
 					import std.algorithm;
@@ -678,7 +679,7 @@ struct CanvasPainter {
 							//if ((itemname in visualizers) is null) { // try to get the visualizer
 							//	visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
 							//}
-							visualizers[itemname].draw(backend, canvas.transform);
+							visualizers[itemname].draw(backend, canvas.transform, canvas.filled);
 							xlabel = visualizers[itemname].getXlabel();
 							ylabel = visualizers[itemname].getYlabel();
 

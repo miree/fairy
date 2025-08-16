@@ -71,7 +71,7 @@ public:
 	}
 	import graphics, transform;
 
-	@trusted override void draw(BackendInterface d, in Transform[3] t)   
+	@trusted override void draw(BackendInterface d, in Transform[3] t, bool modified)   
 	{
 		if (value.data.dimension == 0) {
 			double x = t[0].world2canvas(t[0].log(value.data.value));

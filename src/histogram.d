@@ -1059,7 +1059,7 @@ public:
 	//}
 	//import cairo.Context, cairo.Surface;
 	import graphics, transform;
-	@trusted override void draw(BackendInterface d, in Transform[3] t) const  
+	@trusted override void draw(BackendInterface d, in Transform[3] t, bool modified) const  
 	{
 		//writeln("Hist1Visualizer draw");
 
@@ -1082,8 +1082,10 @@ public:
 			//}
 			double line_width = 2.0;
 			//d.set_color(0.2,0.8,1.0);
-			d.set_color(0x2a/255.0, 0x78/255.0, 0x8e/255.0);
-			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
+			if (modified) { // hist1 visualiser modifies by filling the area under the histogram
+				d.set_color(0x2a/255.0, 0x78/255.0, 0x8e/255.0);
+				drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
+			}
 			//d.set_color(0.0,0.0,1.0);
 			d.set_color(0x44/255.0, 0x01/255.0, 0x54/255.0);
 			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, false);
@@ -1587,7 +1589,7 @@ public:
 	//import draw : Draw, Transform;
 	import graphics, transform;
 
-	override @trusted void draw(BackendInterface d, in Transform[3] t)  {
+	override @trusted void draw(BackendInterface d, in Transform[3] t, bool modified)  {
 
 		ulong handle = bitmap_handle;
 		if (t[2].logscale) {

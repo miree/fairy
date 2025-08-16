@@ -122,7 +122,7 @@ public:
 		}
 	}
 
-	override void draw(BackendInterface d, in Transform[3] t) const	{
+	override void draw(BackendInterface d, in Transform[3] t, bool modified) const	{
 		if (gate.data.direction == 1) {
 			draw_y(d,t);
 			return;
@@ -572,7 +572,7 @@ public:
 
 	}
 
-	override void draw(BackendInterface d, in Transform[3] t) const	{
+	override void draw(BackendInterface d, in Transform[3] t, bool modified) const	{
 
 		import std.algorithm;
 		double xmin = gate.data.xmin + gate.xmin_delta;
@@ -1726,7 +1726,7 @@ public:
 
 	}
 
-	override void draw(BackendInterface d, in Transform[3] t) const  
+	override void draw(BackendInterface d, in Transform[3] t, bool modified) const  
 	{
 		static double[2][] polygon_canvas_points;
 		import std.algorithm;

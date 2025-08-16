@@ -274,7 +274,7 @@ public:
 		_mipmap_data = make_mipmap_data();
 	}
 	import graphics, transform;
-	@trusted override void draw(BackendInterface d, in Transform[3] t) const  
+	@trusted override void draw(BackendInterface d, in Transform[3] t, bool modified) const  
 	{
 		import std.stdio;
 

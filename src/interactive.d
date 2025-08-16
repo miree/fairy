@@ -488,7 +488,7 @@ public:
 		}
 	}
 
-	override void draw(BackendInterface d, in Transform[3] t) const  
+	override void draw(BackendInterface d, in Transform[3] t, bool modified) const  
 	{
 		import std.algorithm;
 

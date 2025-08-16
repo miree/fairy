@@ -940,6 +940,19 @@ void winshowstats(string window_name, string action="toggle") {
 	}
 }
 
+@UI_EXPORT("draw items filled, exact effect depends on itemtype.", 
+	["name of the window",
+	 "\"true\" enables, \"false\" disables, \"toggle\" toggles filled"])
+void windrawfilled(string window_name, string action="toggle") {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	if (toggle_action(action, canvas.filled)) {
+		update_window_gui(window_name,true);
+	}
+}
+
+
+
 @UI_EXPORT("enable/disable logscale for given axis",
 		["name of window to affect",
 		 "name of axis: x y z",
