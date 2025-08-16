@@ -82,7 +82,7 @@ extern(C) int hist1d_create(const char *name,
 		elder_histograms_1D_is_smart.length = handle+1;
 	}
 
-	elder_histograms_1D[handle] = new Hist1(n_bins, left, right, axis.to!string);
+	elder_histograms_1D[handle] = new Hist1(n_bins, left, right, axis.to!string, true);
 	elder_histograms_1D_is_smart[handle] = is_smart;
 	main_thread.send(MsgHist1dCreate(itemname, cast(shared Hist1)(elder_histograms_1D[handle])));
 	return handle;

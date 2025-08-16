@@ -302,36 +302,50 @@ struct CanvasPainter {
 		backend.rectangle(x_text,y_text, x_text+w_text,y_text-h_text);
 		backend.fill();
 		backend.set_color(0,0,0);
-		backend.text(x_text,y_text, label);
+		backend.text(x_text,y_text-h_text*0.2, label);
 
 	}
 
-	void draw_stats(double mean, double stddev) {
+	void draw_stats(double mean, double stddev, double counts, bool ylabel) {
 		import std.array;
 		import std.conv;
-		string label = "mean: " ~ mean.to!string;
-		double w_text, h_text;
-		backend.text_extent(label,w_text,h_text);
-		h_text*=1.2;
-		double x_text = canvas.transform[0].world2canvas(canvas.transform[0].min);//-w_text/2;
-		double y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_text*2.4;
+		string[] labels = [
+			 "mean: " ~ mean.to!string
+			,"st.dv: " ~ stddev.to!string
+			,"count: " ~ counts.to!string
+		];
+		double xmin,ymin;
+		double xmax,ymax;
+		foreach(i,label; labels) {
+			double w_text, h_text;
+			backend.text_extent(label,w_text,h_text);
+			h_text*=1.2;
+			double x_text = canvas.transform[0].world2canvas(canvas.transform[0].min);//-w_text/2;
+			double y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_text*(i+1)+(ylabel?h_text*1.2:0);
+			double x1 = x_text;
+			double y1 = y_text;
+			double x2 = x_text+w_text+w_text*0.05;
+			double y2 = y_text-h_text;
+			if (xmin is double.init || xmin > x1) xmin = x1;
+			if (xmax is double.init || xmax < x2) xmax = x2;
+			if (ymax is double.init || ymax < y1) ymax = y1;
+			if (ymin is double.init || ymin > y2) ymin = y2;
+		}
 		backend.set_color(0.9,0.9,0.9);
-		backend.rectangle(x_text,y_text, x_text+w_text,y_text-h_text);
+		backend.rectangle(xmin,ymin, xmax,ymax);
 		backend.fill();
 		backend.set_color(0,0,0);
-		backend.text(x_text,y_text, label);
-
-		label = "stddev: " ~ stddev.to!string;
-		backend.text_extent(label,w_text,h_text);
-		h_text*=1.2;
-		x_text = canvas.transform[0].world2canvas(canvas.transform[0].min);//-w_text/2;
-		y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_text*3.8;
-		backend.set_color(0.9,0.9,0.9);
-		backend.rectangle(x_text,y_text, x_text+w_text,y_text-h_text);
-		backend.fill();
-		backend.set_color(0,0,0);
-		backend.text(x_text,y_text, label);
-
+		backend.set_line_width(1);
+		backend.rectangle(xmin,ymin, xmax,ymax);
+		backend.stroke();
+		foreach(i,label; labels) {
+			double w_text, h_text;
+			backend.text_extent(label,w_text,h_text);
+			h_text*=1.2;
+			double x_text = canvas.transform[0].world2canvas(canvas.transform[0].min);//-w_text/2;
+			double y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_text*(i+1)+(ylabel?h_text*1.2:0);
+			backend.text(x_text+xmax*0.02,y_text-h_text*0.1, label);			
+		}
 	}
 
 
@@ -654,7 +668,7 @@ struct CanvasPainter {
 					if (!canvas.grid_ontop)    draw_grid();
 					if (!canvas.numbers_ontop) draw_grid_numbers();
 
-					double mu,sigma;
+					double mu,sigma,counts;
 					bool stats_available;
 
 					if (idx < canvas.itemnames.length) {
@@ -671,7 +685,7 @@ struct CanvasPainter {
 							import histogram;
 							auto hstats = cast(Hist1Stats)visualizers[itemname];
 							if (hstats !is null) {
-								stats_available = hstats.get_stats(mu, sigma, canvas.transform[0].min, canvas.transform[0].max);
+								stats_available = hstats.get_stats(mu, sigma, counts, canvas.transform[0].min, canvas.transform[0].max);
 							}
 
 						} catch (Exception e) {
@@ -684,7 +698,7 @@ struct CanvasPainter {
 					if (canvas.numbers_ontop) draw_grid_numbers();
 					if (canvas.axislabel[0])  draw_xaxislabels([xlabel]);
 					if (canvas.axislabel[1])  draw_yaxislabels([ylabel]);
-					if (canvas.stats && stats_available) draw_stats(mu,sigma);
+					if (canvas.stats && stats_available) draw_stats(mu,sigma,counts, canvas.axislabel[1]);
 
 					if (canvas.color_bar) {
 						draw_colorkey();

@@ -39,9 +39,9 @@ void export_hist1_to_file(double[] bins, double left, double right, string filen
 
 
 interface Hist1Stats {
-	bool get_stats(out double mean, out double stddev, double left, double right);
+	bool get_stats(out double mean, out double stddev, out double counts, double left, double right);
 }
-bool get_stats_hist1(const(double[]) bins, double h_left, double h_right, double left, double right, out double mean, out double stddev) {
+bool get_stats_hist1(const(double[]) bins, double h_left, double h_right, double left, double right, out double mean, out double stddev, out double counts) {
 	double sum_w = 0;
 	double sum_wx = 0;
 	double sum_wx2 = 0;
@@ -64,10 +64,9 @@ bool get_stats_hist1(const(double[]) bins, double h_left, double h_right, double
 	}
 	if (sum_w == 0) return false;
 	import std.math;
-	double mu = sum_wx / sum_w;
-	double sigma = sqrt(sum_wx2/sum_w - mu*mu);
-	mean = mu;
-	stddev = sigma;
+	mean = sum_wx / sum_w;
+	stddev = sqrt(sum_wx2/sum_w - mean*mean);
+	counts = sum_w;
 	return true;
 }
 
@@ -86,8 +85,9 @@ public:
 		@SERIALIZE double overflow;
 		@SERIALIZE double underflow;
 	}
-	this(ulong length, double left, double right, string xlabel) { 
+	this(ulong length, double left, double right, string xlabel, bool zero = false) { 
 		data.bins = new double[length];
+		if (zero) data.bins[] = 0.0;
 		data.left = left;
 		data.right = right;
 		data.xlabel = xlabel;
@@ -1028,7 +1028,7 @@ public:
 		double binwidth = (right-left)/data.length;
 		double min, max;
 		foreach(i,v;_bin_data) { // find highest and lowest populated bin position
-			if (v is double.init) continue;
+			if (v is double.init || v == 0) continue;
 			double pos = _left + i*(_right-_left)/_bin_data.length;
 			if (min is double.init) min = pos;
 			if (max is double.init || pos+binwidth > max) max = pos+binwidth;
@@ -1047,8 +1047,8 @@ public:
 	}
 
 	// for Hist1Stats interface
-	bool get_stats(out double mean, out double stddev, double left, double right) {
-		return get_stats_hist1(_bin_data, _left, _right, left, right, mean, stddev);
+	bool get_stats(out double mean, out double stddev, out double counts, double left, double right) {
+		return get_stats_hist1(_bin_data, _left, _right, left, right, mean, stddev, counts);
 	}
 
 	//override string getLabelX() {
