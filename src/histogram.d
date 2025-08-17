@@ -84,6 +84,7 @@ public:
 		@SERIALIZE string xlabel;
 		@SERIALIZE double overflow;
 		@SERIALIZE double underflow;
+		@SERIALIZE bool   zero_init; // if true, histogram is initialized with 0 insteas of NaN
 	}
 	this(ulong length, double left, double right, string xlabel, bool zero = false) { 
 		data.bins = new double[length];
@@ -93,6 +94,7 @@ public:
 		data.xlabel = xlabel;
 		data.underflow = 0.0;
 		data.overflow = 0.0;
+		data.zero_init = zero;
 		if (data.left is double.init) {
 			data.left = 0.0;
 		} 
@@ -171,7 +173,7 @@ public:
 					}
 				}
 				for(uint i = 0; i < data.bins.length/2; ++i) {
-					data.bins[i] = double.init;
+					data.bins[i] = data.zero_init?0.0:double.init;
 				}
 				fill(position,value,expand);
 			} else if (idx >= data.bins.length) {
@@ -192,7 +194,7 @@ public:
 					}
 				}
 				for(uint i = 0; i < data.bins.length/2; ++i) {
-					data.bins[data.bins.length-(i+1)] = double.init;
+					data.bins[data.bins.length-(i+1)] = data.zero_init?0.0:double.init;
 				}
 				fill(position,value,expand);
 			} else {
