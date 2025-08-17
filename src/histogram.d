@@ -157,19 +157,16 @@ public:
 			//writeln("histogram is filled in expand mode");
 			if (idx < 0) {
 				//writeln("underflow => need to expand left = ", data.left, " right = ", data.right);
-				data.left = data.left - (data.right-data.left); // double the size
+				data.left -= (data.right-data.left); // double the size
 				//writeln("             expanded       left = ", data.left, " right = ", data.right);
-				for(uint i = 0; i < data.bins.length/2; ++i) {
-					long nfrom1 = cast(long)data.bins.length-2*(i+1);
-					long nfrom2 = cast(long)data.bins.length-2*(i+1)+1;
-					long nto    = cast(long)data.bins.length-(i+1);
-					if (data.bins[cast(uint)nfrom1] is double.init && data.bins[cast(uint)nfrom2] is double.init) {
-						data.bins[nto] = double.init;
-					} else {
-						double sum = 0;
-						if (data.bins[cast(uint)nfrom1] !is double.init) sum += data.bins[cast(uint)nfrom1];
-						if (data.bins[cast(uint)nfrom2] !is double.init) sum += data.bins[cast(uint)nfrom2];
-						data.bins[nto] = sum;
+				for(uint i = 0; i < data.bins.length; ++i) {
+					long nfrom = cast(long)data.bins.length-(i  +1);
+					long nto   = cast(long)data.bins.length-(i/2+1);
+					if (i%2 == 0) { // even "from" index
+						data.bins[nto] = data.bins[nfrom];
+					} else { // odd "from" index
+						     if (data.bins[nto]    is double.init) data.bins[nto]  = data.bins[nfrom];
+						else if (data.bins[nfrom] !is double.init) data.bins[nto] += data.bins[nfrom];
 					}
 				}
 				for(uint i = 0; i < data.bins.length/2; ++i) {
@@ -178,21 +175,19 @@ public:
 				fill(position,value,expand);
 			} else if (idx >= data.bins.length) {
 				//writeln("overflow => need to expand left = ", data.left, " right = ", data.right);
-				data.right = data.right + (data.right-data.left); // double the size
+				data.right += (data.right-data.left); // double the size
 				//writeln("                  expanded left = ", data.left, " right = ", data.right);
-				for(uint i = 0; i < data.bins.length/2; ++i) {
-					uint nfrom1 = 2*i;
-					uint nfrom2 = 2*i+1;
-					uint nto    = i;
-					if (data.bins[cast(uint)nfrom1] is double.init && data.bins[cast(uint)nfrom2] is double.init) {
-						data.bins[nto] = double.init;
-					} else {
-						double sum = 0;
-						if (data.bins[cast(uint)nfrom1] !is double.init) sum += data.bins[cast(uint)nfrom1];
-						if (data.bins[cast(uint)nfrom2] !is double.init) sum += data.bins[cast(uint)nfrom2];
-						data.bins[nto] = sum;
+				for(uint i = 0; i < data.bins.length; ++i) {
+					uint nfrom = i;
+					uint nto   = i/2;
+					if (i%2 == 0) { // even "from" index
+						data.bins[nto] = data.bins[nfrom];
+					} else { // odd "from" index
+						     if (data.bins[nto]    is double.init) data.bins[nto]  = data.bins[nfrom];
+						else if (data.bins[nfrom] !is double.init) data.bins[nto] += data.bins[nfrom];
 					}
 				}
+				import std.stdio;
 				for(uint i = 0; i < data.bins.length/2; ++i) {
 					data.bins[data.bins.length-(i+1)] = data.zero_init?0.0:double.init;
 				}
