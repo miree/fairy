@@ -149,7 +149,7 @@ public:
 		++item_version;
 		import std.math;
 		long idx = cast(long)floor(1.0*data.bins.length*(position - data.left)/(data.right-data.left));
-		import std.stdio; writeln("fill pos ", idx);
+		//import std.stdio; writeln("fill pos ", idx);
 		if (expand) {
 			//import std.stdio;
 			//writeln("histogram is filled in expand mode");

@@ -317,21 +317,18 @@ struct CanvasPainter {
 		];
 		double xmin,ymin;
 		double xmax,ymax;
+		double w_max=0, h_max=0;
 		foreach(i,label; labels) {
 			double w_text, h_text;
 			backend.text_extent(label,w_text,h_text);
 			h_text*=1.2;
-			double x_text = canvas.transform[0].world2canvas(canvas.transform[0].min);//-w_text/2;
-			double y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_text*(i+1)+(ylabel?h_text*1.2:0);
-			double x1 = x_text;
-			double y1 = y_text;
-			double x2 = x_text+w_text+w_text*0.05;
-			double y2 = y_text-h_text;
-			if (xmin is double.init || xmin > x1) xmin = x1;
-			if (xmax is double.init || xmax < x2) xmax = x2;
-			if (ymax is double.init || ymax < y1) ymax = y1;
-			if (ymin is double.init || ymin > y2) ymin = y2;
+			if (w_text > w_max) w_max = w_text;
+			if (h_text > h_max) h_max = h_text;
 		}
+		xmin = canvas.transform[0].world2canvas(canvas.transform[0].min);
+		xmax = xmin+w_max+w_max*0.05;
+		ymin = canvas.transform[1].world2canvas(canvas.transform[1].max)+(ylabel?h_max*1.2:0);
+		ymax = ymin+labels.length * h_max;
 		backend.set_color(0.9,0.9,0.9);
 		backend.rectangle(xmin,ymin, xmax,ymax);
 		backend.fill();
@@ -340,12 +337,8 @@ struct CanvasPainter {
 		backend.rectangle(xmin,ymin, xmax,ymax);
 		backend.stroke();
 		foreach(i,label; labels) {
-			double w_text, h_text;
-			backend.text_extent(label,w_text,h_text);
-			h_text*=1.2;
-			double x_text = canvas.transform[0].world2canvas(canvas.transform[0].min);//-w_text/2;
-			double y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_text*(i+1)+(ylabel?h_text*1.2:0);
-			backend.text(x_text+xmax*0.02,y_text-h_text*0.1, label);			
+			double y_text = canvas.transform[1].world2canvas(canvas.transform[1].max)+h_max*(1+i)+(ylabel?h_max*1.2:0);
+			backend.text(xmin+w_max*0.02,y_text-h_max*0.1, label);
 		}
 	}
 
