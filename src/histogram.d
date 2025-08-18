@@ -173,6 +173,7 @@ public:
 					data.bins[i] = data.zero_init?0.0:double.init;
 				}
 				fill(position,value,expand);
+				return;
 			} else if (idx >= data.bins.length) {
 				//writeln("overflow => need to expand left = ", data.left, " right = ", data.right);
 				data.right += (data.right-data.left); // double the size
@@ -192,27 +193,19 @@ public:
 					data.bins[data.bins.length-(i+1)] = data.zero_init?0.0:double.init;
 				}
 				fill(position,value,expand);
+				return;
+			} 
+		} 
+
+		     if (idx < 0)                 data.underflow += value;
+		else if (idx >= data.bins.length) data.overflow  += value;
+		else {
+			if (data.bins[cast(ulong)idx] is double.init) {
+				data.bins[cast(ulong)idx] = value;
 			} else {
-				if (data.bins[cast(uint)idx] is double.init) {
-					data.bins[cast(uint)idx] = value;
-				} else {
-					data.bins[cast(uint)idx] += value;
-				} 
-			}
-
-		} else {
-			     if (idx < 0)                 data.underflow += value;
-			else if (idx >= data.bins.length) data.overflow  += value;
-			else {
-				if (data.bins[cast(ulong)idx] is double.init) {
-					data.bins[cast(ulong)idx] = value;
-				} else {
-					data.bins[cast(ulong)idx] += value;
-				} 
-			}
-
+				data.bins[cast(ulong)idx] += value;
+			} 
 		}
-
 	}
 
 	void set_bin(int bin, double value) {
@@ -347,9 +340,109 @@ public:
 		export_hist2_to_file(data.bins, data.bins_x, data.bins_y, filename);
 	}
 
-	void fill(double position_x, double position_y, double value = 1.0) {
-		ulong idx_x = cast(ulong)(1.0*data.bins_x*(position_x - data.left)  /(data.right - data.left  ));
-		ulong idx_y = cast(ulong)(1.0*data.bins_y*(position_y - data.bottom)/(data.top   - data.bottom));
+	void fill(double position_x, double position_y, double value = 1.0, bool expand = false) {
+		++item_version;
+		import std.math;
+		long idx_x = cast(long)floor(1.0*data.bins_x*(position_x - data.left)  /(data.right - data.left  ));
+		long idx_y = cast(long)floor(1.0*data.bins_y*(position_y - data.bottom)/(data.top   - data.bottom));
+		import std.stdio;
+		//writeln("fill2 ", idx_x, " ", idx_y);
+		if (expand) {
+			if (idx_x < 0) {
+				//writeln("expand to left ", data.left);
+				data.left -= (data.right-data.left); // double the size
+				//writeln("expanded to left ", data.left);
+				for(uint y = 0; y < data.bins_y; ++y) {
+					for(uint x = 0; x < data.bins_x; ++x) {
+						long xfrom = cast(long)data.bins_x-(x  +1);
+						long xto   = cast(long)data.bins_x-(x/2+1);
+						ulong ifrom = (y*data.bins_x+xfrom);
+						ulong ito   = (y*data.bins_x+xto);
+						if (x%2 == 0) { // even "from" index
+							data.bins[ito] = data.bins[ifrom];
+						} else { // odd "from" index
+							     if (data.bins[ito]    is double.init) data.bins[ito]  = data.bins[ifrom];
+							else if (data.bins[ifrom] !is double.init) data.bins[ito] += data.bins[ifrom];
+						}
+					}
+					for(uint x = 0; x < data.bins_x/2; ++x) {
+						data.bins[y*data.bins_x+x] = data.initial;
+					}
+				}
+				fill(position_x,position_y,value,expand);
+				return;
+			} else if (idx_x >= data.bins_x) {
+				data.right += (data.right-data.left); // double the size
+				for(uint y = 0; y < data.bins_y; ++y) {
+					for(uint x = 0; x < data.bins_x; ++x) {
+						uint xfrom = x;
+						uint xto   = x/2;
+						ulong ifrom = (y*data.bins_x+xfrom);
+						ulong ito   = (y*data.bins_x+xto);
+						if (x%2 == 0) { // even "from" index
+							data.bins[ito] = data.bins[ifrom];
+						} else { // odd "from" index
+							     if (data.bins[ito]    is double.init) data.bins[ito]  = data.bins[ifrom];
+							else if (data.bins[ifrom] !is double.init) data.bins[ito] += data.bins[ifrom];
+						}
+					}
+					for(uint x = 0; x < data.bins_x/2; ++x) {
+						data.bins[y*data.bins_x+data.bins_x-(x+1)] = data.initial;
+					}
+				}
+				fill(position_x,position_y,value,expand);
+				return;
+			} else if (idx_y < 0) {
+				//writeln("expand to left ", data.left);
+				data.bottom -= (data.top-data.bottom); // double the size
+				//writeln("expanded to left ", data.left);
+				for(uint y = 0; y < data.bins_y; ++y) {
+					for(uint x = 0; x < data.bins_x; ++x) {
+						long yfrom = cast(long)data.bins_y-(y  +1);
+						long yto   = cast(long)data.bins_y-(y/2+1);
+						ulong ifrom = (yfrom*data.bins_x+x);
+						ulong ito   = (yto*data.bins_x+x);
+						if (y%2 == 0) { // even "from" index
+							data.bins[ito] = data.bins[ifrom];
+						} else { // odd "from" index
+							     if (data.bins[ito]    is double.init) data.bins[ito]  = data.bins[ifrom];
+							else if (data.bins[ifrom] !is double.init) data.bins[ito] += data.bins[ifrom];
+						}
+					}
+				}
+				for(uint y = 0; y < data.bins_y/2; ++y) {
+					for(uint x = 0; x < data.bins_x; ++x) {
+						data.bins[y*data.bins_x+x] = data.initial;
+					}
+				}
+				fill(position_x,position_y,value,expand);
+				return;
+			} else if (idx_y >= data.bins_y) {
+				data.top += (data.top-data.bottom); // double the size
+				for(uint y = 0; y < data.bins_y; ++y) {
+					for(uint x = 0; x < data.bins_x; ++x) {
+						uint yfrom = y;
+						uint yto   = y/2;
+						ulong ifrom = (yfrom*data.bins_x+x);
+						ulong ito   = (yto*data.bins_x+x);
+						if (y%2 == 0) { // even "from" index
+							data.bins[ito] = data.bins[ifrom];
+						} else { // odd "from" index
+							     if (data.bins[ito]    is double.init) data.bins[ito]  = data.bins[ifrom];
+							else if (data.bins[ifrom] !is double.init) data.bins[ito] += data.bins[ifrom];
+						}
+					}
+				}
+				for(uint y = 0; y < data.bins_y/2; ++y) {
+					for(uint x = 0; x < data.bins_x; ++x) {
+						data.bins[(data.bins_y-(y+1))*data.bins_x+x] = data.initial;
+					}
+				}
+				fill(position_x,position_y,value,expand);
+				return;
+			}
+		}
+
 		//import std.stdio; writeln("fill at idx_x ", idx_x, ":", _lower, " ", _data[idx], " ", _higher);
 		ulong quadrant = 0;
 		if (idx_x >= 0) quadrant += (idx_x < data.bins_x)?1:2;
@@ -363,7 +456,6 @@ public:
 			if (data.bins[idx] is double.init) data.bins[idx] = value;
 			else                               data.bins[idx] += value;
 		}
-		++item_version;
 	}
 	void set_bin(int binx, int biny, double value) {
 		if (binx >= 0 && binx < data.bins_x) {

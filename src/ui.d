@@ -674,8 +674,9 @@ string hist2(string name, ulong bins_x, ulong bins_y, string xlabel, string ylab
 	["name of histogram",
 	 "x position",
 	 "y position",
-	 "add so much to the bin content (default is 1.0)"])
-string fill2(string name, double position_x, double position_y, double amount = 1.0) {
+	 "add so much to the bin content (default is 1.0)",
+	 "rebin histogram to capture the count if it is not covered by current range"])
+string fill2(string name, double position_x, double position_y, double amount = 1.0, bool expand = false) {
 	import fairy, histogram;
 	auto h2_ptr = name in fairy.session.items;
 	if (h2_ptr is null) {
@@ -685,7 +686,7 @@ string fill2(string name, double position_x, double position_y, double amount = 
 	if (h2 is null) {
 		throw new Exception("item " ~ name ~ " is not of type histogram.Hist2");
 	}
-	h2.fill(position_x, position_y,amount);
+	h2.fill(position_x, position_y,amount,expand);
 	return "";
 }
 
