@@ -1381,8 +1381,8 @@ class PlotWidget : Box {
 	Box         grid_nums_checks_y;
 	Box         grid_nums_checks_top;
 	Box         label_checks;
-	Box         zoom_stats;
-	Box         filled_box;
+	Box         fill_stats;
+	Box         zoom_box;
 	Label       grid_label;
 	CheckButton check_grid_x, check_grid_y, check_grid_top;
 	CheckButton check_label_x, check_label_y;
@@ -1617,6 +1617,9 @@ class PlotWidget : Box {
 		controls.append(fit_log_checks_x);
 		controls.append(fit_log_checks_y);
 		controls.append(fit_log_checks_z);
+		zoom_box = new Box(GtkOrientation.VERTICAL, 0);
+		zoom_box.append(check_zoom);
+		controls.append(zoom_box);
 
 		controls.append(new Separator(GtkOrientation.VERTICAL));
 
@@ -1640,20 +1643,17 @@ class PlotWidget : Box {
 		label_checks.append(check_label_x);
 		label_checks.append(check_label_y);
 
-		zoom_stats = new Box(GtkOrientation.VERTICAL, 0);
-		zoom_stats.append(check_zoom);
-		zoom_stats.append(check_stats);
+		fill_stats = new Box(GtkOrientation.VERTICAL, 0);
+		fill_stats.append(check_filled);
+		fill_stats.append(check_stats);
 
-		filled_box = new Box(GtkOrientation.VERTICAL, 0);
-		filled_box.append(check_filled);
 
 		controls.append(grid_nums_label);
 		controls.append(grid_nums_checks_x);
 		controls.append(grid_nums_checks_y);
 		controls.append(grid_nums_checks_top);
 		controls.append(label_checks);
-		controls.append(zoom_stats);
-		controls.append(filled_box);
+		controls.append(fill_stats);
 
 		colorbar_overlay = new Box(GtkOrientation.VERTICAL, 0);
 		colorbar_overlay.append(check_colorbar);
