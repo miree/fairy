@@ -192,7 +192,7 @@ public:
 		}
 		return result;
 	}	
-	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) 
+	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t, bool zoom = false) 
 	{
 		if (gate.data.direction == 1) {
 			import std.algorithm, std.math;
@@ -643,7 +643,7 @@ public:
 		}
 		return result;
 	}	
-	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) 
+	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t, bool zoom = false) 
 	{
 		import std.algorithm, std.math;
 		if (gate.data.ymin > gate.data.ymax) swap(gate.data.ymin, gate.data.ymax);
@@ -1201,7 +1201,7 @@ public:
 		minmax[1] = right;
 		return result;
 	}	
-	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) 
+	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t, bool zoom = false) 
 	{
 		double bottom, top;
 		double[2] leftright;

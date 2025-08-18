@@ -1223,6 +1223,7 @@ public:
 	{
 		import std.stdio;
 		if (zoom) {
+			if (_min is double.init || _max is double.init) return get_leftright(lr,t,false);
 			if (t[0].logscale && _min <= 0 && _max <= 0) return false;
 			if (_min == _max)                      return false;
 			lr[0] = t[0].log(_min, getBinWidth()/2.0);
@@ -1237,7 +1238,7 @@ public:
 		}
 	}
 
-	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) 
+	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t, bool zoom = false) 
 	{
 		assert(lr[0] !is double.init);
 		assert(lr[1] !is double.init);
@@ -1556,6 +1557,38 @@ public:
 		generate_rgb_data(_bin_data, _bins_x, _bins_y, _zmin, _zmax, _bins_x*2, bitmap_data, bitmap_data_log);
 		d.access_bitmap_done(bitmap_handle);
 		d.access_bitmap_done(bitmap_handle_log);
+
+		// find filled range
+		foreach(ulong y; 0.._bins_y) { // employ a bit of parallelism here. A ~ 1.7x speed improvement was measured on an i7 4770
+			foreach(ulong x; 0.._bins_x) {
+				ulong idx = y*_bins_x+x;
+				auto bin = data[cast(uint)idx];
+				double xpos = _left   + x*(_right -_left)/_bins_x;
+				double ypos = _bottom + y*(_top-_bottom )/_bins_y;
+				if (bin !is double.init) {// && bin>0) {
+					if (x_min is double.init || xpos < x_min) x_min = xpos;
+					if (x_max is double.init || xpos > x_max) x_max = xpos;
+					if (y_min is double.init || ypos < y_min) y_min = ypos;
+					if (y_max is double.init || ypos > y_max) y_max = ypos;
+				}
+			}
+		}
+		if (x_min !is double.init && x_max !is double.init && y_min !is double.init && y_max !is double.init) {
+			x_max += (right-left)/_bins_x;
+			y_max += (top-bottom)/_bins_y;
+			double w = x_max-x_min;
+			x_min -= 0.1*w;
+			x_max += 0.1*w;
+			double h = y_max-y_min;
+			y_min -= 0.1*h;
+			y_max += 0.1*h;
+		} else {
+			x_min = left;
+			x_max = right;
+			y_min = bottom;
+			y_max = top;
+		}
+
 	}
 	~this() {
 		if (bitmap_handle)     backend.destroy_bitmap(bitmap_handle);
@@ -1917,14 +1950,22 @@ public:
 		return double.init;
 	}
 	override bool get_leftright(out double[2] lr, in Transform[3] t, bool zoom = false) {
-		import std.stdio;
-		if (t[0].logscale && _left <= 0 && _right <= 0) return false;
-		if (_left == _right)                      return false;
-		lr[0] = t[0].log(_left, getBinWidth()/2.0);
-		lr[1] = t[0].log(_right);
-		return true;
+		if (zoom) {
+			if (x_min is double.init || x_max is double.init) return get_leftright(lr,t,false);
+			if (t[0].logscale && x_min <= 0 && x_max <= 0) return false;
+			if (x_min == x_max)                      return false;
+			lr[0] = t[0].log(x_min, getBinWidth()/2.0);
+			lr[1] = t[0].log(x_max);
+			return true;
+		} else {
+			if (t[0].logscale && _left <= 0 && _right <= 0) return false;
+			if (_left == _right)                      return false;
+			lr[0] = t[0].log(_left, getBinWidth()/2.0);
+			lr[1] = t[0].log(_right);
+			return true;
+		}
 	}
-	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) {
+	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t, bool zoom = false) {
 		import std.stdio;
 		if (_bin_data is null) {
 			return false;
@@ -1941,9 +1982,15 @@ public:
 		}
 		if (_bottom == _top) {
 			return false;
-		}   
-		bt[0] = t[1].log(_bottom, getBinHeight()/2.0); // set the default_zero to half the bin size
-		bt[1] = t[1].log(_top);
+		}
+		if (zoom && y_min !is double.init && y_max !is double.init) {
+			bt[0] = t[1].log(y_min, getBinHeight()/2.0); // set the default_zero to half the bin size
+			bt[1] = t[1].log(y_max);
+		} else {
+			bt[0] = t[1].log(_bottom, getBinHeight()/2.0); // set the default_zero to half the bin size
+			bt[1] = t[1].log(_top);
+		}
+
 		return true;
 	}
 
@@ -2045,8 +2092,13 @@ private:
 	double[] _bin_data;
 	double _left, _right;
 	double _bottom, _top;
+	double x_min, x_max; // left of x_min  and right of x_max all bins are empty 
+	double y_min, y_max; // left of y_min  and right of y_max all bins are empty 
+
 	double _zmin, _zmax;
 	ulong _bins_x, _bins_y;
+
+
 
 	ulong bitmap_handle;
 	ulong bitmap_handle_log;

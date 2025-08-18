@@ -94,7 +94,8 @@ public:
 	}
 	bool get_bottomtop_in_leftright(out double[2] bottomtop, 
 		                             in double[2] leftright, 
-		                             in Transform[3] box) 
+		                             in Transform[3] box,
+		                             bool zoom = false) 
 	{
 		return false;
 	}
@@ -418,7 +419,7 @@ struct CanvasPainter {
 		double right= canvas.transform[0].max;
 		foreach(ref vis; visualizers.byValue) {
 			double[2] bt;
-			if (!vis.get_bottomtop_in_leftright(bt, [left,right], canvas.transform)) continue;
+			if (!vis.get_bottomtop_in_leftright(bt, [left,right], canvas.transform, canvas.zoom)) continue;
 			bottom = (bottom is double.init)?bt[0]:min(bottom,bt[0]);
 			top    = (top    is double.init)?bt[1]:max(top   ,bt[1]);
 		}
@@ -638,7 +639,7 @@ struct CanvasPainter {
 							if (left  is double.init) left = canvas.transform[0].min;
 							if (right is double.init) right= canvas.transform[0].max;
 							double[2] bt;
-							if (canvas.autoscale[1] && visualizer.get_bottomtop_in_leftright(bt, [left,right], canvas.transform)) {
+							if (canvas.autoscale[1] && visualizer.get_bottomtop_in_leftright(bt, [left,right], canvas.transform, canvas.zoom)) {
 								bottom = bt[0];
 								top = bt[1];
 								if (bottom == top) {

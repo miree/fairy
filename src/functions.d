@@ -381,7 +381,7 @@ public:
 		return funct.expr.e.eval(funct.data.parameters);
 	}
 
-	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t) {
+	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t, bool zoom = false) {
 		import std.algorithm;
 		const points = 1000;
 		double ymin, ymax;
