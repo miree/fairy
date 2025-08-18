@@ -102,6 +102,7 @@ extern(C) void hist1d_set_bin(int handle, int bin, double value) {
 }
 
 Hist2[] elder_histograms_2D;
+bool[] elder_histograms_2D_is_smart;
 int elder_histograms_2D_count;
 struct MsgHist2dCreate {
 	string name;
@@ -121,19 +122,26 @@ extern(C) int hist2d_create(const char *name,
 	import std.conv;
 	int handle = elder_histograms_2D_count++;
 	string itemname = fix_name(name.to!string);
+	import std.string;
+	bool is_smart = itemname.endsWith("_smart");
+
 	if (elder_histograms_2D.length <= handle) {
 		elder_histograms_2D.length = handle+1;
+	}
+	if (elder_histograms_2D_is_smart.length <= handle) {
+		elder_histograms_2D_is_smart.length = handle+1;
 	}
 	elder_histograms_2D[handle] = new Hist2(n_bins1, n_bins2, 
 											left1, right1, axis1.to!string,
 											left2, right2, axis2.to!string);
+	elder_histograms_2D_is_smart[handle] = is_smart;
 	main_thread.send(MsgHist2dCreate(itemname, cast(shared Hist2)(elder_histograms_2D[handle])));
 	return handle;
 }
 
 extern(C) void hist2d_fill(int handle, double value1, double value2) {
 	if (handle < elder_histograms_2D.length) {
-		elder_histograms_2D[handle].fill(value1, value2);
+		elder_histograms_2D[handle].fill(value1, value2, 1, elder_histograms_2D_is_smart[handle]);
 	}	
 }
 extern(C) void hist2d_set_bin(int handle, int bin1, int bin2, double value) {
