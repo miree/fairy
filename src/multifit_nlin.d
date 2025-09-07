@@ -166,6 +166,7 @@ struct MultifitNlin(C,F,E=typeof(&residues))
 	this(F f, Dp!C[] data, double[] pars, bool verbose = false, E eval = &residues,
 		 double hstep = 1e-10)
 	{
+		if (data.length < pars.length) throw new Exception("insufficient data points");
 		this.f    = f;
 		this.eval = eval;
 		this.data = data;
