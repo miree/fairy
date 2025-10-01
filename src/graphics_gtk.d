@@ -2463,16 +2463,29 @@ class ElderPtWindow : ApplicationWindow
 				return true;
 			});
 
+			int rate_request_in_flight = 0;
 			_rate_timeout = new Timeout(100, delegate bool() {
-				try {
-					string rate_str = ui.elderpt("rate");
-					_rate_label.setLabel(" Rate(evt/s) = " ~ rate_str);
-				} catch (Exception e) {
+				import elderpt;
+				import std.concurrency;
+				if (elderpt.running && (rate_request_in_flight == 0)) {
+					elderpt.tid.send(MsgGetRate());
+					++rate_request_in_flight;
+				}
+				if (rate_request_in_flight > 0) {
+					double rate_result = 0.0;
+					import std.datetime;
+					if (receiveTimeout(0.msecs, (MsgRate msg) {rate_result = msg.rate;})) // receiveTimeout returns false if timeout was hit
+					{
+						import std.conv;
+						_rate_label.setLabel(" Rate(evt/s) = " ~ rate_result.to!string);
+						--rate_request_in_flight;
+					}
+				}
+				if (!elderpt.running) {
 					_rate_label.setLabel(" Rate(evt/s) = 0");
 				}
 				return true;
 			});
-
 
 
 			showAll();
