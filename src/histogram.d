@@ -54,12 +54,16 @@ bool get_stats_hist1(const(double[]) bins, double h_left, double h_right, double
 	double bin_width = (h_right-h_left)/bins.length;
 	foreach(i,w;bins) {
 		if (w is double.init) continue;
-		double x = 0.5*bin_width + h_left + i*(h_right-h_left)/bins.length;
+		//double x = 0.5*bin_width + h_left + i*(h_right-h_left)/bins.length;
+		double x = h_left + i*(h_right-h_left)/bins.length;
 		double x2 = x*x;
 		if (x >= left && x < right) {
-			sum_w += w;
-			sum_wx += w*x;
-			sum_wx2 += w*x2;
+			//sum_w += w;
+			//sum_wx += w*x;
+			//sum_wx2 += w*x2;
+			sum_w += w*bin_width;
+			sum_wx += w*(bin_width*x+0.5*bin_width*bin_width);
+			sum_wx2 += w*(bin_width*x2+bin_width*bin_width*x+bin_width*bin_width*bin_width/3.0);
 		}
 	}
 	if (sum_w == 0) return false;
