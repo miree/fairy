@@ -491,18 +491,18 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 				int buffer_msecs        = buffer_header.iTimeSpecNanoSec; // the name is misleading. These are apparently miliseconds
 				elder_pt_event_clear(evt, event_count, event_type, /+event_subtype,+/ event_trigger, buffer_sec, buffer_msecs, timestamp);
 				const(uint*)  event_ptr = cast(const(uint*))event_header;
-				//write(i, ": trig=",event_trigger, " subevents: ");
-				if (event_size >= 8) {
+				//write(i, ": trig=",event_trigger, "event size = ", event_size, " subevents: ", );
+				if (event_size >= 4) {
 					int MBStrigger = (event_header.iTrigger>>16);
-
 					int index = 4; // index of the first subevent header. 
-					while ((index+3) < event_size) // the MBS subevent header has 3 32-bit-words 
+					//writeln("trigger = ", MBStrigger, " event_size = ", event_size, " index+3 = ", index);
+					while ((index) < event_size) // the MBS subevent header has 3 32-bit-words 
 					{
 						sMbsSubeventHeader *subevent_header = cast(sMbsSubeventHeader*)(&event_ptr[index]);
 
 						int subevent_length = ( subevent_header.iWords - 2 ) / 2 + 3;
 						int data_length     = subevent_length - 3;
-
+						//writeln("data_length = ", data_length);
 						const uint *subev_data_ptr = &event_ptr[index+3];
 						int length   = subevent_header.iWords;
 						int type     = ((subevent_header.iType)&0xFF); 
