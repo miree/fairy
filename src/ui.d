@@ -1147,7 +1147,7 @@ version (elderpt) {
 	 "elderpt configuration file",
 	 "mbs source: eg. file:run001.lmd or stream:x86l-xyz"])
 @trusted
-string elderpt(string command, string config_file = "analysis.config", string mbs_source = null, string[] more_sources = null) {
+string elderpt(string command, string config_file = null, string mbs_source = null, string[] more_sources = null) {
 	import elderpt;
 	import std.concurrency;
 	string[] sources;
@@ -1155,6 +1155,10 @@ string elderpt(string command, string config_file = "analysis.config", string mb
 	if (more_sources !is null) sources ~= more_sources;
 	if (command == "start") {
 		if (elderpt.running) throw new Exception("elderpt already running, try \"elderpt stop\" or \"elderpt restart\"");
+
+		if (config_file is null) config_file = "analysis.config";
+		elderpt.configname = config_file;
+		elderpt.sourcename = sources.dup;
 		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, sources.idup);
 		receive(
 			(MsgAck msg) {elderpt.running = true;},
@@ -1168,7 +1172,7 @@ string elderpt(string command, string config_file = "analysis.config", string mb
 			receive((MsgAck msg) {});
 			elderpt.running = false;
 		}
-		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, sources.idup);
+		elderpt.tid = spawn(&run_elderpt, thisTid, elderpt.configname, elderpt.sourcename.idup);
 		receive(
 			(MsgAck msg) {elderpt.running = true;},
 			(MsgErr msg) {throw new Exception("elderpt couldn't start");}	
@@ -1178,6 +1182,13 @@ string elderpt(string command, string config_file = "analysis.config", string mb
 		if (!elderpt.running) return "stopped";
 		if (elderpt.running && elderpt.paused)   return "paused";
 		return "running";
+	}
+	if (command == "config") {
+		return elderpt.configname;
+	}
+	if (command == "source") {
+		import std.array;
+		return elderpt.sourcename.join(' ');
 	}
 	if (command == "pause") {
 		if (!elderpt.running) throw new Exception("elderpt is not running");

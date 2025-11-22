@@ -2297,7 +2297,12 @@ class ElderPtWindow : ApplicationWindow
 							auto cwd = getcwd().fixWindowsPaths();
 							auto filenames = (cast(FileChooserDialog)dialog).getFilenames().toArray!string.map!(a=>a.fixWindowsPaths().chompPrefix(cwd~"/"));
 							string sources;
-							foreach(filename; filenames) { sources ~= filename ~ " "; }
+							import elderpt;
+							elderpt.sourcename.length = 0; 
+							foreach(filename; filenames) { 
+								sources ~= filename ~ " ";
+								elderpt.sourcename ~= filename; 
+							}
 							writeln("sources = ", sources);
 							_mbs_source.setText(sources.strip());
 						} 
@@ -2457,7 +2462,20 @@ class ElderPtWindow : ApplicationWindow
 						_start_acquisition_button.setSensitive(true);
 						_stop_acquisition_button.setSensitive(false);
 						_pause_acquisition_button.setSensitive(false);	
-					}								
+					}	
+					import std.path;
+					string configfile = absolutePath(ui.elderpt("config"));
+					import std.stdio;
+					//writeln(_elder_config_file_chooser_button.getFilename, "   ", configfile);
+					if (_elder_config_file_chooser_button.getFilename != configfile) {
+						_elder_config_file_chooser_button.setFilename(configfile);
+					}
+					import std.array;
+					string sources = ui.elderpt("source");
+					if (sources !is null) {
+						_mbs_source.setText(sources);
+					}
+
 				} catch (Exception e) {
 				}
 				return true;

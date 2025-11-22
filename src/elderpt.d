@@ -9,6 +9,8 @@ Tid main_thread;
 
 bool running = false;
 bool paused  = false;
+string configname = "analysis.config";
+string[] sourcename = [];
 Tid  tid;
 
 // D bindings for the elderpt C interface
