@@ -81,6 +81,11 @@ class GtkGui : Gui {
 			window.item_view.addItem(name, null);
 		}
 	}
+	override void reset_item(string name) {
+		foreach(window; main_windows) {
+			window.plot_widget.plot_area.painter.reset_item_names ~= name;
+		}
+	}
 	override void update_from_canvas(string name) {
 		if (name in main_windows) {
 			main_windows[name].update_from_canvas(); 

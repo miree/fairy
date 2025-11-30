@@ -7,6 +7,7 @@ interface Gui {
 	void redraw_window(string name);
 	void save_window(string name);
 	void add_item(string name);
+	void reset_item(string name);
 	void remove_item(string name);
 	void update_from_canvas(string name);
 	void loop();
@@ -224,6 +225,8 @@ struct CanvasPainter {
 	double canvas_drag_start_x; // if a click and drag is performed, this is the starting point of the drag operation in canvas coordinates
 	double canvas_drag_start_y; // if a click and drag is performed, this is the starting point of the drag operation in canvas coordinates
 
+	string[] reset_item_names; // this is a temporary list with itemnames from which the itemversion was reset.
+	                         // this list is used to reset the itemversions of the already existing visualizers for that item.
 
 
 	this(CanvasProperties *c, BackendInterface b) {
@@ -497,7 +500,16 @@ struct CanvasPainter {
 				if ((itemname in visualizers) is null) { // try to get the visualizer
 					visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
 				} else if (canvas.refresh) {
-					if (visualizers[itemname].getVersion < fairy.session.get_visual_item(itemname).getVersion) {
+					bool item_was_reset = false;
+					import std.algorithm;
+					if (reset_item_names.canFind(itemname)) {
+						item_was_reset = true;
+						// remove string from reset_item_names array
+						auto found = reset_item_names.find(itemname);
+						swap(found[0],found[$-1]);
+						reset_item_names.length = reset_item_names.length-1;
+					}
+					if (item_was_reset || visualizers[itemname].getVersion < fairy.session.get_visual_item(itemname).getVersion) {
 						visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend, visualizers[itemname]);
 					}
 				}

@@ -65,12 +65,10 @@ struct Session {
 		if ((name in items) !is null) { // item already exists
 			final switch(policy) {
 				case NameCollisionPolicy.replace:
-					import std.stdio;
-					// visual items should inherit the version number
-					auto old_visual = cast(Visual)(items[name].item); 
-					auto new_visual = cast(Visual)item;
-					if (old_visual !is null && new_visual !is null) {
-						new_visual.overrideVersion(old_visual.getVersion);
+					if (start_gui) {
+						if (main_gui !is null) {
+							main_gui.reset_item(name);
+						}
 					}
 				break;
 				case NameCollisionPolicy.disallow:
