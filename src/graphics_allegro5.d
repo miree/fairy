@@ -47,6 +47,8 @@ class Allegro5Gui : Gui {
 	}
 	override void add_item(string name) {
 	}
+	override void reset_item(string name) {
+	}
 	override void update_from_canvas(string name) {
 	}
 	override void loop() {
