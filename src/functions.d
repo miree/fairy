@@ -190,37 +190,40 @@ public:
 		writeln("fit with ", datapoints.length, " points");
 
 		const x_idx = expr.param_index_lookup["x"];
-		double[] all_params = data.parameters.dup;
+		double[] all_params = data.parameters.dup; // original set of parameters. What is actually used as fit paramters is an array of 1.0
+		double[] all_params_mod = data.parameters.dup; // each fit parameter is then multiplied with all_params during function execution and stored here (modified parameters)
+		                                               // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big 
 		auto fitdelegate = delegate double(double x, double[] pars) {
-			foreach(i; 0..x_idx) all_params[i] = pars[i];
-			all_params[x_idx] = x;
-			foreach(i; x_idx+1 ..all_params.length) all_params[i] = pars[i-1];
-			return expr.e.eval(all_params);
+			foreach(i; 0..x_idx) all_params_mod[i] = all_params[i]*pars[i];
+			all_params_mod[x_idx] = x;
+			foreach(i; x_idx+1 ..all_params.length) all_params_mod[i] = all_params[i]*pars[i-1];
+			return expr.e.eval(all_params_mod);
 		};
 		double[] fit_params;
 		foreach(i,par; all_params) {
 			if (i != x_idx) {
-				fit_params ~= par;
+				//fit_params ~= par;
+				fit_params ~= 1.0; // initialze all fit parameters with 1.0. These will be multiplied with the actual start parameter before evaluating the function
 			}
 		}
-		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, fit_params, true);
+		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, fit_params, false);
 		fitter.run();
 		foreach(parameter_name,idx;expr.param_index_lookup) {
 			if (idx==x_idx) continue;
 			uint i = idx;
 			if (idx>x_idx) --i;
 
-			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i], fitter.result_errors[i]);
-			else         write(fitter.result_params[i], " ", fitter.result_errors[i], " ");
+			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx]);
+			else         write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
 		}
 		if (!verbose) writeln;
 
 		// copy result parameters back into our local array
 		foreach(i,rpar; fitter.result_params) {
 			if (i<x_idx) {
-				data.fitresult[i] = rpar;
+				data.fitresult[i] = rpar*all_params[i];
 			} else {
-				data.fitresult[i+1] = rpar;
+				data.fitresult[i+1] = rpar*all_params[i+1];
 			}
 		}
 
@@ -240,37 +243,40 @@ public:
 		if (verbose) writeln("fit with ", datapoints.length, " points");
 
 		const x_idx = expr.param_index_lookup["x"];
-		double[] all_params = data.parameters.dup;
+		double[] all_params = data.parameters.dup; // original set of parameters. What is actually used as fit paramters is an array of 1.0
+		double[] all_params_mod = data.parameters.dup; // each fit parameter is then multiplied with all_params during function execution and stored here (modified parameters)
+		                                               // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big 
 		auto fitdelegate = delegate double(double x, double[] pars) {
-			foreach(i; 0..x_idx) all_params[i] = pars[i];
-			all_params[x_idx] = x;
-			foreach(i; x_idx+1 ..all_params.length) all_params[i] = pars[i-1];
-			return expr.e.eval(all_params);
+			foreach(i; 0..x_idx) all_params_mod[i] = all_params[i]*pars[i];
+			all_params_mod[x_idx] = x;
+			foreach(i; x_idx+1 ..all_params.length) all_params_mod[i] = all_params[i]*pars[i-1];
+			return expr.e.eval(all_params_mod);
 		};
 		double[] fit_params;
 		foreach(i,par; all_params) {
 			if (i != x_idx) {
-				fit_params ~= par;
+				//fit_params ~= par;
+				fit_params ~= 1.0; // initialze all fit parameters with 1.0. These will be multiplied with the actual start parameter before evaluating the function
 			}
-		}
-		auto fitter = MultifitNlin!(double,typeof(fitdelegate),typeof(&loglikelihood))(fitdelegate, datapoints, fit_params, verbose, &loglikelihood);
+		}	
+		auto fitter = MultifitNlin!(double,typeof(fitdelegate),typeof(&loglikelihood))(fitdelegate, datapoints, fit_params, false, &loglikelihood);
 		fitter.run();
 		foreach(parameter_name,idx;expr.param_index_lookup) {
 			if (idx==x_idx) continue;
 			uint i = idx;
 			if (idx>x_idx) --i;
 
-			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i], fitter.result_errors[i]);
-			else         write(fitter.result_params[i], " ", fitter.result_errors[i], " ");
-		}		
+			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx]);
+			else         write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
+		}
 		if (!verbose) writeln;
 
 		// copy result parameters back into our local array
 		foreach(i,rpar; fitter.result_params) {
 			if (i<x_idx) {
-				data.fitresult[i] = rpar;
+				data.fitresult[i] = rpar*all_params[i];
 			} else {
-				data.fitresult[i+1] = rpar;
+				data.fitresult[i+1] = rpar*all_params[i+1];
 			}
 		}
 
