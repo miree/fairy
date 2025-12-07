@@ -2334,8 +2334,8 @@ class ElderPtWindow : ApplicationWindow
 					try { 
 						import std.stdio;
 						import std.string;
-						//string config_filename = strip(_elder_config_file_chooser_button.getFilename());
-						writeln("config file: ", _elder_toplevel_config_file);
+						string config_filename = strip(_elder_config_file_chooser_button.getFilename);
+						//writeln("config file: ", config_filename);
 						string[] sources = _mbs_source.getText().strip.split;
 						string source;
 						string[] more_sources;
@@ -2344,7 +2344,7 @@ class ElderPtWindow : ApplicationWindow
 							more_sources = sources[1..$];
 						}
 						import std.path;
-						ui.elderpt("start", relativePath(_elder_toplevel_config_file), source, more_sources); 
+						ui.elderpt("start", relativePath(config_filename), source, more_sources); 
 						_status_label.setLabel(" Running ");
 						_start_acquisition_button.setSensitive(false);
 						_pause_acquisition_button.setSensitive(true);
