@@ -27,6 +27,8 @@ public:
 	struct Data{
 		@SERIALIZE string definition;
 		@SERIALIZE string handles;
+		@SERIALIZE string hist1dname;
+		@SERIALIZE string gate1dname;
 		@SERIALIZE double[] parameters;
 		@SERIALIZE double[] fitresult;
 	}
@@ -125,9 +127,11 @@ public:
 		foreach(ref delta; handle_deltas) delta = [0,0];
 	}
 
-	this(string function_definition, double[string] parameters, string handle_definition) { 
+	this(string function_definition, double[string] parameters, string handle_definition, string hist, string gate) { 
 		data.definition = function_definition;
 		data.handles    = handle_definition;
+		data.hist1dname = hist;
+		data.gate1dname = gate;
 		expr = expression.evaluate(data.definition);
 
 		string[] missing_parameters;
@@ -180,19 +184,29 @@ public:
 	}
 
 
-	void fit(FitDataSource source, double[2] region, bool verbose = true) {
+	void fit(FitDataSource source, double[2] region, bool verbose = true, bool quiet = false, bool with_deltas = false, int max_steps=250) {
 		import multifit_nlin;
 		import std.algorithm, std.array;
 
 		auto datapoints = source.get_data(region).map!(xyd=>Dp!double(xyd[0],xyd[1],xyd[2])).array;
 
 		import std.stdio;
-		writeln("fit with ", datapoints.length, " points");
 
 		const x_idx = expr.param_index_lookup["x"];
 		double[] all_params = data.parameters.dup; // original set of parameters. What is actually used as fit paramters is an array of 1.0
 		double[] all_params_mod = data.parameters.dup; // each fit parameter is then multiplied with all_params during function execution and stored here (modified parameters)
 		                                               // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big 
+
+		if (datapoints.length < all_params.length) {
+			writeln("not enough datapoints. not fit");
+			return;
+		}
+
+		if (with_deltas) {
+			all_params[]     += parameter_deltas[];
+			all_params_mod[] += parameter_deltas[];
+		}
+
 		auto fitdelegate = delegate double(double x, double[] pars) {
 			foreach(i; 0..x_idx) all_params_mod[i] = all_params[i]*pars[i];
 			all_params_mod[x_idx] = x;
@@ -207,16 +221,16 @@ public:
 			}
 		}
 		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, fit_params, false);
-		fitter.run();
+		fitter.run(max_steps);
 		foreach(parameter_name,idx;expr.param_index_lookup) {
 			if (idx==x_idx) continue;
 			uint i = idx;
 			if (idx>x_idx) --i;
 
 			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx]);
-			else         write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
+			else if (!quiet) write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
 		}
-		if (!verbose) writeln;
+		if (!verbose && !quiet) writeln;
 
 		// copy result parameters back into our local array
 		foreach(i,rpar; fitter.result_params) {
@@ -426,6 +440,52 @@ public:
 	//override void select_box(double x1, double y1, double x2, double y2, in Transform[3] t, bool add, bool remove) {
 	//	handles.select_box(x1,y1, x2,y2, t, add, remove);
 	//}
+	void do_fit(bool verbose, bool quiet, bool with_deltas, int Nmax) {
+		if (funct.data.hist1dname !is null && funct.data.gate1dname !is null) {
+			import fairy, functions, std.stdio;
+			auto h1_ptr = funct.data.hist1dname in fairy.session.items;
+			if (h1_ptr is null) {
+				writeln("drag fit: no item with name " ~ funct.data.hist1dname);
+				return;
+			}
+			FitDataSource source = cast(FitDataSource)(h1_ptr.item);
+			if (source is null) {
+				writeln("drag fit: item " ~ funct.data.hist1dname ~ " is not of type functions.FitDataSource");
+				return;
+			}
+			Function fun = cast(Function)(funct);
+			if (fun is null) {
+				writeln("drag fit: item  not of type functions.Function");
+				return;
+			}
+			auto g1_ptr = funct.data.gate1dname in fairy.session.items;
+			if (g1_ptr is null) {
+				writeln("drag fit: no item with name " ~ funct.data.gate1dname);	
+				return;
+			}
+			import gate;
+			Gate1D gate1d = cast(Gate1D)(g1_ptr.item);
+			if (gate1d is null) {
+				writeln("drag fit: item " ~ funct.data.gate1dname ~ " is not of type Gate1d");	
+				return;
+			}
+			double left = gate1d.data.min;
+			double right = gate1d.data.max;
+
+			if (with_deltas) {
+				left += gate1d.min_delta;
+				right += gate1d.max_delta;
+			}
+			if (left > right) {
+				import std.algorithm;
+				swap(left,right);
+			}
+
+			//writeln("left right = " , left, " ", right);
+			fun.fit(source,[left,right],verbose,quiet,with_deltas,Nmax);			
+		}
+	}
+
 	override void drag(long handle, double x_canvas_start, double y_canvas_start, double x_canvas, double y_canvas, in Transform[3] t, bool ctrl = false, bool shift = false, bool end = false) {
 		if (funct.is_interactive == false) return;
 		if (end) {
@@ -440,6 +500,7 @@ public:
 				funct.parameter_deltas[indices[1]] = 0.0;
 			}
 			super.drag(handle, x_canvas_start, y_canvas_start, x_canvas, y_canvas, t, ctrl, shift, end);
+			do_fit(true,false,false,250);
 		} else {
 			super.drag(handle, x_canvas_start, y_canvas_start, x_canvas, y_canvas, t, ctrl, shift, end);
 			//import std.stdio;
@@ -452,7 +513,7 @@ public:
 				funct.parameter_deltas[indices[0]] = true_deltas[i][0];
 				funct.parameter_deltas[indices[1]] = true_deltas[i][1];
 			}
-
+			do_fit(false,true,true,20);
 		}
 	}
 
