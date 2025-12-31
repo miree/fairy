@@ -511,7 +511,7 @@ public:
 				swap(left,right);
 			}
 
-			writeln("left right = " , left, " ", right);
+			//writeln("left right = " , left, " ", right);
 			if (loglikelihood) {
 				fun.fit_loglikelihood(source,[left,right],verbose,quiet,with_deltas,Nmax);			
 			} else {
