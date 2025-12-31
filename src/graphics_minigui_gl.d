@@ -28,6 +28,8 @@ class MiniGuiGL : Gui {
 		window.canvas.xpos = point.x; 
 		window.canvas.ypos = point.y; 
 	}
+	override void reset_item(string name) {
+	}
 	override void remove_item(string name) {
 	}
 	override void add_item(string name) {

@@ -127,6 +127,11 @@ class Gtk4NativeGui : Gui {
 			window.item_view.removeItem(name);
 		}
 	}
+	override void reset_item(string name) {
+		foreach(window; main_windows) {
+			window.plot_widget.cairo_backend.painter.reset_item_names ~= name;
+		}
+	}	
 	override void add_item(string name) {
 		foreach(window; main_windows) {
 			//import std.stdio;
@@ -1171,14 +1176,14 @@ struct MyPlotWidget {
 			GtkSeparator*   sep1;
 			
 			GtkBox* box_fit_log;
-			GtkBox* box_fit; GtkLabel*  label_fit;      GtkCheckButton* check_fit_x, check_fit_y, check_fit_z;
+			GtkBox* box_fit; GtkLabel*  label_fit;      GtkCheckButton* check_fit_x, check_fit_y, check_fit_z, check_fit_zoom;
 			GtkBox* box_log; GtkLabel*  label_log;      GtkCheckButton* check_log_x, check_log_y, check_log_z;
 
 			GtkSeparator*   sep2;
 
 			GtkBox* box_grid_nums;
-			GtkBox* box_grid; GtkLabel* label_grid;      GtkCheckButton* check_grid_x, check_grid_y,  check_grid_top,  check_xlabel;
-			GtkBox* box_nums; GtkLabel* label_nums;      GtkCheckButton* check_nums_x, check_nums_y,  check_nums_top,  check_ylabel;
+			GtkBox* box_grid; GtkLabel* label_grid;      GtkCheckButton* check_grid_x, check_grid_y,  check_grid_top,  check_xlabel,   check_fill;
+			GtkBox* box_nums; GtkLabel* label_nums;      GtkCheckButton* check_nums_x, check_nums_y,  check_nums_top,  check_ylabel,   check_stat;
 
 			GtkSeparator*   sep3;
 
@@ -1205,15 +1210,18 @@ struct MyPlotWidget {
 		gtk_check_button_set_active(check_fit_x,       canvas.autoscale[0]);
 		gtk_check_button_set_active(check_fit_y,       canvas.autoscale[1]);
 		gtk_check_button_set_active(check_fit_z,       canvas.autoscale[2]);
+		gtk_check_button_set_active(check_fit_zoom,    canvas.zoom);
 		gtk_check_button_set_active(check_log_x,       canvas.transform[0].logscale);
 		gtk_check_button_set_active(check_log_y,       canvas.transform[1].logscale);
 		gtk_check_button_set_active(check_log_z,       canvas.transform[2].logscale);
 		gtk_check_button_set_active(check_grid_x,      canvas.grid[0]);
 		gtk_check_button_set_active(check_grid_y,      canvas.grid[1]);
 		gtk_check_button_set_active(check_grid_top,    canvas.grid_ontop);
+		gtk_check_button_set_active(check_fill,        canvas.filled);
 		gtk_check_button_set_active(check_nums_x,      canvas.numbers[0]);
 		gtk_check_button_set_active(check_nums_y,      canvas.numbers[1]);
 		gtk_check_button_set_active(check_nums_top,    canvas.numbers_ontop);
+		gtk_check_button_set_active(check_stat,        canvas.stats);
 		gtk_check_button_set_active(check_colorbar,    canvas.color_bar);
 		gtk_spin_button_set_value(spin_n_columns, canvas.columns_or_rows);
 		if (canvas.display_mode == DisplayMode.overlay) gtk_check_button_set_active(radio_overlay,  true);
@@ -1345,6 +1353,9 @@ struct MyPlotWidget {
 			case 'y': ui.autoscale(name, 'y', "toggle");                                                                               break;
 			case 'l': ui.logscale (name, Gtk4NativeGui.main_windows[name].plot_widget.canvas.dim==2?'z':'y', "toggle");                break;
 			case 'f': ui.winfit(name);                                                                                                 break;
+			case 'm': ui.winautozoom(name, "toggle");                      break;
+			case 't': ui.winshowstats(name, "toggle");                     break;
+			case 'i': ui.windrawfilled(name, "toggle");                    break;
 			default: {}
 		}
 	}
@@ -1403,9 +1414,11 @@ struct MyPlotWidget {
 		check_fit_x = cast(GtkCheckButton*)gtk_check_button_new_with_label("X");
 		check_fit_y = cast(GtkCheckButton*)gtk_check_button_new_with_label("Y");
 		check_fit_z = cast(GtkCheckButton*)gtk_check_button_new_with_label("Z");
+		check_fit_zoom = cast(GtkCheckButton*)gtk_check_button_new_with_label("zm");
 		gtk_check_button_set_active(check_fit_x, canvas.autoscale[0]);
 		gtk_check_button_set_active(check_fit_y, canvas.autoscale[1]);
 		gtk_check_button_set_active(check_fit_z, canvas.autoscale[2]);
+		gtk_check_button_set_active(check_fit_zoom, canvas.zoom);
 		extern(C) static void check_fit_x_toggled(GtkToggleButton* self,  gpointer user_data) {
 			ui.autoscale(*(cast(string*)user_data), 'x', gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
@@ -1415,9 +1428,13 @@ struct MyPlotWidget {
 		extern(C) static void check_fit_z_toggled(GtkToggleButton* self,  gpointer user_data) {
 			ui.autoscale(*(cast(string*)user_data), 'z', gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
+		extern(C) static void check_fit_zoom_toggled(GtkToggleButton* self,  gpointer user_data) {
+			ui.winautozoom(*(cast(string*)user_data), gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
 		g_signal_connect(check_fit_x, "toggled", &check_fit_x_toggled, cast(void*)&window_name);
 		g_signal_connect(check_fit_y, "toggled", &check_fit_y_toggled, cast(void*)&window_name);
 		g_signal_connect(check_fit_z, "toggled", &check_fit_z_toggled, cast(void*)&window_name);
+		g_signal_connect(check_fit_zoom, "toggled", &check_fit_zoom_toggled, cast(void*)&window_name);
 
 		// logscale for all 3 axis
 		label_log = cast(GtkLabel*)gtk_label_new("log:");
@@ -1451,6 +1468,7 @@ struct MyPlotWidget {
 		gtk_box_append(box_fit, cast(GtkWidget*)check_fit_x);
 		gtk_box_append(box_fit, cast(GtkWidget*)check_fit_y);
 		gtk_box_append(box_fit, cast(GtkWidget*)check_fit_z);
+		gtk_box_append(box_fit, cast(GtkWidget*)check_fit_zoom);
 
 		gtk_widget_set_size_request(cast(GtkWidget*)label_log, 30,0);
 		gtk_box_append(box_log, cast(GtkWidget*)label_log);
@@ -1472,11 +1490,15 @@ struct MyPlotWidget {
 		check_grid_top = cast(GtkCheckButton*)gtk_check_button_new_with_label("top");
 		check_xlabel = cast(GtkCheckButton*)gtk_check_button_new_with_label("xlab");
 		check_ylabel = cast(GtkCheckButton*)gtk_check_button_new_with_label("ylab");
+		check_fill = cast(GtkCheckButton*)gtk_check_button_new_with_label("fill");
+		check_stat = cast(GtkCheckButton*)gtk_check_button_new_with_label("st");
 		gtk_check_button_set_active(check_grid_x, canvas.grid[0]);
 		gtk_check_button_set_active(check_grid_y, canvas.grid[1]);
 		gtk_check_button_set_active(check_grid_top, canvas.grid_ontop);
 		gtk_check_button_set_active(check_xlabel, canvas.axislabel[0]);
 		gtk_check_button_set_active(check_ylabel, canvas.axislabel[1]);
+		gtk_check_button_set_active(check_fill, canvas.filled);
+		gtk_check_button_set_active(check_stat, canvas.stats);
 		extern(C) static void check_grid_x_toggled(GtkToggleButton* self, gpointer user_data) {
 			ui.grid(*(cast(string*)user_data), "x", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
@@ -1492,11 +1514,19 @@ struct MyPlotWidget {
 		extern(C) static void check_ylabel_toggled(GtkToggleButton* self, gpointer user_data) {
 			ui.label(*(cast(string*)user_data), "y", gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
 		}
+		extern(C) static void check_fill_toggled(GtkToggleButton* self, gpointer user_data) {
+			ui.windrawfilled(*(cast(string*)user_data), gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
+		extern(C) static void check_stat_toggled(GtkToggleButton* self, gpointer user_data) {
+			ui.winshowstats(*(cast(string*)user_data), gtk_check_button_get_active(cast(GtkCheckButton*)self)?"true":"false");
+		}
 		g_signal_connect(check_grid_x,   "toggled", &check_grid_x_toggled,   cast(void*)&window_name);
 		g_signal_connect(check_grid_y,   "toggled", &check_grid_y_toggled,   cast(void*)&window_name);
 		g_signal_connect(check_grid_top, "toggled", &check_grid_top_toggled, cast(void*)&window_name);
 		g_signal_connect(check_xlabel,   "toggled", &check_xlabel_toggled,   cast(void*)&window_name);
 		g_signal_connect(check_ylabel,   "toggled", &check_ylabel_toggled,   cast(void*)&window_name);
+		g_signal_connect(check_fill,     "toggled", &check_fill_toggled,     cast(void*)&window_name);
+		g_signal_connect(check_stat,     "toggled", &check_stat_toggled,     cast(void*)&window_name);
 
 		// numbers for all 3 axis
 		label_nums = cast(GtkLabel*)gtk_label_new("nums:");
@@ -1531,6 +1561,7 @@ struct MyPlotWidget {
 		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_y);
 		gtk_box_append(box_grid, cast(GtkWidget*)check_grid_top);
 		gtk_box_append(box_grid, cast(GtkWidget*)check_xlabel);
+		gtk_box_append(box_grid, cast(GtkWidget*)check_fill);
 
 		gtk_widget_set_size_request(cast(GtkWidget*)label_nums, 50,0);
 		gtk_box_append(box_nums, cast(GtkWidget*)label_nums);
@@ -1538,6 +1569,7 @@ struct MyPlotWidget {
 		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_y);
 		gtk_box_append(box_nums, cast(GtkWidget*)check_nums_top);
 		gtk_box_append(box_nums, cast(GtkWidget*)check_ylabel);
+		gtk_box_append(box_nums, cast(GtkWidget*)check_stat);
 
 		gtk_box_append(controls_box, cast(GtkWidget*)box_grid_nums);
 

@@ -327,6 +327,7 @@ public:
 		this.links  = links;
 		this.deltas = deltas; 
 		move_indices.length = points.length;
+		move_indices.length = 0;
 	}
 	import graphics, transform;
 
@@ -504,7 +505,7 @@ public:
 			}
 			d.set_color(0,0,0);
 			d.set_line_width(1);
-			if (move_indices.canFind(l[0])) d.set_line_width(2);
+			if (move_indices.canFind(l[0])) d.set_line_width(4);
 			d.line(pc0[0],pc0[1], pc1[0],pc1[1]);
 			d.horizontal_line(pc1[1],pc0[0],pc1[0]);
 			d.vertical_line(pc0[0],pc0[1],pc1[1]);
