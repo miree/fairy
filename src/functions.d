@@ -29,6 +29,7 @@ public:
 		@SERIALIZE string handles;
 		@SERIALIZE string hist1dname;
 		@SERIALIZE string gate1dname;
+		@SERIALIZE bool   dragupdate;
 		@SERIALIZE bool   loglikelihood; // if true performs log likelihood fit instead of chisquare fit
 		@SERIALIZE double[] parameters;
 		@SERIALIZE double[] fitresult;
@@ -128,11 +129,12 @@ public:
 		foreach(ref delta; handle_deltas) delta = [0,0];
 	}
 
-	this(string function_definition, double[string] parameters, string handle_definition, string hist, string gate, bool loglikelihood) { 
+	this(string function_definition, double[string] parameters, string handle_definition, string hist, string gate, bool dragupdate, bool loglikelihood) { 
 		data.definition = function_definition;
 		data.handles    = handle_definition;
 		data.hist1dname = hist;
 		data.gate1dname = gate;
+		data.dragupdate = dragupdate;
 		data.loglikelihood = loglikelihood;
 		expr = expression.evaluate(data.definition);
 
@@ -321,6 +323,9 @@ public:
 
 	}
 
+	void set_dragupdate(bool dragupdate) {
+		data.dragupdate = dragupdate;
+	}
 
 private:
 	ulong item_version = 0;
@@ -542,7 +547,7 @@ public:
 				funct.parameter_deltas[indices[0]] = true_deltas[i][0];
 				funct.parameter_deltas[indices[1]] = true_deltas[i][1];
 			}
-			do_fit(false,true,true,20,funct.data.loglikelihood);
+			if (funct.data.dragupdate) do_fit(false,true,true,20,funct.data.loglikelihood);
 		}
 	}
 

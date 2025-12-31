@@ -259,9 +259,10 @@ string ls(bool all = true) {
 	 "handles for gui manipulation",
 	 "name of histogram item",
 	 "name of gate",
+	 "fit is updated while dragging",
 	 "do loglikelihood fit instead of chisquare"])
 @trusted
-string funct(string name, string definition, string[] parameters = null, string handles = null, string hist1dname = null, string gate1dname = null, bool loglikelihood = false) {
+string funct(string name, string definition, string[] parameters = null, string handles = null, string hist1dname = null, string gate1dname = null, bool dragupdate = true, bool loglikelihood = false) {
 	import std.algorithm, std.conv, std.stdio, std.array;
 	import fairy, functions;
 	double[string] pars;
@@ -272,7 +273,23 @@ string funct(string name, string definition, string[] parameters = null, string 
 		}
 	}
 	pars["x"]=0.0;
-	fairy.session.add_item(name, new Function(definition, pars, handles, hist1dname, gate1dname, loglikelihood));
+	fairy.session.add_item(name, new Function(definition, pars, handles, hist1dname, gate1dname, dragupdate, loglikelihood));
+	return "";
+}
+@UI_EXPORT("set dragupdate property of function",
+	["name of the function",
+	 "true or false"])
+string dragupdate(string functname, bool dragupdate = true) {
+	import fairy, functions;
+	auto f1_ptr = functname in fairy.session.items;
+	if (f1_ptr is null) {
+		throw new Exception("no item with name " ~ functname);
+	}
+	Function f = cast(Function)(f1_ptr.item);
+	if (f is null) {
+		throw new Exception("item " ~ functname ~ " is not of tyep Function");
+	}
+	f.set_dragupdate(dragupdate);
 	return "";
 }
 
