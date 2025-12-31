@@ -258,9 +258,10 @@ string ls(bool all = true) {
 	 "function parameters",
 	 "handles for gui manipulation",
 	 "name of histogram item",
-	 "name of gate"])
+	 "name of gate",
+	 "do loglikelihood fit instead of chisquare"])
 @trusted
-string funct(string name, string definition, string[] parameters = null, string handles = null, string hist1dname = null, string gate1dname = null) {
+string funct(string name, string definition, string[] parameters = null, string handles = null, string hist1dname = null, string gate1dname = null, bool loglikelihood = false) {
 	import std.algorithm, std.conv, std.stdio, std.array;
 	import fairy, functions;
 	double[string] pars;
@@ -271,7 +272,7 @@ string funct(string name, string definition, string[] parameters = null, string 
 		}
 	}
 	pars["x"]=0.0;
-	fairy.session.add_item(name, new Function(definition, pars, handles, hist1dname, gate1dname));
+	fairy.session.add_item(name, new Function(definition, pars, handles, hist1dname, gate1dname, loglikelihood));
 	return "";
 }
 
