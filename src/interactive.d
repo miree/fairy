@@ -451,7 +451,7 @@ public:
 			add = true;
 		}
 		foreach(i, p; points) {
-			if (sb.contains(p[0],p[1])) {
+			if (sb.contains(t[0].log(p[0]),t[1].log(p[1]))) {
 				if (add && !selected_points.canFind(i)) {
 					selected_points ~= i;
 				}
@@ -473,7 +473,8 @@ public:
 
 			for (int dim = 0; dim < 2; ++dim) {
 				if (t[dim].logscale) {
-
+					import std.math;
+					foreach(i;move_indices) deltas[i][dim] = points[i][dim]*exp(t[dim].canvas2world_delta(current[dim] - start[dim])) - points[i][dim]; 
 				} else {
 					import std.stdio;
 					//writeln("move_indices ", move_indices);
@@ -497,6 +498,8 @@ public:
 			double[2] pc0, pc1; // endpoints of the line in canvas coordinates
 			for (int dim = 0; dim < 2; ++dim) {
 				if (t[dim].logscale) {
+					pc0[dim] = t[dim].world2canvas(t[dim].log(points[l[0]][dim] + deltas[l[0]][dim]));
+					pc1[dim] = t[dim].world2canvas(t[dim].log(points[l[1]][dim] + deltas[l[1]][dim]));
 
 				} else {
 					pc0[dim] = t[dim].world2canvas(points[l[0]][dim] + deltas[l[0]][dim]);
@@ -518,7 +521,7 @@ public:
 			double[2] pc; // point_on_canvas
 			for (int dim = 0; dim < 2; ++dim) {
 				if (t[dim].logscale) {
-
+					pc[dim] = t[dim].world2canvas(t[dim].log((p[dim] + deltas[i][dim])));
 				} else {
 					pc[dim] = t[dim].world2canvas(p[dim] + deltas[i][dim]);
 				}
