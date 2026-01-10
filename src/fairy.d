@@ -92,6 +92,23 @@ struct Session {
 		}
 
 	}
+	void remove_items(string[] names) {
+		foreach(name; names) {
+			check_name_helper("item ", name);
+			if ((name in items) is null) {
+				continue;
+			} else {
+				items.remove(name);
+			}
+		}
+		if (start_gui) {
+			if (main_gui !is null) {
+				foreach (window; windows.byKey) {
+					main_gui.update_from_canvas(window);
+				}
+			}
+		}
+	}
 	void reset_item(string name) {
 		check_name_helper("item ", name);
 		if ((name in items) is null) {

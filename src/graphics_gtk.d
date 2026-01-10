@@ -828,6 +828,11 @@ class ItemView : TreeView {
 		foreach(selected_iter; getSelectedIters()) {
 			names ~= treestore.getString(selected_iter, COLUMN_FULLNAME);
 		}
+		//import ui;
+		//ui.rms(names);
+		foreach(name, window; GtkGui.main_windows) {
+			window.item_view._inhibit_remove_empty_paths = true;
+		}
 		foreach(name; names) {
 			try {
 				import ui;
@@ -836,6 +841,10 @@ class ItemView : TreeView {
 				import std.stdio;
 				writeln("cannot remove " ~ name ~": " ~ e.msg);
 			}
+		}
+		foreach(name, window; GtkGui.main_windows) {
+			window.item_view._inhibit_remove_empty_paths = false;
+			window.item_view.removeEmptyPaths();
 		}
 	}
 	void show_all_selected() {
@@ -1271,6 +1280,7 @@ class ItemView : TreeView {
 		}
 	}
 
+	bool _inhibit_remove_empty_paths = false; // when removing multiple items the "remove empty paths" should only be execued once and not after each removed item
 	void removeItem(string itemname) {
 		TreeIter iter = find_iter_for_itemname(itemname, treestore);
 		if (iter !is null) {
@@ -1286,7 +1296,9 @@ class ItemView : TreeView {
 				treestore.remove(iter);				
 			}
 		}
-		removeEmptyPaths();
+		if (!_inhibit_remove_empty_paths) {
+			removeEmptyPaths();
+		}
 	}
 	void removeEmptyPaths() {
 		// remove empty paths
@@ -2252,6 +2264,7 @@ class ElderPtWindow : ApplicationWindow
 	//void*           _elderpt_event;
 
 	bool _end_thread_idle_process = false;
+
 
 	this(Application application) {
 		import ui;
