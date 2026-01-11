@@ -25,12 +25,15 @@ class Function : Visual, Item
 	import expression;
 public:
 	struct Data{
-		@SERIALIZE string definition;
-		@SERIALIZE string handles;
-		@SERIALIZE string hist1dname;
-		@SERIALIZE string gate1dname;
-		@SERIALIZE bool   dragupdate;
-		@SERIALIZE bool   loglikelihood; // if true performs log likelihood fit instead of chisquare fit
+		@SERIALIZE string   definition;
+		@SERIALIZE string   handles;
+		@SERIALIZE string   hist1dname;
+		@SERIALIZE string   gate1dname;
+		@SERIALIZE string[] results;
+		@SERIALIZE double[] result_values;
+		@SERIALIZE double[] result_errors;
+		@SERIALIZE bool     dragupdate;
+		@SERIALIZE bool     loglikelihood; // if true performs log likelihood fit instead of chisquare fit
 		@SERIALIZE double[] parameters;
 		@SERIALIZE double[] fitresult;
 	}
@@ -129,14 +132,33 @@ public:
 		foreach(ref delta; handle_deltas) delta = [0,0];
 	}
 
-	this(string function_definition, double[string] parameters, string handle_definition, string hist, string gate, bool dragupdate, bool loglikelihood) { 
-		data.definition = function_definition;
-		data.handles    = handle_definition;
-		data.hist1dname = hist;
-		data.gate1dname = gate;
-		data.dragupdate = dragupdate;
+	// helper function to calculate result values from fit parameters and some formulas
+	void calculate_results() {
+		foreach(result_formula; data.results) {
+
+		}
+	}
+
+
+	this(string function_definition, double[string] parameters, string handle_definition, string hist, string gate, string[] results, bool dragupdate, bool loglikelihood) { 
+		data.definition  = function_definition;
+		data.handles     = handle_definition;
+		data.hist1dname  = hist;
+		data.gate1dname  = gate;
+		data.results     = results;
+		data.dragupdate  = dragupdate;
 		data.loglikelihood = loglikelihood;
 		expr = expression.evaluate(data.definition);
+
+		// prepare display of results after fitting
+		foreach(result_expr; results) {
+			import std.algorithm, std.array;
+			if (!result_expr.canFind('=')) throw new Exception("missing '=' in expression " ~ result_expr);
+			result_exprs ~= expression.evaluate(result_expr.split('=')[1]);
+		}
+		data.result_values.length = results.length;
+		data.result_errors.length = results.length;
+		result_params.length = results.length;
 
 		string[] missing_parameters;
 		foreach(par_name; expr.param_index_lookup.byKey) {
@@ -165,6 +187,17 @@ public:
 			data = deserialize!Data(json);
 			expr = expression.evaluate(data.definition);
 			if (data.handles.length) create_interactive_handles(data.handles.dup);
+
+			// prepare display of results after fitting
+			foreach(result_expr; data.results) {
+				import std.algorithm, std.array;
+				if (!result_expr.canFind('=')) throw new Exception("missing '=' in expression " ~ result_expr);
+				result_exprs ~= expression.evaluate(result_expr.split('=')[1]);
+			}
+			data.result_values.length = data.results.length;
+			data.result_errors.length = data.results.length;
+			result_params.length = data.results.length;
+
 		} catch(Exception e) {
 			writeln("Function deserialize error: ", e.msg);
 		} 
@@ -239,8 +272,19 @@ public:
 
 			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx]);
 			else if (!quiet) write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
+
+			foreach(index, ref result_pars; result_params) {
+				auto par = parameter_name in result_exprs[index].param_index_lookup;
+				if (par !is null) {
+					//import std.stdio;
+					//writeln("found parameter ", parameter_name, " in result expression ", data.results, " at index ", result_exprs[index].param_index_lookup[parameter_name], " and it hast value ", fitter.result_params[i]*all_params[idx]);
+					result_pars.length = result_exprs[index].param_index_lookup.length;
+					result_pars[result_exprs[index].param_index_lookup[parameter_name]] = fitter.result_params[i]*all_params[idx];
+				}
+			}
 		}
 		if (!verbose && !quiet) writeln;
+		else if (verbose || !quiet) writeln("===============");
 
 		// copy result parameters back into our local array
 		foreach(i,rpar; fitter.result_params) {
@@ -249,6 +293,13 @@ public:
 			} else {
 				data.fitresult[i+1] = rpar*all_params[i+1];
 			}
+		}
+
+		// calculate the resulting qantities as function of parameters
+		foreach(index, ref result_expr; result_exprs) {
+			data.result_values[index] = result_expr.e.eval(result_params[index]);
+			//import std.stdio;
+			//writeln("result ", index, " params ", result_params[index], " expression " , data.results[index]  ,"  result value ", data.result_values[index]);
 		}
 
 
@@ -309,6 +360,16 @@ public:
 
 			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx]);
 			else if (!quiet) write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
+
+			foreach(index, ref result_pars; result_params) {
+				auto par = parameter_name in result_exprs[index].param_index_lookup;
+				if (par !is null) {
+					//import std.stdio;
+					//writeln("found parameter ", parameter_name, " in result expression ", data.results, " at index ", result_exprs[index].param_index_lookup[parameter_name], " and it hast value ", fitter.result_params[i]*all_params[idx]);
+					result_pars.length = result_exprs[index].param_index_lookup.length;
+					result_pars[result_exprs[index].param_index_lookup[parameter_name]] = fitter.result_params[i]*all_params[idx];
+				}
+			}
 		}
 		if (!verbose && !quiet) writeln;
 
@@ -320,6 +381,14 @@ public:
 				data.fitresult[i+1] = rpar*all_params[i+1];
 			}
 		}
+
+		// calculate the resulting qantities as function of parameters
+		foreach(index, ref result_expr; result_exprs) {
+			data.result_values[index] = result_expr.e.eval(result_params[index]);
+			//import std.stdio;
+			//writeln("result ", index, " params ", result_params[index], " expression " , data.results[index]  ,"  result value ", data.result_values[index]);
+		}
+
 
 	}
 
@@ -338,6 +407,11 @@ private:
 	double[2][] handle_points;
 	double[2][] handle_deltas;
 	double[] parameter_deltas;
+
+	expression.Result[] result_exprs;
+	//double[] result_values;
+	//double[] result_errors;
+	double[][] result_params;
 
 	bool is_interactive = false;
 }
@@ -371,6 +445,8 @@ public:
 		auto local_fitresults = funct.data.fitresult.dup;  
 		auto local_parameters = funct.data.parameters.dup; 
 		if (funct.is_interactive) local_parameters[] += funct.parameter_deltas[];
+		double y_max;
+		double x_at_y_max;
 		for (int n = 0; n < 2; ++n) {
 			if (n == 0) {
 				d.set_color(0,0.3,0,0.2);
@@ -414,11 +490,42 @@ public:
 				}
 				x_old = x;
 				y_old = y;
+
+				if (n == 1) {
+					if (y_max is double.init || y_max < y) {
+						y_max = y;
+						x_at_y_max = x;
+					}
+				}
 			}
 			d.stroke();
 
 		}
 		super.draw(d,t,modified);
+
+		double width,height;
+		d.text_extent("x",width,height);
+		height *= 1.5;
+
+		foreach(idx,value; funct.data.result_values) {
+			import std.conv;
+			import std.array;
+			if (value is double.init) continue;
+			double xpos = t[0].world2canvas(t[0].log(x_at_y_max));
+			double ypos = t[1].world2canvas(t[1].log(y_max))-height*(0.5+idx);
+			string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string;
+			if (d.text_with_border()) {
+				d.set_color(0.9,0.9,0.9);
+				d.text(xpos-1, ypos-1, text);
+				d.text(xpos-1, ypos+1, text);
+				d.text(xpos+1, ypos-1, text);
+				d.text(xpos+1, ypos+1, text);
+				d.stroke();
+			}
+			d.set_color(0,0,0);
+			d.text(xpos,ypos, text);
+			d.stroke();
+		}
 	}
 
 	override double getValue(double x, double y) {

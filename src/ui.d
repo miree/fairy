@@ -262,7 +262,7 @@ string ls(bool all = true) {
 	 "fit is updated while dragging",
 	 "do loglikelihood fit instead of chisquare"])
 @trusted
-string funct(string name, string definition, string[] parameters = null, string handles = null, string hist1dname = null, string gate1dname = null, bool dragupdate = true, bool loglikelihood = false) {
+string funct(string name, string definition, string[] parameters = null, string handles = null, string hist1dname = null, string gate1dname = null, string[] results = null, bool dragupdate = true, bool loglikelihood = false) {
 	import std.algorithm, std.conv, std.stdio, std.array;
 	import fairy, functions;
 	double[string] pars;
@@ -273,7 +273,7 @@ string funct(string name, string definition, string[] parameters = null, string 
 		}
 	}
 	pars["x"]=0.0;
-	fairy.session.add_item(name, new Function(definition, pars, handles, hist1dname, gate1dname, dragupdate, loglikelihood));
+	fairy.session.add_item(name, new Function(definition, pars, handles, hist1dname, gate1dname, results, dragupdate, loglikelihood));
 	return "";
 }
 @UI_EXPORT("set dragupdate property of function",
