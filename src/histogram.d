@@ -70,7 +70,7 @@ bool get_stats_hist1(const(double[]) bins, double h_left, double h_right, double
 	import std.math;
 	mean = sum_wx / sum_w;
 	stddev = sqrt(sum_wx2/sum_w - mean*mean);
-	counts = sum_w;
+	counts = sum_w/bin_width;
 	return true;
 }
 
