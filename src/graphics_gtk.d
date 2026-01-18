@@ -777,6 +777,69 @@ class ItemView : TreeView {
 		Clipboard.getDefault(Display.getDefault()).setText(result, cast(int)result.length);
 	}
 
+	void create_fitter() {
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			import std.conv, std.algorithm;
+			import fairy, ui;
+			if (session.items.byKey.canFind(fullname)) {
+				import histogram, gate, functions;
+				auto source = cast(FitDataSource)session.items[fullname].item;
+				if (source !is null) {
+					import std.stdio;
+					writeln("found selected fit data source: ", fullname);
+					auto gatename = fullname ~ "/fit_gate";
+					auto funcname = fullname ~ "/fit_function";
+					auto left  = main_window.canvas.transform[0].min; 
+					auto right = main_window.canvas.transform[0].max;
+					auto w = right-left;
+					left += 3*w/8;
+					right -= 3*w/8; 
+					if (main_window.canvas.transform[0].logscale) {
+						import std.math;
+						left = exp(left);
+						right = exp(right);
+					}
+					auto bottom  = main_window.canvas.transform[1].min; 
+					auto top     = main_window.canvas.transform[1].max;
+					if (main_window.canvas.transform[1].logscale) {
+						import std.math;
+						top    = exp(top);
+						bottom = exp(bottom);
+					}
+					double A = (top-bottom)/2;
+					double s = (right-left)/8;
+					double a = bottom+A/4;
+					double b = 0;
+					double x0 = 0.5*(left+right);
+					string function_definition = "A*gauss(x-x0,s)/gauss(s,s)+a+b*(x-x0) ";
+					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"s=" ~ s.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\"] ";
+					string handle_definition = "[x0,a]([s,A])";
+					string result_definition = "[\"area=A/gauss(s,s)/binwidth\",\"width=s\",\"pos=x0\"]";
+					import cmdline;
+					string command =
+						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~   "\n" ~
+						"show      "~gatename~" "~main_window.name ~ "\n" ~
+						"show      "~funcname~" "~main_window.name;
+
+					import std.stdio;
+					writeln(command);
+					thisTid.send(cmdline.Command(command, thisTid));									
+				} else {
+					import gtk.MessageDialog;
+					auto cannot_project = new MessageDialog(main_window, 
+						              GtkDialogFlags.DESTROY_WITH_PARENT,
+						              GtkMessageType.ERROR,
+						              GtkButtonsType.NONE,
+						              "no gaussfit possible");
+					cannot_project.show();
+				}
+			}
+		}
+
+	}
+
 	void hist2d_projection_xy(char xy) {
 		foreach(selected_iter; getSelectedIters()) {
 			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
@@ -1045,6 +1108,7 @@ class ItemView : TreeView {
 			popup_menu.append( new MenuItem( (m) => copy_selected_to_clipboard(), "copy to clipboard", "copy fullname of all selected items to the clipboard" ));
 			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
 			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "hist2d project x", "interactively project 2d histogram along x axis" ));
+			popup_menu.append( new MenuItem( (m) => create_fitter(), "hist1d gaussfit", "interactively fit a gaussion function to histogram data" ));
 			popup_menu.append( new MenuItem( (m) => show_all_recursive(),  "show recursive", "show selected items and their children"));
 			popup_menu.append( new MenuItem( (m) => hide_all_recursive(),  "hide recursive", "hide selected items and their children"));
 			popup_menu.append( new MenuItem( (m) => reset_all_recursive(), "reset recursive", "reset selected items and their children"));
