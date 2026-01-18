@@ -588,6 +588,7 @@ class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) {
 		try {
 			HistData hist_data = read_file(data.filename);
+			dim = hist_data.dim;
 			switch(hist_data.dim) {
 				case 1:
 					xlabel = hist_data.xlabel; 

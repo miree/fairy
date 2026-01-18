@@ -788,8 +788,8 @@ class ItemView : TreeView {
 				if (source !is null && source.projection_data_ready()) {
 					import std.stdio;
 					writeln("found selected projection source: ", fullname);
-					auto gatename = fullname ~ "_"~xy~"_gate";
-					auto projname = fullname ~ "_"~xy~"_projection";
+					auto gatename = fullname ~ "/"~xy~"_gate";
+					auto projname = fullname ~ "/"~xy~"_projection";
 					int dim = (xy=='x')?1:0;
 					auto left  = main_window.canvas.transform[dim].min; 
 					auto right = main_window.canvas.transform[dim].max;
