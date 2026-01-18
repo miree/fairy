@@ -80,9 +80,21 @@ double triangle(double x, double w) {
 	if (x>=w) return 0;
 	return 1.0-x/w;
 }
+// gaussian folded exponential (which works for positive and negative t)
+double gex(double x, double s, double t) {
+	if (t < 0) {
+		t *= -1;
+		x *= -1;
+	}
+	if (s < 0) {
+		s *= -1;
+	}
+	if (t/s < 1e-3) return gauss(x,s);
+	return gex_(x,s,t);
+}
 // gaussian folded exponential
 @trusted
-double gex(double x, double s, double t) {
+double gex_(double x, double s, double t) {
 	import std.math;
 	import gsl_import : gsl_sf_erfc, gsl_sf_log_erfc;
 	//gnuplot> f(x,s,t) = erfc((s/sqrt(2)/t)-x/sqrt(2)/s)*exp(1.0*s**2/(2*t**2) - x/t)/(2*t)
