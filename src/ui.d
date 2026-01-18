@@ -254,7 +254,7 @@ string ls(bool all = true) {
 
 @UI_EXPORT("define a function",
 	["name of the function",
-	 "definition of the function",
+	 "definition of the function. the parameter \'binwidth\' can be used to get the bin width of the fit data source",
 	 "function parameters",
 	 "handles for gui manipulation",
 	 "name of histogram item",

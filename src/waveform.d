@@ -117,6 +117,10 @@ public:
 	}
 
 
+	override double get_bin_width() {
+		double bin_width = (d.right-d.left)/d.data.length;
+		return bin_width;
+	}
 	override double[3][] get_data(double[2] region) {
 		double left=region[0];
 		double right=region[1];

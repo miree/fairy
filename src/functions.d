@@ -8,6 +8,7 @@ import serializeJSON;
 
 interface FitDataSource {
 	double[3][] get_data(double[2] region);
+	double get_bin_width();
 }
 
 class FunctionFactory : ItemFactory {
@@ -132,12 +133,12 @@ public:
 		foreach(ref delta; handle_deltas) delta = [0,0];
 	}
 
-	// helper function to calculate result values from fit parameters and some formulas
-	void calculate_results() {
-		foreach(result_formula; data.results) {
+	//// helper function to calculate result values from fit parameters and some formulas
+	//void calculate_results() {
+	//	foreach(result_formula; data.results) {
 
-		}
-	}
+	//	}
+	//}
 
 
 	this(string function_definition, double[string] parameters, string handle_definition, string hist, string gate, string[] results, bool dragupdate, bool loglikelihood) { 
@@ -280,6 +281,11 @@ public:
 					//writeln("found parameter ", parameter_name, " in result expression ", data.results, " at index ", result_exprs[index].param_index_lookup[parameter_name], " and it hast value ", fitter.result_params[i]*all_params[idx]);
 					result_pars.length = result_exprs[index].param_index_lookup.length;
 					result_pars[result_exprs[index].param_index_lookup[parameter_name]] = fitter.result_params[i]*all_params[idx];
+				}
+				auto bin_width_par = "binwidth" in  result_exprs[index].param_index_lookup;
+				if (bin_width_par !is null) {
+					result_pars.length = result_exprs[index].param_index_lookup.length;
+					result_pars[result_exprs[index].param_index_lookup["binwidth"]] = source.get_bin_width();
 				}
 			}
 		}

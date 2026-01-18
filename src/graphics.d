@@ -494,6 +494,7 @@ struct CanvasPainter {
 			visualizers.remove(n);
 		}
 		string[] items_with_visualizer;
+
 		foreach(itemname; canvas.itemnames) {
 			import fairy;
 			try {
@@ -544,6 +545,19 @@ struct CanvasPainter {
 		string[] xlabels;
 		string[] ylabels;
 		if (canvas.display_mode == DisplayMode.overlay) {
+			// find number of items that can show histogram statistics
+			int count_hist1stats_items = 0;
+			string hist1stat_itemname;
+			foreach(itemname; canvas.itemnames) {
+				import histogram;
+				if (itemname in visualizers) {
+					auto hstats = cast(Hist1Stats)visualizers[itemname];
+					if (hstats !is null) {
+						hist1stat_itemname = itemname;
+						++ count_hist1stats_items;
+					}	
+				}
+			}
 
 			canvas.transform[0].update_coefficients(0, 1, canvas.width);
 			canvas.transform[1].update_coefficients(0, 1, canvas.height, backend.inverted_y_direction);
@@ -581,11 +595,12 @@ struct CanvasPainter {
 				draw_colorkey();
 				color_grid_numbers(backend, canvas, canvas.color_key_width);
 			}	
-			if (canvas.itemnames.length == 1) {
+
+			if (count_hist1stats_items == 1) {
 				double mu,sigma,counts;
 				bool stats_available;
 				import histogram;
-				auto hstats = cast(Hist1Stats)visualizers[canvas.itemnames[0]];
+				auto hstats = cast(Hist1Stats)visualizers[hist1stat_itemname];
 				if (hstats !is null) {
 					stats_available = hstats.get_stats(mu, sigma, counts, canvas.transform[0].min, canvas.transform[0].max);
 				}

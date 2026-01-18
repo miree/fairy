@@ -123,6 +123,7 @@ public:
 		++item_version;
 	}
 
+
 	void write_stats(double left, double right) {
 		double sum_w = 0;
 		double sum_wx = 0;
@@ -231,6 +232,10 @@ public:
 		return new Hist1Visualizer(old, item_version, data.bins, data.xlabel, data.left, data.right);
 	}
 
+	override double get_bin_width() {
+		double bin_width = (data.right-data.left)/data.bins.length;
+		return bin_width;
+	}
 	override double[3][] get_data(double[2] region) {
 		double left=region[0];
 		double right=region[1];
@@ -500,7 +505,11 @@ public:
 		return data.ylabel;
 	}
 
-	double[3][] get_data(double[2] region) {
+	override double get_bin_width() {
+		double bin_width = (data.right-data.left)/data.bins_x;
+		return bin_width;		
+	}
+	override double[3][] get_data(double[2] region) {
 		double[3][] result;
 		import std.stdio;
 		auto file = File("fit.data","w+");
@@ -600,6 +609,9 @@ class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 		}
 	}
 
+	override double get_bin_width() {
+		return bin_width;
+	}
 	override double[3][] get_data(double[2] region) {
 		double left=region[0];
 		double right=region[1];
@@ -649,6 +661,8 @@ private:
 
 	ulong item_version = 0;
 	SysTime _time_of_last_update;
+
+	double bin_width;
 
 	bool need_to_reload() {
 		bool need_update = false;
@@ -881,6 +895,10 @@ class Hist2Projection : Visual, Hist1Export, FitDataSource, Item {
 	}
 
 	// FitDataSource override
+	override double get_bin_width() {
+		double bin_width = (right-left)/bins.length;
+		return bin_width;
+	}
 	override double[3][] get_data(double[2] region) {
 		if (bins is null || bins.length==0) {
 			do_project();
