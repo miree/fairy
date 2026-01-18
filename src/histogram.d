@@ -494,7 +494,8 @@ public:
 	}
 
 	// Hist2ProjectionSource overrides
-	Hist2ProjectionSource.Data get_projection_data() {
+	override bool projection_data_ready() {return true;}
+	override Hist2ProjectionSource.Data get_projection_data() {
 		return Hist2ProjectionSource.Data(data.bins, data.bins_x, data.bins_y,
 			                              data.left, data.right, data.bottom, data.top);
 	}
@@ -616,7 +617,8 @@ class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 		double left=region[0];
 		double right=region[1];
 		HistData hist_data = read_file(data.filename);
-		double bin_width = (hist_data.right-hist_data.left)/hist_data.data.length;
+		bin_width = (hist_data.right-hist_data.left)/hist_data.data.length;
+		dim = hist_data.dim;
 		double[3][] result;
 		if (hist_data.dim == 1) {
 			foreach(idx, y; hist_data.data) {
@@ -637,6 +639,7 @@ class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
 
 
 	// Hist2ProjectionSource overrides
+	bool projection_data_ready() {return dim == 2;}
 	Hist2ProjectionSource.Data get_projection_data() {
 		HistData hist_data = read_file(data.filename);
 		if (hist_data.dim == 2) {
@@ -663,6 +666,7 @@ private:
 	SysTime _time_of_last_update;
 
 	double bin_width;
+	ulong dim;
 
 	bool need_to_reload() {
 		bool need_update = false;
@@ -688,6 +692,7 @@ interface Hist2ProjectionSource {
 		ulong bins_x, bins_y;
 		double left,right, bottom,top;
 	}
+	bool projection_data_ready(); // sometimes a 2d projection source cannot deliver data, then it should return false here 
 	Data get_projection_data();
 	string getXlabel();
 	string getYlabel();

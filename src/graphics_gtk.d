@@ -785,8 +785,9 @@ class ItemView : TreeView {
 			if (session.items.byKey.canFind(fullname)) {
 				import histogram, gate;
 				auto source = cast(Hist2ProjectionSource)session.items[fullname].item;
-				if (source !is null) {
-				//writeln("found selected projection source: ", fullname);
+				if (source !is null && source.projection_data_ready()) {
+					import std.stdio;
+					writeln("found selected projection source: ", fullname);
 					auto gatename = fullname ~ "_"~xy~"_gate";
 					auto projname = fullname ~ "_"~xy~"_projection";
 					int dim = (xy=='x')?1:0;
@@ -818,6 +819,14 @@ class ItemView : TreeView {
 						"colorbar  "~windowname~"\n"~
 						"show      "~gatename~" "~main_window.name;
 					thisTid.send(cmdline.Command(command, thisTid));									
+				} else {
+					import gtk.MessageDialog;
+					auto cannot_project = new MessageDialog(main_window, 
+						              GtkDialogFlags.DESTROY_WITH_PARENT,
+						              GtkMessageType.ERROR,
+						              GtkButtonsType.NONE,
+						              "no 2d projection possible");
+					cannot_project.show();
 				}
 			}
 		}
