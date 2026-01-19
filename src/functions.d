@@ -458,7 +458,7 @@ public:
 				d.set_color(0,0.3,0,0.2);
 				d.set_line_width(4);				
 			} else {
-				d.set_color(0,0,0.3);
+				d.set_color(0.6,0,0);
 				d.set_line_width(4);								
 			}
 

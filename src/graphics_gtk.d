@@ -754,6 +754,12 @@ class ItemView : TreeView {
 	version(gtk3) {
 		import gtk.Menu, gtk.MenuItem;
 		Menu popup_menu;
+
+		Menu chi2_fitting_submenu;
+		MenuItem chi2_fitting;  // submenu is attached to this item
+
+		Menu loglh_fitting_submenu;
+		MenuItem loglh_fitting; // submenu is attached to this item
 	}
 	version(gtk4) {
 		import gtk.PopoverMenu, gtk.Popover;
@@ -777,7 +783,7 @@ class ItemView : TreeView {
 		Clipboard.getDefault(Display.getDefault()).setText(result, cast(int)result.length);
 	}
 
-	void create_fitter() {
+	void create_fitter_gauss(bool dragupdate = true, bool loglikelihood = false) {
 		foreach(selected_iter; getSelectedIters()) {
 			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
 			import std.conv, std.algorithm;
@@ -815,11 +821,12 @@ class ItemView : TreeView {
 					string function_definition = "A*gauss(x-x0,s)/gauss(s,s)+a+b*(x-x0) ";
 					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"s=" ~ s.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\"] ";
 					string handle_definition = "[x0,a]([s,A])";
-					string result_definition = "[\"area=A/gauss(s,s)/binwidth\",\"width=s\",\"pos=x0\"]";
+					string result_definition = "[\"counts=A/gauss(s,s)/binwidth\",\"area=A/gauss(s,s)\",\"sigma=s\",\"FWHM=s*2.35482\",\"pos=x0\"]";
+					string dragupdate_and_loglikelihood = dragupdate?"true":"false" ~" "~ loglikelihood?"true":"false";
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
-						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~   "\n" ~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
 						"show      "~gatename~" "~main_window.name ~ "\n" ~
 						"show      "~funcname~" "~main_window.name;
 
@@ -840,6 +847,72 @@ class ItemView : TreeView {
 
 	}
 
+	void create_fitter_gaussian_folded_exponential(bool dragupdate = true, bool loglikelihood = false) {
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			import std.conv, std.algorithm;
+			import fairy, ui;
+			if (session.items.byKey.canFind(fullname)) {
+				import histogram, gate, functions;
+				auto source = cast(FitDataSource)session.items[fullname].item;
+				if (source !is null) {
+					import std.stdio;
+					writeln("found selected fit data source: ", fullname);
+					auto gatename = fullname ~ "/fit_gate";
+					auto funcname = fullname ~ "/fit_function";
+					auto left  = main_window.canvas.transform[0].min; 
+					auto right = main_window.canvas.transform[0].max;
+					auto w = right-left;
+					left += 3*w/8;
+					right -= 3*w/8; 
+					if (main_window.canvas.transform[0].logscale) {
+						import std.math;
+						left = exp(left);
+						right = exp(right);
+					}
+					auto bottom  = main_window.canvas.transform[1].min; 
+					auto top     = main_window.canvas.transform[1].max;
+					if (main_window.canvas.transform[1].logscale) {
+						import std.math;
+						top    = exp(top);
+						bottom = exp(bottom);
+					}
+					double A = (top-bottom)/4;
+					double s = -1*(right-left)/8;
+					double t = -s*2;
+					double a = bottom+A/4;
+					double b = 0;
+					double x0 = 0.5*(left+right);
+					string function_definition = "A*gex(x-x0,s,t)/gex(t,s,t)+a+b*(x-x0)/s";
+					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"s=" ~ s.to!string ~ "\",\"t=" ~ t.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\"] ";
+					string handle_definition = "[x0,a]([t,A][s,b])";
+					string result_definition = "[\"counts=A/gex(t,s,t)/binwidth\",\"area=A/gex(t,s,t)\",\"sigma=s\",\"tau=t\",\"pos=x0\"]";
+					string dragupdate_and_loglikelihood = dragupdate?"true":"false" ~" "~ loglikelihood?"true":"false";
+					import cmdline;
+					string command =
+						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"show      "~gatename~" "~main_window.name ~ "\n" ~
+						"show      "~funcname~" "~main_window.name;
+
+					import std.stdio;
+					writeln(command);
+					thisTid.send(cmdline.Command(command, thisTid));									
+				} else {
+					import gtk.MessageDialog;
+					auto cannot_project = new MessageDialog(main_window, 
+						              GtkDialogFlags.DESTROY_WITH_PARENT,
+						              GtkMessageType.ERROR,
+						              GtkButtonsType.NONE,
+						              "no gaussfit possible");
+					cannot_project.show();
+				}
+			}
+		}
+
+	}
+
+
 	void hist2d_projection_xy(char xy) {
 		foreach(selected_iter; getSelectedIters()) {
 			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
@@ -850,7 +923,7 @@ class ItemView : TreeView {
 				auto source = cast(Hist2ProjectionSource)session.items[fullname].item;
 				if (source !is null && source.projection_data_ready()) {
 					import std.stdio;
-					writeln("found selected projection source: ", fullname);
+					//writeln("found selected projection source: ", fullname);
 					auto gatename = fullname ~ "/"~xy~"_gate";
 					auto projname = fullname ~ "/"~xy~"_projection";
 					int dim = (xy=='x')?1:0;
@@ -1101,14 +1174,28 @@ class ItemView : TreeView {
 		//appendColumn(new TreeViewColumn("Show", toggle_renderer, "active", COLUMN_VISUALIZED));
 		getSelection().setMode(GtkSelectionMode.MULTIPLE);
 
-
+		void nothing() {}
 		version(gtk3) {
+			chi2_fitting_submenu = new Menu;
+			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,false), "gauss linear-bg", "interactively fit a gaussion function to histogram data" ));
+			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,false), "gaussian-folded exponential linear-bg", "interactively fit a gaussion function to histogram data" ));
+			chi2_fitting = new MenuItem( (m)=>nothing, "chi^2 fit", "fitting options");
+			chi2_fitting.setSubmenu(chi2_fitting_submenu);
+
+			loglh_fitting_submenu = new Menu;
+			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,true), "gauss linear-bg", "interactively fit a gaussion function to histogram data" ));
+			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,true), "gaussian-folded exponential linear-bg", "interactively fit a gaussion function to histogram data" ));
+			loglh_fitting = new MenuItem( (m)=>nothing, "log-L fit", "fitting options");
+			loglh_fitting.setSubmenu(loglh_fitting_submenu);
+
 			popup_menu = new Menu;
 			popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
 			popup_menu.append( new MenuItem( (m) => copy_selected_to_clipboard(), "copy to clipboard", "copy fullname of all selected items to the clipboard" ));
 			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
 			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "hist2d project x", "interactively project 2d histogram along x axis" ));
-			popup_menu.append( new MenuItem( (m) => create_fitter(), "hist1d gaussfit", "interactively fit a gaussion function to histogram data" ));
+			//popup_menu.append( new MenuItem( (m) => create_fitter(), "hist1d gaussfit", "interactively fit a gaussion function to histogram data" ));
+			popup_menu.append( chi2_fitting );
+			popup_menu.append( loglh_fitting );
 			popup_menu.append( new MenuItem( (m) => show_all_recursive(),  "show recursive", "show selected items and their children"));
 			popup_menu.append( new MenuItem( (m) => hide_all_recursive(),  "hide recursive", "hide selected items and their children"));
 			popup_menu.append( new MenuItem( (m) => reset_all_recursive(), "reset recursive", "reset selected items and their children"));
