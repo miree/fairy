@@ -453,6 +453,8 @@ public:
 		if (funct.is_interactive) local_parameters[] += funct.parameter_deltas[];
 		double y_max;
 		double x_at_y_max;
+		// function does depend on x
+		auto x_idx = funct.expr.param_index_lookup["x"];
 		for (int n = 0; n < 2; ++n) {
 			if (n == 0) {
 				d.set_color(0,0.3,0,0.2);
@@ -473,9 +475,8 @@ public:
 				d.stroke();
 				continue;
 			}
-			// function does depend on x
-			auto x_idx = funct.expr.param_index_lookup["x"];
 			double x_old, y_old;
+			double slope_old;
 			foreach(i;0..points+1) {
 				double x = t[0].exp(left+i*(right-left)/points);
 				double y;
@@ -494,18 +495,32 @@ public:
 					d.line(t[0].world2canvas(t[0].log(x_old)),t[1].world2canvas(t[1].log(y_old)), 
 						   t[0].world2canvas(t[0].log(x)),    t[1].world2canvas(t[1].log(y)));
 				}
-				x_old = x;
-				y_old = y;
-
 				if (n == 1) {
-					if (y_max is double.init || y_max < y) {
-						y_max = y;
-						x_at_y_max = x;
+					// compute slope
+					double slope = (y-y_old)/(x-x_old);
+					bool extremum = slope*slope_old < 0;
+					slope_old = slope;
+					//writeln("x=",x,"    slope=",slope, extremum?" EXTREMUM":"", "  y_max=",y_max, " y=",y);
+					if (extremum) {
+						if (y_max is double.init || (y_max < y) )  {
+							y_max = y;
+							x_at_y_max = x;
+						}
 					}
 				}
+				x_old = x;
+				y_old = y;
 			}
 			d.stroke();
-
+		}
+		// position the result text in the left-right center if no extremum was found
+		const points = 1000;
+		double left  = t[0].min;
+		double right = t[0].max;
+		if (y_max is double.init) {
+			x_at_y_max = t[0].exp(left+points/2*(right-left)/points);
+			local_fitresults[x_idx] = x_at_y_max;
+			y_max = funct.expr.e.eval(local_fitresults);
 		}
 		super.draw(d,t,modified);
 

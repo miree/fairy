@@ -793,9 +793,15 @@ class ItemView : TreeView {
 				auto source = cast(FitDataSource)session.items[fullname].item;
 				if (source !is null) {
 					import std.stdio;
+					string fitname;
+					for (int i = 0;;++i) {
+						fitname = loglikelihood?"_logLfit":"_chi2fit_" ~ i.to!string;
+						import fairy;
+						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
+					}
 					writeln("found selected fit data source: ", fullname);
-					auto gatename = fullname ~ "/fit_gate";
-					auto funcname = fullname ~ "/fit_function";
+					auto gatename = fullname ~ fitname ~ "/gate";
+					auto funcname = fullname ~ fitname ~ "/function";
 					auto left  = main_window.canvas.transform[0].min; 
 					auto right = main_window.canvas.transform[0].max;
 					auto w = right-left;
@@ -844,7 +850,148 @@ class ItemView : TreeView {
 				}
 			}
 		}
+	}
 
+	void create_fitter_two_gaussians(bool dragupdate = true, bool loglikelihood = false) {
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			import std.conv, std.algorithm;
+			import fairy, ui;
+			if (session.items.byKey.canFind(fullname)) {
+				import histogram, gate, functions;
+				auto source = cast(FitDataSource)session.items[fullname].item;
+				if (source !is null) {
+					import std.stdio;
+					string fitname;
+					for (int i = 0;;++i) {
+						fitname = loglikelihood?"_logLfit":"_chi2fit_" ~ i.to!string;
+						import fairy;
+						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
+					}
+					writeln("found selected fit data source: ", fullname);
+					auto gatename = fullname ~ fitname ~ "/gate";
+					auto funcname = fullname ~ fitname ~ "/function";
+					auto left  = main_window.canvas.transform[0].min; 
+					auto right = main_window.canvas.transform[0].max;
+					auto w = right-left;
+					left += 3*w/8;
+					right -= 3*w/8; 
+					if (main_window.canvas.transform[0].logscale) {
+						import std.math;
+						left = exp(left);
+						right = exp(right);
+					}
+					auto bottom  = main_window.canvas.transform[1].min; 
+					auto top     = main_window.canvas.transform[1].max;
+					if (main_window.canvas.transform[1].logscale) {
+						import std.math;
+						top    = exp(top);
+						bottom = exp(bottom);
+					}
+					double A = (top-bottom)/2;
+					double s0 = (right-left)/8;
+					double x0 = 0.5*(left+right)-s0;
+					double B = (top-bottom)/2;
+					double s1 = (right-left)/8;
+					double x1 = 2*s1;
+					double a = bottom+A/4;
+					double b = 0;
+					string function_definition = "A*gauss(x-x0,s0)/gauss(s0,s0)+B*gauss(x-x1-x0,s1)/gauss(s1,s1)+a+(x-x0)*b/x1 ";
+					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"s0=" ~ s0.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"B=" ~ B.to!string ~ "\",\"s1=" ~ s1.to!string ~ "\",\"x1=" ~ x1.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\"] ";
+					string handle_definition = "[x0,a]([s0,A][x1,b]([s1,B]))";
+					string result_definition = "[\"counts0=A/gauss(s0,s0)/binwidth\",\"counts1=B/gauss(s1,s1)/binwidth\",\"sigma0=s0\",\"sigma1=s1\",\"pos0=x0\",\"pos1=x0+x1\"]";
+					string dragupdate_and_loglikelihood = dragupdate?"true":"false" ~" "~ loglikelihood?"true":"false";
+					import cmdline;
+					string command =
+						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"show      "~gatename~" "~main_window.name ~ "\n" ~
+						"show      "~funcname~" "~main_window.name;
+
+					import std.stdio;
+					writeln(command);
+					thisTid.send(cmdline.Command(command, thisTid));									
+				} else {
+					import gtk.MessageDialog;
+					auto cannot_project = new MessageDialog(main_window, 
+						              GtkDialogFlags.DESTROY_WITH_PARENT,
+						              GtkMessageType.ERROR,
+						              GtkButtonsType.NONE,
+						              "no gaussfit possible");
+					cannot_project.show();
+				}
+			}
+		}
+	}
+
+	void create_fitter_gauss_parabolic(bool dragupdate = true, bool loglikelihood = false) {
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			import std.conv, std.algorithm;
+			import fairy, ui;
+			if (session.items.byKey.canFind(fullname)) {
+				import histogram, gate, functions;
+				auto source = cast(FitDataSource)session.items[fullname].item;
+				if (source !is null) {
+					import std.stdio;
+					string fitname;
+					for (int i = 0;;++i) {
+						fitname = loglikelihood?"_logLfit":"_chi2fit_" ~ i.to!string;
+						import fairy;
+						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
+					}
+					writeln("found selected fit data source: ", fullname);
+					auto gatename = fullname ~ fitname ~ "/gate";
+					auto funcname = fullname ~ fitname ~ "/function";
+					auto left  = main_window.canvas.transform[0].min; 
+					auto right = main_window.canvas.transform[0].max;
+					auto w = right-left;
+					left += 3*w/8;
+					right -= 3*w/8; 
+					if (main_window.canvas.transform[0].logscale) {
+						import std.math;
+						left = exp(left);
+						right = exp(right);
+					}
+					auto bottom  = main_window.canvas.transform[1].min; 
+					auto top     = main_window.canvas.transform[1].max;
+					if (main_window.canvas.transform[1].logscale) {
+						import std.math;
+						top    = exp(top);
+						bottom = exp(bottom);
+					}
+					double A = (top-bottom)/2;
+					double s = (right-left)/8;
+					double a = bottom+A/4;
+					double b = 0;
+					double c = 0;
+					double x0 = 0.5*(left+right);
+					string function_definition = "A*gauss(x-x0,s)/gauss(s,s)+a+b*(x-x0)+c*(x-x0)*(x-x0)";
+					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"s=" ~ s.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\",\"c=" ~ b.to!string ~ "\"] ";
+					string handle_definition = "[x0,a]([s,A])";
+					string result_definition = "[\"counts=A/gauss(s,s)/binwidth\",\"area=A/gauss(s,s)\",\"sigma=s\",\"FWHM=s*2.35482\",\"pos=x0\"]";
+					string dragupdate_and_loglikelihood = dragupdate?"true":"false" ~" "~ loglikelihood?"true":"false";
+					import cmdline;
+					string command =
+						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"show      "~gatename~" "~main_window.name ~ "\n" ~
+						"show      "~funcname~" "~main_window.name;
+
+					import std.stdio;
+					writeln(command);
+					thisTid.send(cmdline.Command(command, thisTid));									
+				} else {
+					import gtk.MessageDialog;
+					auto cannot_project = new MessageDialog(main_window, 
+						              GtkDialogFlags.DESTROY_WITH_PARENT,
+						              GtkMessageType.ERROR,
+						              GtkButtonsType.NONE,
+						              "no gaussfit possible");
+					cannot_project.show();
+				}
+			}
+		}
 	}
 
 	void create_fitter_gaussian_folded_exponential(bool dragupdate = true, bool loglikelihood = false) {
@@ -857,9 +1004,15 @@ class ItemView : TreeView {
 				auto source = cast(FitDataSource)session.items[fullname].item;
 				if (source !is null) {
 					import std.stdio;
+					string fitname;
+					for (int i = 0;;++i) {
+						fitname = loglikelihood?"_logLfit":"_chi2fit_" ~ i.to!string;
+						import fairy;
+						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
+					}
 					writeln("found selected fit data source: ", fullname);
-					auto gatename = fullname ~ "/fit_gate";
-					auto funcname = fullname ~ "/fit_function";
+					auto gatename = fullname ~ fitname ~ "/gate";
+					auto funcname = fullname ~ fitname ~ "/function";
 					auto left  = main_window.canvas.transform[0].min; 
 					auto right = main_window.canvas.transform[0].max;
 					auto w = right-left;
@@ -909,7 +1062,77 @@ class ItemView : TreeView {
 				}
 			}
 		}
+	}
 
+	void create_fitter_gauss_with_tail(bool dragupdate = true, bool loglikelihood = false) {
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			import std.conv, std.algorithm;
+			import fairy, ui;
+			if (session.items.byKey.canFind(fullname)) {
+				import histogram, gate, functions;
+				auto source = cast(FitDataSource)session.items[fullname].item;
+				if (source !is null) {
+					import std.stdio;
+					string fitname;
+					for (int i = 0;;++i) {
+						fitname = loglikelihood?"_logLfit":"_chi2fit_" ~ i.to!string;
+						import fairy;
+						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
+					}
+					writeln("found selected fit data source: ", fullname);
+					auto gatename = fullname ~ fitname ~ "/gate";
+					auto funcname = fullname ~ fitname ~ "/function";
+					auto left  = main_window.canvas.transform[0].min; 
+					auto right = main_window.canvas.transform[0].max;
+					auto w = right-left;
+					left += 3*w/8;
+					right -= 3*w/8; 
+					if (main_window.canvas.transform[0].logscale) {
+						import std.math;
+						left = exp(left);
+						right = exp(right);
+					}
+					auto bottom  = main_window.canvas.transform[1].min; 
+					auto top     = main_window.canvas.transform[1].max;
+					if (main_window.canvas.transform[1].logscale) {
+						import std.math;
+						top    = exp(top);
+						bottom = exp(bottom);
+					}
+					double A = (top-bottom)/4;
+					double B = (top-bottom)/4;
+					double s = -1*(right-left)/8;
+					double t = -s*2;
+					double a = bottom+A/4;
+					double b = 0;
+					double x0 = 0.5*(left+right);
+					string function_definition = "A*gauss(x-x0,s)/gauss(s,s)+B*gex(x-x0,s,t)/gex(t,s,t)+a+b*(x-x0)";
+					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"B=" ~ B.to!string ~ "\",\"s=" ~ s.to!string ~ "\",\"t=" ~ t.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\"] ";
+					string handle_definition = "[x0,a]([s,A][t,B])";
+					string result_definition = "[\"counts=(A/gauss(s,s)+B/gex(t,s,t))/binwidth\",\"area=A/gauss(s,s)+B/gex(t,s,t)\",\"sigma=s\",\"FWHM=s*2.35482\",\"tau=t\",\"pos=x0\"]";
+					string dragupdate_and_loglikelihood = dragupdate?"true":"false" ~" "~ loglikelihood?"true":"false";
+					import cmdline;
+					string command =
+						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"show      "~gatename~" "~main_window.name ~ "\n" ~
+						"show      "~funcname~" "~main_window.name;
+
+					import std.stdio;
+					writeln(command);
+					thisTid.send(cmdline.Command(command, thisTid));									
+				} else {
+					import gtk.MessageDialog;
+					auto cannot_project = new MessageDialog(main_window, 
+						              GtkDialogFlags.DESTROY_WITH_PARENT,
+						              GtkMessageType.ERROR,
+						              GtkButtonsType.NONE,
+						              "no gaussfit possible");
+					cannot_project.show();
+				}
+			}
+		}
 	}
 
 
@@ -1177,14 +1400,20 @@ class ItemView : TreeView {
 		void nothing() {}
 		version(gtk3) {
 			chi2_fitting_submenu = new Menu;
-			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,false), "gauss linear-bg", "interactively fit a gaussion function to histogram data" ));
-			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,false), "gaussian-folded exponential linear-bg", "interactively fit a gaussion function to histogram data" ));
+			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,false), "gauss linear-bg", "interactively fit a gaussian function to histogram data" ));
+			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_two_gaussians(true,false), "two gaussians linear-bg", "interactively fit two gaussian functions to histogram data" ));
+			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_parabolic(true,false), "gauss quadratic-bg", "interactively fit a gaussian function to histogram data" ));
+			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,false), "gaussian-folded exponential linear-bg", "interactively fit a gaussion folded exponential function to histogram data" ));
+			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_with_tail(true,false), "gauss with exponential tail linear-bg", "interactively fit a gaussion function with eponential tail to histogram data" ));
 			chi2_fitting = new MenuItem( (m)=>nothing, "chi^2 fit", "fitting options");
 			chi2_fitting.setSubmenu(chi2_fitting_submenu);
 
 			loglh_fitting_submenu = new Menu;
-			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,true), "gauss linear-bg", "interactively fit a gaussion function to histogram data" ));
-			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,true), "gaussian-folded exponential linear-bg", "interactively fit a gaussion function to histogram data" ));
+			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,true), "gauss linear-bg", "interactively fit a gaussian function to histogram data" ));
+			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_two_gaussians(true,true), "tow gaussians linear-bg", "interactively fit two gaussian functions to histogram data" ));
+			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_parabolic(true,true), "gauss quadratic-bg", "interactively fit a gaussian function to histogram data" ));
+			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,true), "gaussian-folded exponential linear-bg", "interactively fit a gaussion folded exponential function to histogram data" ));
+			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,true), "gauss with exponential tail linear-bg", "interactively fit a gaussion with exponential tail to histogram data" ));
 			loglh_fitting = new MenuItem( (m)=>nothing, "log-L fit", "fitting options");
 			loglh_fitting.setSubmenu(loglh_fitting_submenu);
 
