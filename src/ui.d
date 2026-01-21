@@ -95,18 +95,28 @@ string session_open(string session_name) {
 		}
 	}
 
+	import std.stdio;
+	//writeln("before closing: ", fairy.session.windows);
 	fairy.session.write_to_file();
 	fairy.session.close();
+	//writeln("after closing: ", fairy.session.windows);
 	fairy.session.name = session_name;
 	fairy.session.read_from_file();
+
+	// there is something wrong when a windowname from the loaded session has existed in the closed session. That window shows on the screen but not in the session.windows map.
+	// Don't exactly understand yet why this happens.... but waiting one seconde before recreating the gui windows seems to be a workaround. 
+	import core.thread;
+	Thread.sleep(1000.msecs);
 
 	if (start_gui) {// gui is already running
 		foreach (name, ref window; fairy.session.windows) {
 			if (fairy.main_gui !is null) {
+				//writeln("gui add window ", name);
 				fairy.main_gui.add_window(name,window);
 			}
 		}
 	}
+	//writeln("after opening: ", fairy.session.windows);
 
 	//version(elderpt) {
 	//	if (elderpt_was_running) {
