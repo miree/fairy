@@ -42,9 +42,9 @@ interface Hist1Stats {
 	bool get_stats(out double mean, out double stddev, out double counts, double left, double right);
 }
 bool get_stats_hist1(const(double[]) bins, double h_left, double h_right, double left, double right, out double mean, out double stddev, out double counts) {
-	double sum_w = 0;
-	double sum_wx = 0;
-	double sum_wx2 = 0;
+	real sum_w = 0;
+	real sum_wx = 0;
+	real sum_wx2 = 0;
 	assert (left !is double.init);
 	assert (right !is double.init);
 	if (left > right) {
@@ -55,8 +55,8 @@ bool get_stats_hist1(const(double[]) bins, double h_left, double h_right, double
 	foreach(i,w;bins) {
 		if (w is double.init) continue;
 		//double x = 0.5*bin_width + h_left + i*(h_right-h_left)/bins.length;
-		double x = h_left + i*(h_right-h_left)/bins.length;
-		double x2 = x*x;
+		real x = h_left + i*(h_right-h_left)/bins.length;
+		real x2 = x*x;
 		if (x >= left && x < right) {
 			//sum_w += w;
 			//sum_wx += w*x;
