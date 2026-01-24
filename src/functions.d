@@ -37,6 +37,7 @@ public:
 		@SERIALIZE bool     loglikelihood; // if true performs log likelihood fit instead of chisquare fit
 		@SERIALIZE double[] parameters;
 		@SERIALIZE double[] fitresult;
+		@SERIALIZE double   result_red_chi_sqr;
 	}
 
 	struct HandleTree {
@@ -150,7 +151,8 @@ public:
 		data.dragupdate  = dragupdate;
 		data.loglikelihood = loglikelihood;
 		expr = expression.evaluate(data.definition);
-
+		import std.stdio;
+		//writeln("loglikelihood = ", loglikelihood);
 		// prepare display of results after fitting
 		foreach(result_expr; results) {
 			import std.algorithm, std.array;
@@ -271,6 +273,7 @@ public:
 		}
 		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, fit_params, false);
 		fitter.run(max_steps);
+		if (verbose) writeln("Fit Results:");
 		foreach(parameter_name,idx;expr.param_index_lookup) { // idx is the index into the parameter array of the function definition expression "expr" (which includes "x")
 			if (idx==x_idx) continue;
 			uint i = idx;
@@ -303,7 +306,7 @@ public:
 			}
 		}
 		if (!verbose && !quiet) writeln;
-		else if (verbose || !quiet) writeln("===============");
+		else if (verbose || !quiet) writeln("=============== Covariance Matrix =================");
 
 		// calculate covariance matrix (it to be corrected because of the parameter rescaling)
 		fitter.calc_covar();
@@ -331,7 +334,23 @@ public:
 			}
 			if (verbose) writeln();
 		}
+		if (verbose) writeln("================ Correlation Matrix =================");
+		foreach(parameter_name,idx;expr.param_index_lookup) {
+			if (idx==x_idx) continue;
+			uint i = idx;
+			if (idx>x_idx) --i;
+
+			foreach(parameter_name2,idx2;expr.param_index_lookup) {
+				if (idx2==x_idx) continue;
+				uint j = idx2;
+				if (idx2>x_idx) --j;
+				import std.math;
+				if (verbose) writef("%20s",covar[i][j]/sqrt(covar[i][i]*covar[j][j]));
+			}
+			if (verbose) writeln();
+		}
 		if (verbose) writeln("================");
+
 
 		// copy result parameters back into our local array
 		foreach(i,rpar; fitter.result_params) {
@@ -384,22 +403,33 @@ public:
 			//writeln("====================");
 			data.result_errors[index] = sqrt(data.result_errors[index]);
 
+
 			//import std.stdio;
 			//writeln("result ", index, " params ", result_params[index], " expression " , data.results[index]  ,"  result value ", data.result_values[index]);
 		}
+		auto fitresults = data.fitresult.dup;
+		double red_chisqr = 0; // vairance of the residuals
+		foreach(datapoint; datapoints) {
+			double yi = datapoint.v;
+			fitresults[x_idx] = datapoint.c;
+			double fi = expr.e.eval(fitresults);
+			double delta = (yi-fi)/datapoint.s;
+			//writeln(delta);
+			red_chisqr += delta*delta;
+		}
+		import std.math;
+		red_chisqr /= (datapoints.length-fit_params.length); // variance of residuals 
+		if (verbose) writeln("variance of residuals (Chi^2/ndf) = ", red_chisqr, "    rms of residuals = ", sqrt(red_chisqr));
+		data.result_red_chi_sqr = red_chisqr;
 	}
-
-
 
 	void fit_loglikelihood(FitDataSource source, double[2] region, bool verbose = true, bool quiet = false, bool with_deltas = false, int max_steps=250) {
 		import multifit_nlin;
 		import std.algorithm, std.array;
 
 		auto datapoints = source.get_data(region).map!(xyd=>Dp!double(xyd[0],xyd[1],xyd[2])).array;
-		//import std.stdio;
-		//writeln(datapoints);
+
 		import std.stdio;
-		if (verbose) writeln("fit with ", datapoints.length, " points");
 
 		const x_idx = expr.param_index_lookup["x"];
 		double[] all_params = data.parameters.dup; // original set of parameters. What is actually used as fit paramters is an array of 1.0
@@ -434,28 +464,87 @@ public:
 					par = 1.0;
 				}
 			}
-		}	
+		}
 		auto fitter = MultifitNlin!(double,typeof(fitdelegate),typeof(&loglikelihood))(fitdelegate, datapoints, fit_params, false, &loglikelihood);
 		fitter.run(max_steps);
-		foreach(parameter_name,idx;expr.param_index_lookup) {
+		if (verbose) writeln("Fit Results:");
+		foreach(parameter_name,idx;expr.param_index_lookup) { // idx is the index into the parameter array of the function definition expression "expr" (which includes "x")
 			if (idx==x_idx) continue;
 			uint i = idx;
-			if (idx>x_idx) --i;
+			if (idx>x_idx) --i; // i is the index into the fit parameter array (which doesn't include "x")
 
 			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx]);
 			else if (!quiet) write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
 
+			// now look in each of the result expressions "result_exprs" if the parameter "parameter_name" occurs in there
+			// if yes: copy the fitresult (corrected for rescaling) into the "result_pars" array at the position that matches the "parameter_name" of the function definition expression (outer loop)
 			foreach(index, ref result_pars; result_params) {
 				auto par = parameter_name in result_exprs[index].param_index_lookup;
 				if (par !is null) {
 					//import std.stdio;
 					//writeln("found parameter ", parameter_name, " in result expression ", data.results, " at index ", result_exprs[index].param_index_lookup[parameter_name], " and it hast value ", fitter.result_params[i]*all_params[idx]);
 					result_pars.length = result_exprs[index].param_index_lookup.length;
-					result_pars[result_exprs[index].param_index_lookup[parameter_name]] = fitter.result_params[i]*all_params[idx];
+					result_pars[result_exprs[index].param_index_lookup[parameter_name]] = fitter.result_params[i]*all_params[idx]; // assign the numerical value to the paramter that occurs in the result expression
+
+					result_param_indices[index].length = result_exprs[index].param_index_lookup.length;
+					result_param_indices[index][result_exprs[index].param_index_lookup[parameter_name]] = i;
+				}
+				auto bin_width_par = "binwidth" in  result_exprs[index].param_index_lookup;
+				if (bin_width_par !is null) {
+					result_pars.length = result_exprs[index].param_index_lookup.length;
+					result_pars[result_exprs[index].param_index_lookup["binwidth"]] = source.get_bin_width();
+
+					result_param_indices[index].length = result_exprs[index].param_index_lookup.length;
+					result_param_indices[index][result_exprs[index].param_index_lookup["binwidth"]] = -1; // -1 is a made-up index for the binwidth (which is not a fit parameter and has no error)
 				}
 			}
 		}
 		if (!verbose && !quiet) writeln;
+		else if (verbose || !quiet) writeln("=============== Covariance Matrix =================");
+
+		// calculate covariance matrix (it to be corrected because of the parameter rescaling)
+		fitter.calc_covar();
+		auto covar = fitter.result_covar();
+		if (verbose) {
+			foreach(parameter_name2,idx2;expr.param_index_lookup) {
+				if (idx2==x_idx) continue;
+				uint j = idx2;
+				if (idx2>x_idx) --j;
+				if (verbose) writef("%20s",parameter_name2);
+			}
+			writeln();
+		}
+		foreach(parameter_name,idx;expr.param_index_lookup) {
+			if (idx==x_idx) continue;
+			uint i = idx;
+			if (idx>x_idx) --i;
+
+			foreach(parameter_name2,idx2;expr.param_index_lookup) {
+				if (idx2==x_idx) continue;
+				uint j = idx2;
+				if (idx2>x_idx) --j;
+				covar[i][j] *= all_params[idx] * all_params[idx2];
+				if (verbose) writef("%20s",covar[i][j]);
+			}
+			if (verbose) writeln();
+		}
+		if (verbose) writeln("================ Correlation Matrix =================");
+		foreach(parameter_name,idx;expr.param_index_lookup) {
+			if (idx==x_idx) continue;
+			uint i = idx;
+			if (idx>x_idx) --i;
+
+			foreach(parameter_name2,idx2;expr.param_index_lookup) {
+				if (idx2==x_idx) continue;
+				uint j = idx2;
+				if (idx2>x_idx) --j;
+				import std.math;
+				if (verbose) writef("%20s",covar[i][j]/sqrt(covar[i][i]*covar[j][j]));
+			}
+			if (verbose) writeln();
+		}
+		if (verbose) writeln("================");
+
 
 		// copy result parameters back into our local array
 		foreach(i,rpar; fitter.result_params) {
@@ -469,10 +558,149 @@ public:
 		// calculate the resulting qantities as function of parameters
 		foreach(index, ref result_expr; result_exprs) {
 			data.result_values[index] = result_expr.e.eval(result_params[index]);
+			// compute the errors of the result expression : dfunc = sqrt( sum_ij result_cov[i][j] * df_di * df_dj );
+
+			// get the first derivative of the result expression for each parameter
+			import std.stdio;
+			//writeln("derivatives of ", data.results[index]);
+			result_derivatives[index].length = result_params[index].length;
+			foreach(i,ref rpar; result_params[index]) {
+				string parname;
+				import std.array,std.range,std.algorithm;
+				foreach(e;result_expr.param_index_lookup.byKeyValue) if (e.value==i) parname=e.key;
+				//write(i, ":",parname,"(", rpar, ") : ");
+				double rpar_1 = rpar;
+				double result_value_1 = data.result_values[index];
+				rpar *= 1.001; // make a 1 permil shift
+				double result_value_2 = result_expr.e.eval(result_params[index]);
+				double rpar_2         = rpar;
+				double derivative = (result_value_2-result_value_1)/(rpar_2-rpar_1);
+				result_derivatives[index][i] = derivative;
+				//writeln(derivative);
+			}
+			//writeln("------------------");
+			//writeln("computing the error using derivatives and covariance matrix");
+			data.result_errors[index] = 0;
+			foreach(i; 0..result_params[index].length) {
+				auto idx_i = result_param_indices[index][i];
+				if (idx_i == -1) continue; // skip the "binwidth" parameter
+				foreach(j; 0..result_params[index].length) {
+					auto idx_j = result_param_indices[index][j];
+					if (idx_j == -1) continue; // skip the "binwidth" parameter
+					double covar_ij = covar[idx_i][idx_j];
+					//writeln("covar ", i, " ", j, " (",idx_i,",",idx_j,")  = ", covar_ij);
+					data.result_errors[index] +=  covar_ij * result_derivatives[index][i] * result_derivatives[index][j];
+				}
+			}
+			import std.math;
+			//writeln("error = ", sqrt(data.result_errors[index]));
+			//writeln("====================");
+			data.result_errors[index] = sqrt(data.result_errors[index]);
+
+
 			//import std.stdio;
 			//writeln("result ", index, " params ", result_params[index], " expression " , data.results[index]  ,"  result value ", data.result_values[index]);
 		}
+		import std.math;
+		auto fitresults = data.fitresult.dup;
+		double red_deviance = 0; // vairance of the residuals
+		foreach(datapoint; datapoints) {
+			double ni = datapoint.v;
+			fitresults[x_idx] = datapoint.c;
+			double ui = expr.e.eval(fitresults);
+			double delta = ui-ni+ni*log(ni/ui);
+			//writeln("=>", delta);
+			if (ni > 0) red_deviance += delta;
+		}
+		red_deviance *= 2;
+		red_deviance /= (datapoints.length-fit_params.length);
+		if (verbose) writeln("reduced deviance (D/ndf) = ", red_deviance);
+		data.result_red_chi_sqr = red_deviance;
 	}
+
+
+	//void fit_loglikelihood(FitDataSource source, double[2] region, bool verbose = true, bool quiet = false, bool with_deltas = false, int max_steps=250) {
+	//	import multifit_nlin;
+	//	import std.algorithm, std.array;
+
+	//	auto datapoints = source.get_data(region).map!(xyd=>Dp!double(xyd[0],xyd[1],xyd[2])).array;
+	//	//import std.stdio;
+	//	//writeln(datapoints);
+	//	import std.stdio;
+	//	if (verbose) writeln("fit with ", datapoints.length, " points");
+
+	//	const x_idx = expr.param_index_lookup["x"];
+	//	double[] all_params = data.parameters.dup; // original set of parameters. What is actually used as fit paramters is an array of 1.0
+	//	double[] all_params_mod = data.parameters.dup; // each fit parameter is then multiplied with all_params during function execution and stored here (modified parameters)
+	//	                                               // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big 
+
+	//	if (datapoints.length < all_params.length) {
+	//		writeln("not enough datapoints. not fit");
+	//		return;
+	//	}
+
+	//	if (with_deltas) {
+	//		all_params[]     += parameter_deltas[];
+	//		all_params_mod[] += parameter_deltas[];
+	//	}
+
+	//	auto fitdelegate = delegate double(double x, double[] pars) {
+	//		foreach(i; 0..x_idx) all_params_mod[i] = all_params[i]*pars[i];
+	//		all_params_mod[x_idx] = x;
+	//		foreach(i; x_idx+1 ..all_params.length) all_params_mod[i] = all_params[i]*pars[i-1];
+	//		return expr.e.eval(all_params_mod);
+	//	};
+	//	double[] fit_params;
+	//	foreach(i,ref par; all_params) {
+	//		if (i != x_idx) {
+	//			import std.math;
+	//			if (abs(par) > 1) { // do the parameter rescaling only for parameters > 1. Small parameters are handled by GSL well and if we happen to have 0 as start parameter that rescaling doesn't  work
+	//				//fit_params ~= par;
+	//				fit_params ~= 1.0; // initialze all fit parameters with 1.0. These will be multiplied with the actual start parameter before evaluating the function
+	//			} else {
+	//				fit_params ~= par;
+	//				par = 1.0;
+	//			}
+	//		}
+	//	}	
+	//	auto fitter = MultifitNlin!(double,typeof(fitdelegate),typeof(&loglikelihood))(fitdelegate, datapoints, fit_params, false, &loglikelihood);
+	//	fitter.run(max_steps);
+	//	foreach(parameter_name,idx;expr.param_index_lookup) {
+	//		if (idx==x_idx) continue;
+	//		uint i = idx;
+	//		if (idx>x_idx) --i;
+
+	//		if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx]);
+	//		else if (!quiet) write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
+
+	//		foreach(index, ref result_pars; result_params) {
+	//			auto par = parameter_name in result_exprs[index].param_index_lookup;
+	//			if (par !is null) {
+	//				//import std.stdio;
+	//				//writeln("found parameter ", parameter_name, " in result expression ", data.results, " at index ", result_exprs[index].param_index_lookup[parameter_name], " and it hast value ", fitter.result_params[i]*all_params[idx]);
+	//				result_pars.length = result_exprs[index].param_index_lookup.length;
+	//				result_pars[result_exprs[index].param_index_lookup[parameter_name]] = fitter.result_params[i]*all_params[idx];
+	//			}
+	//		}
+	//	}
+	//	if (!verbose && !quiet) writeln;
+
+	//	// copy result parameters back into our local array
+	//	foreach(i,rpar; fitter.result_params) {
+	//		if (i<x_idx) {
+	//			data.fitresult[i] = rpar*all_params[i];
+	//		} else {
+	//			data.fitresult[i+1] = rpar*all_params[i+1];
+	//		}
+	//	}
+
+	//	// calculate the resulting qantities as function of parameters
+	//	foreach(index, ref result_expr; result_exprs) {
+	//		data.result_values[index] = result_expr.e.eval(result_params[index]);
+	//		//import std.stdio;
+	//		//writeln("result ", index, " params ", result_params[index], " expression " , data.results[index]  ,"  result value ", data.result_values[index]);
+	//	}
+	//}
 
 	void set_dragupdate(bool dragupdate) {
 		data.dragupdate = dragupdate;
@@ -604,12 +832,37 @@ public:
 		d.text_extent("x",width,height);
 		height *= 1.5;
 
+
+		if ( funct.data.result_red_chi_sqr !is double.init)
+		{
+			import std.conv;
+			double xpos = t[0].world2canvas(t[0].log(x_at_y_max));
+			double ypos = t[1].world2canvas(t[1].log(y_max))-height*(0.5+0);
+			string text;
+			if (funct.data.loglikelihood) text = "deviance/ndf : ";
+			else                          text = "Chi^2/ndf : ";
+			text ~= funct.data.result_red_chi_sqr.to!string;
+			//string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string;
+			if (d.text_with_border()) {
+				d.set_color(0.9,0.9,0.9);
+				d.text(xpos-1, ypos-1, text);
+				d.text(xpos-1, ypos+1, text);
+				d.text(xpos+1, ypos-1, text);
+				d.text(xpos+1, ypos+1, text);
+				d.stroke();
+			}
+			d.set_color(0,0,0);
+			d.text(xpos,ypos, text);
+			d.stroke();
+		}
+
+
 		foreach(idx,value; funct.data.result_values) {
 			import std.conv;
 			import std.array;
 			if (value is double.init) continue;
 			double xpos = t[0].world2canvas(t[0].log(x_at_y_max));
-			double ypos = t[1].world2canvas(t[1].log(y_max))-height*(0.5+idx);
+			double ypos = t[1].world2canvas(t[1].log(y_max))-height*(1.5+idx);
 			double err_percent = 100*funct.data.result_errors[idx]/value;
 			string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string ~ " +- " ~ funct.data.result_errors[idx].to!string ~ " ( " ~ err_percent.to!string ~ " % )";
 			//string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string;

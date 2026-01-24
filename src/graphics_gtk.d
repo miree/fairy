@@ -828,7 +828,7 @@ class ItemView : TreeView {
 					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"s=" ~ s.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\"] ";
 					string handle_definition = "[x0,a]([s,A])";
 					string result_definition = "[\"counts=A/gauss(s,s)/binwidth\",\"area=A/gauss(s,s)\",\"sigma=s\",\"FWHM=s*2.35482\",\"pos=x0\"]";
-					string dragupdate_and_loglikelihood = dragupdate?"true":"false" ~" "~ loglikelihood?"true":"false";
+					string dragupdate_and_loglikelihood = (dragupdate?"true":"false") ~" "~ (loglikelihood?"true":"false");
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
@@ -900,7 +900,7 @@ class ItemView : TreeView {
 					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"s0=" ~ s0.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"B=" ~ B.to!string ~ "\",\"s1=" ~ s1.to!string ~ "\",\"x1=" ~ x1.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\"] ";
 					string handle_definition = "[x0,a]([s0,A][x1,b]([s1,B]))";
 					string result_definition = "[\"counts0=A/gauss(s0,s0)/binwidth\",\"counts1=B/gauss(s1,s1)/binwidth\",\"sigma0=s0\",\"sigma1=s1\",\"pos0=x0\",\"pos1=x0+x1\"]";
-					string dragupdate_and_loglikelihood = dragupdate?"true":"false" ~" "~ loglikelihood?"true":"false";
+					string dragupdate_and_loglikelihood = (dragupdate?"true":"false") ~" "~ (loglikelihood?"true":"false");
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
@@ -970,7 +970,7 @@ class ItemView : TreeView {
 					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"s=" ~ s.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\",\"c=" ~ b.to!string ~ "\"] ";
 					string handle_definition = "[x0,a]([s,A])";
 					string result_definition = "[\"counts=A/gauss(s,s)/binwidth\",\"area=A/gauss(s,s)\",\"sigma=s\",\"FWHM=s*2.35482\",\"pos=x0\"]";
-					string dragupdate_and_loglikelihood = dragupdate?"true":"false" ~" "~ loglikelihood?"true":"false";
+					string dragupdate_and_loglikelihood = (dragupdate?"true":"false") ~" "~ (loglikelihood?"true":"false");
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
@@ -1040,7 +1040,7 @@ class ItemView : TreeView {
 					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"s=" ~ s.to!string ~ "\",\"t=" ~ t.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\"] ";
 					string handle_definition = "[x0,a]([t,A][s,b])";
 					string result_definition = "[\"counts=A/gex(t,s,t)/binwidth\",\"area=A/gex(t,s,t)\",\"sigma=s\",\"tau=t\",\"pos=x0\"]";
-					string dragupdate_and_loglikelihood = dragupdate?"true":"false" ~" "~ loglikelihood?"true":"false";
+					string dragupdate_and_loglikelihood = (dragupdate?"true":"false") ~" "~ (loglikelihood?"true":"false");
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
@@ -1111,7 +1111,7 @@ class ItemView : TreeView {
 					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"B=" ~ B.to!string ~ "\",\"s=" ~ s.to!string ~ "\",\"t=" ~ t.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\"] ";
 					string handle_definition = "[x0,a]([s,A][t,B])";
 					string result_definition = "[\"counts=(A/gauss(s,s)+B/gex(t,s,t))/binwidth\",\"area=A/gauss(s,s)+B/gex(t,s,t)\",\"sigma=s\",\"FWHM=s*2.35482\",\"tau=t\",\"pos=x0\"]";
-					string dragupdate_and_loglikelihood = dragupdate?"true":"false" ~" "~ loglikelihood?"true":"false";
+					string dragupdate_and_loglikelihood = (dragupdate?"true":"false") ~" "~ (loglikelihood?"true":"false");
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
