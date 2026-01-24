@@ -30,9 +30,9 @@ public:
 		@SERIALIZE string   handles;
 		@SERIALIZE string   hist1dname;
 		@SERIALIZE string   gate1dname;
-		@SERIALIZE string[] results;
-		@SERIALIZE double[] result_values;
-		@SERIALIZE double[] result_errors;
+		@SERIALIZE string[] results;       // result expressions defined by the user
+		@SERIALIZE double[] result_values; // numerical value of the result expression after the fit
+		@SERIALIZE double[] result_errors; // numerial error of the result expression after the fit
 		@SERIALIZE bool     dragupdate;
 		@SERIALIZE bool     loglikelihood; // if true performs log likelihood fit instead of chisquare fit
 		@SERIALIZE double[] parameters;
@@ -157,9 +157,11 @@ public:
 			if (!result_expr.canFind('=')) throw new Exception("missing '=' in expression " ~ result_expr);
 			result_exprs ~= expression.evaluate(result_expr.split('=')[1]);
 		}
-		data.result_values.length = results.length;
-		data.result_errors.length = results.length;
-		result_params.length = results.length;
+		data.result_values.length  = results.length;
+		data.result_errors.length  = results.length;
+		result_params.length        = results.length;
+		result_derivatives.length   = results.length;
+		result_param_indices.length = results.length;
 
 		string[] missing_parameters;
 		foreach(par_name; expr.param_index_lookup.byKey) {
@@ -195,9 +197,11 @@ public:
 				if (!result_expr.canFind('=')) throw new Exception("missing '=' in expression " ~ result_expr);
 				result_exprs ~= expression.evaluate(result_expr.split('=')[1]);
 			}
-			data.result_values.length = data.results.length;
-			data.result_errors.length = data.results.length;
-			result_params.length = data.results.length;
+			data.result_values.length   = data.results.length;
+			data.result_errors.length   = data.results.length;
+			result_params.length        = data.results.length;
+			result_derivatives.length   = data.results.length;
+			result_param_indices.length = data.results.length;
 
 		} catch(Exception e) {
 			writeln("Function deserialize error: ", e.msg);
@@ -220,6 +224,7 @@ public:
 	{
 		return new FunctionVisualizer(this);
 	}
+
 
 
 	void fit(FitDataSource source, double[2] region, bool verbose = true, bool quiet = false, bool with_deltas = false, int max_steps=250) {
@@ -266,31 +271,67 @@ public:
 		}
 		auto fitter = MultifitNlin!(double,typeof(fitdelegate))(fitdelegate, datapoints, fit_params, false);
 		fitter.run(max_steps);
-		foreach(parameter_name,idx;expr.param_index_lookup) {
+		foreach(parameter_name,idx;expr.param_index_lookup) { // idx is the index into the parameter array of the function definition expression "expr" (which includes "x")
 			if (idx==x_idx) continue;
 			uint i = idx;
-			if (idx>x_idx) --i;
+			if (idx>x_idx) --i; // i is the index into the fit parameter array (which doesn't include "x")
 
 			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx]);
 			else if (!quiet) write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
 
+			// now look in each of the result expressions "result_exprs" if the parameter "parameter_name" occurs in there
+			// if yes: copy the fitresult (corrected for rescaling) into the "result_pars" array at the position that matches the "parameter_name" of the function definition expression (outer loop)
 			foreach(index, ref result_pars; result_params) {
 				auto par = parameter_name in result_exprs[index].param_index_lookup;
 				if (par !is null) {
 					//import std.stdio;
 					//writeln("found parameter ", parameter_name, " in result expression ", data.results, " at index ", result_exprs[index].param_index_lookup[parameter_name], " and it hast value ", fitter.result_params[i]*all_params[idx]);
 					result_pars.length = result_exprs[index].param_index_lookup.length;
-					result_pars[result_exprs[index].param_index_lookup[parameter_name]] = fitter.result_params[i]*all_params[idx];
+					result_pars[result_exprs[index].param_index_lookup[parameter_name]] = fitter.result_params[i]*all_params[idx]; // assign the numerical value to the paramter that occurs in the result expression
+
+					result_param_indices[index].length = result_exprs[index].param_index_lookup.length;
+					result_param_indices[index][result_exprs[index].param_index_lookup[parameter_name]] = i;
 				}
 				auto bin_width_par = "binwidth" in  result_exprs[index].param_index_lookup;
 				if (bin_width_par !is null) {
 					result_pars.length = result_exprs[index].param_index_lookup.length;
 					result_pars[result_exprs[index].param_index_lookup["binwidth"]] = source.get_bin_width();
+
+					result_param_indices[index].length = result_exprs[index].param_index_lookup.length;
+					result_param_indices[index][result_exprs[index].param_index_lookup["binwidth"]] = -1; // -1 is a made-up index for the binwidth (which is not a fit parameter and has no error)
 				}
 			}
 		}
 		if (!verbose && !quiet) writeln;
 		else if (verbose || !quiet) writeln("===============");
+
+		// calculate covariance matrix (it to be corrected because of the parameter rescaling)
+		fitter.calc_covar();
+		auto covar = fitter.result_covar();
+		if (verbose) {
+			foreach(parameter_name2,idx2;expr.param_index_lookup) {
+				if (idx2==x_idx) continue;
+				uint j = idx2;
+				if (idx2>x_idx) --j;
+				if (verbose) writef("%20s",parameter_name2);
+			}
+			writeln();
+		}
+		foreach(parameter_name,idx;expr.param_index_lookup) {
+			if (idx==x_idx) continue;
+			uint i = idx;
+			if (idx>x_idx) --i;
+
+			foreach(parameter_name2,idx2;expr.param_index_lookup) {
+				if (idx2==x_idx) continue;
+				uint j = idx2;
+				if (idx2>x_idx) --j;
+				covar[i][j] *= all_params[idx] * all_params[idx2];
+				if (verbose) writef("%20s",covar[i][j]);
+			}
+			if (verbose) writeln();
+		}
+		if (verbose) writeln("================");
 
 		// copy result parameters back into our local array
 		foreach(i,rpar; fitter.result_params) {
@@ -304,11 +345,48 @@ public:
 		// calculate the resulting qantities as function of parameters
 		foreach(index, ref result_expr; result_exprs) {
 			data.result_values[index] = result_expr.e.eval(result_params[index]);
+			// compute the errors of the result expression : dfunc = sqrt( sum_ij result_cov[i][j] * df_di * df_dj );
+
+			// get the first derivative of the result expression for each parameter
+			import std.stdio;
+			//writeln("derivatives of ", data.results[index]);
+			result_derivatives[index].length = result_params[index].length;
+			foreach(i,ref rpar; result_params[index]) {
+				string parname;
+				import std.array,std.range,std.algorithm;
+				foreach(e;result_expr.param_index_lookup.byKeyValue) if (e.value==i) parname=e.key;
+				//write(i, ":",parname,"(", rpar, ") : ");
+				double rpar_1 = rpar;
+				double result_value_1 = data.result_values[index];
+				rpar *= 1.001; // make a 1 permil shift
+				double result_value_2 = result_expr.e.eval(result_params[index]);
+				double rpar_2         = rpar;
+				double derivative = (result_value_2-result_value_1)/(rpar_2-rpar_1);
+				result_derivatives[index][i] = derivative;
+				//writeln(derivative);
+			}
+			//writeln("------------------");
+			//writeln("computing the error using derivatives and covariance matrix");
+			data.result_errors[index] = 0;
+			foreach(i; 0..result_params[index].length) {
+				auto idx_i = result_param_indices[index][i];
+				if (idx_i == -1) continue; // skip the "binwidth" parameter
+				foreach(j; 0..result_params[index].length) {
+					auto idx_j = result_param_indices[index][j];
+					if (idx_j == -1) continue; // skip the "binwidth" parameter
+					double covar_ij = covar[idx_i][idx_j];
+					//writeln("covar ", i, " ", j, " (",idx_i,",",idx_j,")  = ", covar_ij);
+					data.result_errors[index] +=  covar_ij * result_derivatives[index][i] * result_derivatives[index][j];
+				}
+			}
+			import std.math;
+			//writeln("error = ", sqrt(data.result_errors[index]));
+			//writeln("====================");
+			data.result_errors[index] = sqrt(data.result_errors[index]);
+
 			//import std.stdio;
 			//writeln("result ", index, " params ", result_params[index], " expression " , data.results[index]  ,"  result value ", data.result_values[index]);
 		}
-
-
 	}
 
 
@@ -394,8 +472,6 @@ public:
 			//import std.stdio;
 			//writeln("result ", index, " params ", result_params[index], " expression " , data.results[index]  ,"  result value ", data.result_values[index]);
 		}
-
-
 	}
 
 	void set_dragupdate(bool dragupdate) {
@@ -415,9 +491,9 @@ private:
 	double[] parameter_deltas;
 
 	expression.Result[] result_exprs;
-	//double[] result_values;
-	//double[] result_errors;
-	double[][] result_params;
+	long[][] result_param_indices; // the result expression needs to be able to look up the position of its parameer in the fitresult-array
+	double[][] result_params;      // for each result expression there needs to be a "flat" array of parameters that occur in that expression
+	double[][] result_derivatives; // numerical derivative of the result with respect to each parameter
 
 	bool is_interactive = false;
 }
@@ -534,7 +610,9 @@ public:
 			if (value is double.init) continue;
 			double xpos = t[0].world2canvas(t[0].log(x_at_y_max));
 			double ypos = t[1].world2canvas(t[1].log(y_max))-height*(0.5+idx);
-			string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string;
+			double err_percent = 100*funct.data.result_errors[idx]/value;
+			string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string ~ " +- " ~ funct.data.result_errors[idx].to!string ~ " ( " ~ err_percent.to!string ~ " % )";
+			//string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string;
 			if (d.text_with_border()) {
 				d.set_color(0.9,0.9,0.9);
 				d.text(xpos-1, ypos-1, text);

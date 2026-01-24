@@ -265,6 +265,10 @@ struct MultifitNlin(C,F,E=typeof(&residues))
 		}
 		return css;
 	}
+	@property double result_covar_ij(long i, long j)
+	{
+		return gsl_matrix_get(result_covar_gsl,i,j);
+	}
 	@property double result_chi()
 	{
 		return res_chi;
