@@ -396,8 +396,11 @@ public:
 						if (filename.endsWith(".session")) { filename = filename[0..$-8]; }
 						// execute the command with a short delay to make sure the dialog window is closed before the action is executed
 						open_session_timeout = new Timeout(100, delegate bool() {
-							import ui;
-							ui.session_open(filename);
+							//import ui;
+							//ui.session_open(filename);
+							import fairy, cmdline;
+							fairy.console_tid.send(Command("session_close"));
+							fairy.console_tid.send(Command("session_open " ~ filename));
 							return false;
 						});
 						dialog.close();

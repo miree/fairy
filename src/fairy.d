@@ -198,17 +198,17 @@ struct Session {
 	}
 
 	void close() {
+		import std.array;
 		//import std.stdio;
 		//writeln("windows -> ", windows.byKey);
-		import std.array;
-		foreach(name; items.byKey.array) {
-			import ui;
-			remove_item(name);
-		}
 		auto window_names = windows.byKey.array;
 		foreach(name; window_names) {
 			remove_window(name);
 			windows.remove(name);
+		}
+		foreach(name; items.byKey.array) {
+			import ui;
+			remove_item(name);
 		}
 		//writeln("windows after close() -> ", windows.byKey);
 		items = null;
@@ -273,6 +273,8 @@ struct Session {
 
 Session session;
 
+import std.concurrency;
+Tid console_tid;
 
 @trusted
 void run(string[] args) {
@@ -294,7 +296,7 @@ void run(string[] args) {
 
 
 	import cmdline;
-	auto console_tid = spawn(&cmdline.run_console, thisTid);
+	console_tid = spawn(&cmdline.run_console, thisTid);
 	if (execute.length)	thisTid.send(cmdline.Command(cast(immutable string)execute, thisTid));
 	loop(args);
 	// cause the cmdline.run_console thread to stop

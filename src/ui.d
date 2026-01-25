@@ -73,17 +73,10 @@ void update_window_gui(string window_name, bool canvas_items_changed = false) {
 ///////////////////////////////////////////////////////////////////////
 // all user interface functions are here
 ///////////////////////////////////////////////////////////////////////
-
-@UI_EXPORT("save current session and open a new one",
-	["new session name, file does not exist a new session is created"])
-string session_open(string session_name) {
+@UI_EXPORT("save current session and open a new one")
+string session_close() {
 	import fairy, histogram;
 	import std.algorithm;
-	if (session_name.endsWith(".session")) {
-		session_name = session_name[0..$-8];
-	}
-	if (session_name == fairy.session.name) return "session already open";
-
 	if (start_gui) foreach (name; fairy.session.windows.byKey) if (fairy.main_gui !is null) fairy.main_gui.save_window(name);
 
 	version(elderpt) {
@@ -99,7 +92,41 @@ string session_open(string session_name) {
 	//writeln("before closing: ", fairy.session.windows);
 	fairy.session.write_to_file();
 	fairy.session.close();
-	//writeln("after closing: ", fairy.session.windows);
+	fairy.session.name = "";
+
+	import core.thread;
+	Thread.sleep(500.msecs);
+
+	return "";
+}
+
+
+@UI_EXPORT("save current session and open a new one",
+	["new session name, file does not exist a new session is created"])
+string session_open(string session_name) {
+	import fairy, histogram;
+	import std.algorithm;
+	if (session_name.endsWith(".session")) {
+		session_name = session_name[0..$-8];
+	}
+	if (fairy.session.name != "") return "running session must be closed first";
+
+	//if (start_gui) foreach (name; fairy.session.windows.byKey) if (fairy.main_gui !is null) fairy.main_gui.save_window(name);
+
+	//version(elderpt) {
+	//	import elderpt;
+	//	//bool elderpt_was_running = elderpt.running;
+	//	if (elderpt.running) {
+	//		ui.elderpt("stop");
+	//		assert(elderpt.running == false);
+	//	}
+	//}
+
+	//import std.stdio;
+	////writeln("before closing: ", fairy.session.windows);
+	//fairy.session.write_to_file();
+	//fairy.session.close();
+	////writeln("after closing: ", fairy.session.windows);
 
 	// there is something wrong when a windowname from the loaded session has existed in the closed session. That window shows on the screen but not in the session.windows map.
 	// Don't exactly understand yet why this happens.... but waiting one seconde before recreating the gui windows seems to be a workaround. 

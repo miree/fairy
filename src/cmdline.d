@@ -81,9 +81,14 @@ void run_console(Tid main_thread) {
 			else { // timeout 
 				import std.datetime;
 				receiveTimeout(dur!"msecs"(0), 
-				(Quit q) {
-					running = false;
-				});
+					(Quit q) { 
+						running = false;	
+					},
+					(Command cmd) { 
+						main_thread.send(Command(cmd.command, thisTid)); 
+						receive((Continue c){});
+					}
+				);
 			}
 		}
 	} catch (const Exception e) {
