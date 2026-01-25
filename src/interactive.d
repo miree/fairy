@@ -508,11 +508,13 @@ public:
 			}
 			d.set_color(0,0,0);
 			d.set_line_width(1);
-			if (move_indices.canFind(l[0])) d.set_line_width(4);
-			d.line(pc0[0],pc0[1], pc1[0],pc1[1]);
-			d.horizontal_line(pc1[1],pc0[0],pc1[0]);
-			d.vertical_line(pc0[0],pc0[1],pc1[1]);
-			d.stroke;
+			if (move_indices.canFind(l[0])) {
+				d.set_line_width(4);
+				d.line(pc0[0],pc0[1], pc1[0],pc1[1]);
+				//d.horizontal_line(pc1[1],pc0[0],pc1[0]);
+				//d.vertical_line(pc0[0],pc0[1],pc1[1]);
+				d.stroke;
+			}
 
 		}
 

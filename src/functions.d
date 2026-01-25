@@ -240,7 +240,7 @@ public:
 		const x_idx = expr.param_index_lookup["x"];
 		double[] all_params = data.parameters.dup; // original set of parameters. What is actually used as fit paramters is an array of 1.0
 		double[] all_params_mod = data.parameters.dup; // each fit parameter is then multiplied with all_params during function execution and stored here (modified parameters)
-		                                               // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big 
+													   // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big 
 
 		if (datapoints.length < all_params.length) {
 			writeln("not enough datapoints. not fit");
@@ -279,7 +279,7 @@ public:
 			uint i = idx;
 			if (idx>x_idx) --i; // i is the index into the fit parameter array (which doesn't include "x")
 
-			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx]);
+			if (verbose) writefln("%10s (par %s) = %10s +- %10s   [ %s %%]",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx], 100*fitter.result_errors[i]*all_params[idx]/(fitter.result_params[i]*all_params[idx]));
 			else if (!quiet) write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
 
 			// now look in each of the result expressions "result_exprs" if the parameter "parameter_name" occurs in there
@@ -378,10 +378,11 @@ public:
 				double rpar_1 = rpar;
 				double result_value_1 = data.result_values[index];
 				rpar *= 1.001; // make a 1 permil shift
-				double result_value_2 = result_expr.e.eval(result_params[index]);
 				double rpar_2         = rpar;
+				double result_value_2 = result_expr.e.eval(result_params[index]);
 				double derivative = (result_value_2-result_value_1)/(rpar_2-rpar_1);
 				result_derivatives[index][i] = derivative;
+				rpar = rpar_1; // 'repair' the modified parameter
 				//writeln(derivative);
 			}
 			//writeln("------------------");
@@ -421,6 +422,16 @@ public:
 		red_chisqr /= (datapoints.length-fit_params.length); // variance of residuals 
 		if (verbose) writeln("variance of residuals (Chi^2/ndf) = ", red_chisqr, "    rms of residuals = ", sqrt(red_chisqr));
 		data.result_red_chi_sqr = red_chisqr;
+		if (verbose) {
+			foreach(idx,value; data.result_values) {
+				import std.conv;
+				import std.stdio;
+				import std.format;
+				import std.array;
+				if (value is double.init) continue;
+				writefln("%20s : %20s +- %20s [ %s %%]",data.results[idx].split('=')[0], value, data.result_errors[idx], 100*data.result_errors[idx]/value, );
+			}			
+		}
 	}
 
 	void fit_loglikelihood(FitDataSource source, double[2] region, bool verbose = true, bool quiet = false, bool with_deltas = false, int max_steps=250) {
@@ -434,7 +445,7 @@ public:
 		const x_idx = expr.param_index_lookup["x"];
 		double[] all_params = data.parameters.dup; // original set of parameters. What is actually used as fit paramters is an array of 1.0
 		double[] all_params_mod = data.parameters.dup; // each fit parameter is then multiplied with all_params during function execution and stored here (modified parameters)
-		                                               // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big 
+													   // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big 
 
 		if (datapoints.length < all_params.length) {
 			writeln("not enough datapoints. not fit");
@@ -473,7 +484,7 @@ public:
 			uint i = idx;
 			if (idx>x_idx) --i; // i is the index into the fit parameter array (which doesn't include "x")
 
-			if (verbose) writefln("%10s (par %s) = %10s +- %10s",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx]);
+			if (verbose) writefln("%10s (par %s) = %10s +- %10s   [ %s %%]",parameter_name,i,fitter.result_params[i]*all_params[idx], fitter.result_errors[i]*all_params[idx], 100*fitter.result_errors[i]*all_params[idx]/(fitter.result_params[i]*all_params[idx]));
 			else if (!quiet) write(fitter.result_params[i]*all_params[idx], " ", fitter.result_errors[i]*all_params[idx], " ");
 
 			// now look in each of the result expressions "result_exprs" if the parameter "parameter_name" occurs in there
@@ -572,10 +583,11 @@ public:
 				double rpar_1 = rpar;
 				double result_value_1 = data.result_values[index];
 				rpar *= 1.001; // make a 1 permil shift
-				double result_value_2 = result_expr.e.eval(result_params[index]);
 				double rpar_2         = rpar;
+				double result_value_2 = result_expr.e.eval(result_params[index]);
 				double derivative = (result_value_2-result_value_1)/(rpar_2-rpar_1);
 				result_derivatives[index][i] = derivative;
+				rpar = rpar_1; // 'repair' the modified parameter
 				//writeln(derivative);
 			}
 			//writeln("------------------");
@@ -616,6 +628,17 @@ public:
 		red_deviance /= (datapoints.length-fit_params.length);
 		if (verbose) writeln("reduced deviance (D/ndf) = ", red_deviance);
 		data.result_red_chi_sqr = red_deviance;
+		if (verbose) {
+			foreach(idx,value; data.result_values) {
+				import std.conv;
+				import std.stdio;
+				import std.format;
+				import std.array;
+				if (value is double.init) continue;
+				writefln("%20s : %20s +- %20s [ %s %%]",data.results[idx].split('=')[0], value, data.result_errors[idx], 100*data.result_errors[idx]/value, );
+			}			
+		}
+
 	}
 
 
@@ -749,6 +772,42 @@ public:
 		return funct.data.definition;
 	}
 
+
+	string formatWithError(double value, double error) const
+	{
+		import std.math;
+		import std.format;
+		import std.string;
+		import std.algorithm;
+		import std.stdio;
+
+		//writeln("==========================");
+		//writeln(value, " ± ", error);
+		int expVal = cast(int)floor(log10(abs(value)));
+		int expErr = cast(int)floor(log10(error));
+		int digits_after_point = max(-expErr+2,0);
+		//writeln("digits after point: ", digits_after_point);
+		double value_rescaled = value;
+		string value_str = format("%.*f",digits_after_point,value);
+		if (expVal<-2) value_str = format("%.*f",2,value/exp((expVal+1)*log(10.0)));
+		string error_str = format("%d",cast(int)(error / exp(-digits_after_point*log(10.0))));
+		string exp_str = "";
+		if (digits_after_point > 0) {
+			while (error_str[$-1]=='0' && value_str[$-1]=='0') {
+				error_str = error_str[0..$-1];
+				value_str = value_str[0..$-1];
+				if (value_str[$-1]=='.') {
+					value_str = value_str[0..$-1];
+				}
+			}
+		}
+		if (expVal<-2) exp_str = format("e%d",expVal+1);
+		//writeln("expVal:",expVal, " expErr:",expErr, "   error order of magnitude:", exp(expErr*log(10.0)) , "    digits of err:", error_str , " value:", value_str, "(",error_str,")", exp_str);
+
+		return value_str~"("~error_str~")"~exp_str;
+	}
+
+
 	override void draw(BackendInterface d, in Transform[3] t, bool modified) const
 	{
 		import std.algorithm;
@@ -830,18 +889,20 @@ public:
 
 		double width,height;
 		d.text_extent("x",width,height);
-		height *= 1.5;
+		height *= 1.7;
 
 
 		if ( funct.data.result_red_chi_sqr !is double.init)
 		{
 			import std.conv;
+			import std.format;
 			double xpos = t[0].world2canvas(t[0].log(x_at_y_max));
 			double ypos = t[1].world2canvas(t[1].log(y_max))-height*(0.5+0);
 			string text;
 			if (funct.data.loglikelihood) text = "deviance/ndf : ";
 			else                          text = "Chi^2/ndf : ";
-			text ~= funct.data.result_red_chi_sqr.to!string;
+			text ~= format("%.2f",funct.data.result_red_chi_sqr);
+			//text ~= funct.data.result_red_chi_sqr.to!string;
 			//string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string;
 			if (d.text_with_border()) {
 				d.set_color(0.9,0.9,0.9);
@@ -859,12 +920,16 @@ public:
 
 		foreach(idx,value; funct.data.result_values) {
 			import std.conv;
+			import std.format;
 			import std.array;
 			if (value is double.init) continue;
 			double xpos = t[0].world2canvas(t[0].log(x_at_y_max));
 			double ypos = t[1].world2canvas(t[1].log(y_max))-height*(1.5+idx);
-			double err_percent = 100*funct.data.result_errors[idx]/value;
-			string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string ~ " +- " ~ funct.data.result_errors[idx].to!string ~ " ( " ~ err_percent.to!string ~ " % )";
+			double err_percent = 100*(cast(int)100*funct.data.result_errors[idx]/value)/100.0;
+			string err_percent_str = format("%.1f",err_percent);
+			string err_str = format("%.2f",funct.data.result_errors[idx]);
+			string text = funct.data.results[idx].split('=')[0] ~ " : " ~ formatWithError(value,funct.data.result_errors[idx]) ~ " [" ~ err_percent_str ~ "%]";
+			//string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string ~ " ± " ~ err_str ~ " [" ~ err_percent_str ~ "%]";
 			//string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string;
 			if (d.text_with_border()) {
 				d.set_color(0.9,0.9,0.9);
