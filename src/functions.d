@@ -1058,7 +1058,7 @@ public:
 				funct.parameter_deltas[indices[1]] = 0.0;
 			}
 			super.drag(handle, x_canvas_start, y_canvas_start, x_canvas, y_canvas, t, ctrl, shift, end);
-			do_fit(true,false,false,250,funct.data.loglikelihood);
+			if (!shift) do_fit(true,false,false,250,funct.data.loglikelihood);
 		} else {
 			super.drag(handle, x_canvas_start, y_canvas_start, x_canvas, y_canvas, t, ctrl, shift, end);
 			//import std.stdio;
@@ -1071,7 +1071,8 @@ public:
 				funct.parameter_deltas[indices[0]] = true_deltas[i][0];
 				funct.parameter_deltas[indices[1]] = true_deltas[i][1];
 			}
-			if (funct.data.dragupdate) do_fit(false,true,true,20,funct.data.loglikelihood);
+			//if (funct.data.dragupdate) do_fit(false,true,true,20,funct.data.loglikelihood);
+			if (ctrl) do_fit(false,true,true,20,funct.data.loglikelihood);
 		}
 	}
 

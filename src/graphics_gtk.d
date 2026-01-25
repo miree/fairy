@@ -795,9 +795,14 @@ class ItemView : TreeView {
 					import std.stdio;
 					string fitname;
 					for (int i = 0;;++i) {
-						fitname = loglikelihood?"_logLfit":"_chi2fit_" ~ i.to!string;
+						fitname = (loglikelihood?"_logLfit_":"_chi2fit_");
+						fitname ~= i.to!string;
 						import fairy;
 						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
+						if (i > 10) {
+							writeln("something went wrong finding a fitter name");
+							return;
+						}
 					}
 					writeln("found selected fit data source: ", fullname);
 					auto gatename = fullname ~ fitname ~ "/gate";
@@ -864,7 +869,8 @@ class ItemView : TreeView {
 					import std.stdio;
 					string fitname;
 					for (int i = 0;;++i) {
-						fitname = loglikelihood?"_logLfit":"_chi2fit_" ~ i.to!string;
+						fitname = (loglikelihood?"_logLfit_":"_chi2fit_");
+						fitname ~= i.to!string;
 						import fairy;
 						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
 					}
@@ -936,7 +942,8 @@ class ItemView : TreeView {
 					import std.stdio;
 					string fitname;
 					for (int i = 0;;++i) {
-						fitname = loglikelihood?"_logLfit":"_chi2fit_" ~ i.to!string;
+						fitname = (loglikelihood?"_logLfit_":"_chi2fit_");
+						fitname ~= i.to!string;
 						import fairy;
 						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
 					}
@@ -1006,7 +1013,8 @@ class ItemView : TreeView {
 					import std.stdio;
 					string fitname;
 					for (int i = 0;;++i) {
-						fitname = loglikelihood?"_logLfit":"_chi2fit_" ~ i.to!string;
+						fitname = (loglikelihood?"_logLfit_":"_chi2fit_");
+						fitname ~= i.to!string;
 						import fairy;
 						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
 					}
@@ -1076,7 +1084,8 @@ class ItemView : TreeView {
 					import std.stdio;
 					string fitname;
 					for (int i = 0;;++i) {
-						fitname = loglikelihood?"_logLfit":"_chi2fit_" ~ i.to!string;
+						fitname = (loglikelihood?"_logLfit_":"_chi2fit_");
+						fitname ~= i.to!string;
 						import fairy;
 						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
 					}
