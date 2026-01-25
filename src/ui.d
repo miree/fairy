@@ -1253,6 +1253,8 @@ string elderpt(string command, string config_file = null, string mbs_source = nu
 	}
 	if (command == "source") {
 		import std.array;
+		if (mbs_source !is null) elderpt.sourcename = [mbs_source];
+		if (more_sources !is null) elderpt.sourcename ~= more_sources;
 		return elderpt.sourcename.join(' ');
 	}
 	if (command == "pause") {

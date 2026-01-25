@@ -2722,9 +2722,11 @@ class ElderPtWindow : ApplicationWindow
 							elderpt.sourcename.length = 0; 
 							foreach(filename; filenames) { 
 								sources ~= filename ~ " ";
-								elderpt.sourcename ~= filename; 
+								//elderpt.sourcename ~= filename; 
 							}
-							writeln("sources = ", sources);
+							//writeln("sources = ", sources);
+							import ui;
+							ui.elderpt("source",null,null,sources.strip().split(' '));
 							_mbs_source.setText(sources.strip());
 						} 
 						if (response == ResponseType.CANCEL || response == ResponseType.OK) dialog.close(); 
