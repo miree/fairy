@@ -2685,7 +2685,9 @@ class ElderPtWindow : ApplicationWindow
 				if (filenamelist !is null) {
 					string[]  filenames = filenamelist.toArray!string;
 					if (filenames !is null && filenames.length > 0) {
-						_elder_toplevel_config_file = filenames[0];
+						import ui;
+						ui.elderpt("config",filenames[0]);
+						//_elder_toplevel_config_file = filenames[0];
 					}
 				} else {
 					_elder_toplevel_config_file = null;

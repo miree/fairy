@@ -1207,7 +1207,7 @@ string shell(string[] args) {
 version (elderpt) {
 
 @UI_EXPORT("control elderpt thread", 
-	["start restart status pause continue stop rate",
+	["start restart status pause continue stop rate config",
 	 "elderpt configuration file",
 	 "mbs source: eg. file:run001.lmd or stream:x86l-xyz"])
 @trusted
@@ -1248,6 +1248,7 @@ string elderpt(string command, string config_file = null, string mbs_source = nu
 		return "running";
 	}
 	if (command == "config") {
+		if (config_file !is null) elderpt.configname = config_file;
 		return elderpt.configname;
 	}
 	if (command == "source") {
