@@ -131,13 +131,13 @@ string session_open(string session_name) {
 	// there is something wrong when a windowname from the loaded session has existed in the closed session. That window shows on the screen but not in the session.windows map.
 	// Don't exactly understand yet why this happens.... but waiting one seconde before recreating the gui windows seems to be a workaround. 
 	import core.thread;
-	Thread.sleep(500.msecs);
+	Thread.sleep(100.msecs);
 
 	fairy.session.name = session_name;
 	fairy.session.read_from_file();
 
 	import core.thread;
-	Thread.sleep(500.msecs);
+	Thread.sleep(100.msecs);
 
 	if (start_gui) {// gui is already running
 		foreach (name, ref window; fairy.session.windows) {
