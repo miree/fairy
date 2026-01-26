@@ -429,7 +429,7 @@ public:
 				import std.format;
 				import std.array;
 				if (value is double.init) continue;
-				writefln("%20s : %20s +- %20s [ %s %%]",data.results[idx].split('=')[0], value, data.result_errors[idx], 100*data.result_errors[idx]/value, );
+				writefln("%12s=%28s : %12s +- %12s [ %s %%]",data.results[idx].split('=')[0],data.results[idx].split('=')[1], value, data.result_errors[idx], 100*data.result_errors[idx]/value, );
 			}			
 		}
 	}
@@ -635,7 +635,7 @@ public:
 				import std.format;
 				import std.array;
 				if (value is double.init) continue;
-				writefln("%20s : %20s +- %20s [ %s %%]",data.results[idx].split('=')[0], value, data.result_errors[idx], 100*data.result_errors[idx]/value, );
+				writefln("%12s=%28s : %12s +- %12s [ %s %%]",data.results[idx].split('=')[0],data.results[idx].split('=')[1], value, data.result_errors[idx], 100*data.result_errors[idx]/value, );
 			}			
 		}
 
@@ -926,9 +926,9 @@ public:
 			double xpos = t[0].world2canvas(t[0].log(x_at_y_max));
 			double ypos = t[1].world2canvas(t[1].log(y_max))-height*(1.5+idx);
 			double err_percent = 100*(cast(int)100*funct.data.result_errors[idx]/value)/100.0;
-			string err_percent_str = format("%.1f",err_percent);
+			string err_percent_str = format("%.2f",err_percent);
 			string err_str = format("%.2f",funct.data.result_errors[idx]);
-			string text = funct.data.results[idx].split('=')[0] ~ " : " ~ formatWithError(value,funct.data.result_errors[idx]) ~ " [" ~ err_percent_str ~ "%]";
+			string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string /*formatWithError(value,funct.data.result_errors[idx])*/ ~ " [" ~ err_percent_str ~ "%]";
 			//string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string ~ " ± " ~ err_str ~ " [" ~ err_percent_str ~ "%]";
 			//string text = funct.data.results[idx].split('=')[0] ~ " : " ~ value.to!string;
 			if (d.text_with_border()) {
@@ -1058,7 +1058,7 @@ public:
 				funct.parameter_deltas[indices[1]] = 0.0;
 			}
 			super.drag(handle, x_canvas_start, y_canvas_start, x_canvas, y_canvas, t, ctrl, shift, end);
-			if (!shift) do_fit(true,false,false,250,funct.data.loglikelihood);
+			do_fit(true,false,false,250,funct.data.loglikelihood);
 		} else {
 			super.drag(handle, x_canvas_start, y_canvas_start, x_canvas, y_canvas, t, ctrl, shift, end);
 			//import std.stdio;

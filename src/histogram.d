@@ -762,7 +762,7 @@ class Hist2Projection : Visual, Hist1Export, FitDataSource, Item {
 		}
 		if (test_region !is null && test_region !is region) region = test_region;
 
-		if (source_version == -1 || source_item.getVersion() > source_version) {
+		if (source_version == -1 || (source_item.getVersion() > source_version)) {
 			//import std.stdio;
 			//writeln("source was updated");
 			auto data = source.get_projection_data();

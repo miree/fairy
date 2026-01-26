@@ -786,6 +786,82 @@ class ItemView : TreeView {
 		Clipboard.getDefault(Display.getDefault()).setText(result, cast(int)result.length);
 	}
 
+	void create_fitter_cauchy(bool dragupdate = true, bool loglikelihood = false) {
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			import std.conv, std.algorithm;
+			import fairy, ui;
+			if (session.items.byKey.canFind(fullname)) {
+				import histogram, gate, functions;
+				auto source = cast(FitDataSource)session.items[fullname].item;
+				if (source !is null) {
+					import std.stdio;
+					string fitname;
+					for (int i = 0;;++i) {
+						fitname = (loglikelihood?"_logLfit_":"_chi2fit_");
+						fitname ~= i.to!string;
+						import fairy;
+						if (!(fullname~fitname~"/gate" in fairy.session.items) && !(fullname~fitname~"/function" in fairy.session.items)) break;
+						if (i > 10) {
+							writeln("something went wrong finding a fitter name");
+							return;
+						}
+					}
+					writeln("found selected fit data source: ", fullname);
+					auto gatename = fullname ~ fitname ~ "/gate";
+					auto funcname = fullname ~ fitname ~ "/function";
+					auto left  = main_window.canvas.transform[0].min; 
+					auto right = main_window.canvas.transform[0].max;
+					auto w = right-left;
+					left += 3*w/8;
+					right -= 3*w/8; 
+					if (main_window.canvas.transform[0].logscale) {
+						import std.math;
+						left = exp(left);
+						right = exp(right);
+					}
+					auto bottom  = main_window.canvas.transform[1].min; 
+					auto top     = main_window.canvas.transform[1].max;
+					if (main_window.canvas.transform[1].logscale) {
+						import std.math;
+						top    = exp(top);
+						bottom = exp(bottom);
+					}
+					double A = (top-bottom)/2;
+					double s = (right-left)/8;
+					double a = bottom+A/4;
+					double b = 0;
+					double x0 = 0.5*(left+right);
+					string function_definition = "A*cauchy(x-x0,s)/cauchy(s,s)+a+b*(x-x0) ";
+					string parameter_definition = "[\"A=" ~ A.to!string ~ "\",\"s=" ~ s.to!string ~ "\",\"x0=" ~ x0.to!string ~ "\",\"a=" ~ a.to!string ~ "\",\"b=" ~ b.to!string ~ "\"] ";
+					string handle_definition = "[x0,a]([s,A])";
+					string result_definition = "[\"counts=A/cauchy(s,s)/binwidth\",\"area=A/cauchy(s,s)\",\"FWHM=s*2\",\"pos=x0\"]";
+					string dragupdate_and_loglikelihood = (dragupdate?"true":"false") ~" "~ (loglikelihood?"true":"false");
+					import cmdline;
+					string command =
+						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"show      "~gatename~" "~main_window.name ~ "\n" ~
+						"show      "~funcname~" "~main_window.name;
+
+					import std.stdio;
+					writeln(command);
+					thisTid.send(cmdline.Command(command, thisTid));									
+				} else {
+					import gtk.MessageDialog;
+					auto cannot_project = new MessageDialog(main_window, 
+						              GtkDialogFlags.DESTROY_WITH_PARENT,
+						              GtkMessageType.ERROR,
+						              GtkButtonsType.NONE,
+						              "no fit possible");
+					cannot_project.show();
+				}
+			}
+		}
+	}
+
+
+
 	void create_fitter_gauss(bool dragupdate = true, bool loglikelihood = false) {
 		foreach(selected_iter; getSelectedIters()) {
 			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
@@ -853,7 +929,7 @@ class ItemView : TreeView {
 						              GtkDialogFlags.DESTROY_WITH_PARENT,
 						              GtkMessageType.ERROR,
 						              GtkButtonsType.NONE,
-						              "no gaussfit possible");
+						              "no fit possible");
 					cannot_project.show();
 				}
 			}
@@ -926,7 +1002,7 @@ class ItemView : TreeView {
 						              GtkDialogFlags.DESTROY_WITH_PARENT,
 						              GtkMessageType.ERROR,
 						              GtkButtonsType.NONE,
-						              "no gaussfit possible");
+						              "no fit possible");
 					cannot_project.show();
 				}
 			}
@@ -997,7 +1073,7 @@ class ItemView : TreeView {
 						              GtkDialogFlags.DESTROY_WITH_PARENT,
 						              GtkMessageType.ERROR,
 						              GtkButtonsType.NONE,
-						              "no gaussfit possible");
+						              "no fit possible");
 					cannot_project.show();
 				}
 			}
@@ -1068,7 +1144,7 @@ class ItemView : TreeView {
 						              GtkDialogFlags.DESTROY_WITH_PARENT,
 						              GtkMessageType.ERROR,
 						              GtkButtonsType.NONE,
-						              "no gaussfit possible");
+						              "no fit possible");
 					cannot_project.show();
 				}
 			}
@@ -1140,7 +1216,7 @@ class ItemView : TreeView {
 						              GtkDialogFlags.DESTROY_WITH_PARENT,
 						              GtkMessageType.ERROR,
 						              GtkButtonsType.NONE,
-						              "no gaussfit possible");
+						              "no fit possible");
 					cannot_project.show();
 				}
 			}
@@ -1412,6 +1488,7 @@ class ItemView : TreeView {
 		void nothing() {}
 		version(gtk3) {
 			chi2_fitting_submenu = new Menu;
+			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_cauchy(true,false), "cauchy linear-bg", "interactively fit a cuchy function to histogram data" ));
 			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,false), "gauss linear-bg", "interactively fit a gaussian function to histogram data" ));
 			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_two_gaussians(true,false), "two gaussians linear-bg", "interactively fit two gaussian functions to histogram data" ));
 			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_parabolic(true,false), "gauss quadratic-bg", "interactively fit a gaussian function to histogram data" ));
@@ -1421,6 +1498,7 @@ class ItemView : TreeView {
 			chi2_fitting.setSubmenu(chi2_fitting_submenu);
 
 			loglh_fitting_submenu = new Menu;
+			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_cauchy(true,true), "cauchy linear-bg", "interactively fit a cauchy function to histogram data" ));
 			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,true), "gauss linear-bg", "interactively fit a gaussian function to histogram data" ));
 			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_two_gaussians(true,true), "tow gaussians linear-bg", "interactively fit two gaussian functions to histogram data" ));
 			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_parabolic(true,true), "gauss quadratic-bg", "interactively fit a gaussian function to histogram data" ));
