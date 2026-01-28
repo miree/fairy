@@ -9,6 +9,7 @@ Tid main_thread;
 
 bool running = false;
 bool paused  = false;
+__gshared bool done = false; // this is only written by this thread, but may be read by other threads
 string configname = "analysis.config";
 string[] sourcename = [];
 Tid  tid;
@@ -437,7 +438,7 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 
 	bool paused = false;
 	bool stop = false;
-	bool done = false;
+	     done = false;
 	double rate = 0;
 	ulong seconds = 0;
 	ulong events = 0;
@@ -455,6 +456,7 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 		elder_pt_controller_clear(ctrl);
 		if (paused||done) {
 			elder_pt_controller_idle(ctrl, iface);
+			--i; // don't count idle events into the "rate" number
 		} else {
 			auto t = Clock.currTime;
 			uint time_secs = cast(uint)t.toUnixTime;
@@ -525,7 +527,7 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 		receiveTimeout((paused||done)?(100.msecs):(Duration.zero),
 			(MsgPause    msg) { paused = true;  main_thread.send(MsgAck()); },
 			(MsgContinue msg) { paused = false; main_thread.send(MsgAck()); },
-			(MsgStop     msg) { paused = false; stop = true;  main_thread.send(MsgAck()); },
+			(MsgStop     msg) { paused = false; stop = true;  done = false; main_thread.send(MsgAck()); },
 			(MsgGetRate  msg) { main_thread.send(MsgRate(rate)); });
 		if (stop) break;
 	}

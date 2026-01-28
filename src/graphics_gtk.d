@@ -2820,6 +2820,7 @@ class ElderPtWindow : ApplicationWindow
 				auto status = ui.elderpt("status");
 				if (status == "stopped") _status_label.setLabel(" Stopped ");
 				if (status == "running") _status_label.setLabel(" Running ");
+				if (status == "done")    _status_label.setLabel(" Done ");
 				if (status == "paused")  _status_label.setLabel(" Paused ");
 			} catch(Exception e) {}
 			_rate_label = new Label(" Rate(evt/s) = 0");
@@ -2840,13 +2841,22 @@ class ElderPtWindow : ApplicationWindow
 							more_sources = sources[1..$];
 						}
 						import std.path;
-						ui.elderpt("start", relativePath(config_filename), source, more_sources); 
+						auto status = ui.elderpt("status");
+						if (status == "stopped") {
+							ui.elderpt("start", relativePath(config_filename), source, more_sources);
+						} else if (status == "running" || status == "paused" || status == "done") {
+							ui.elderpt("restart", relativePath(config_filename), source, more_sources); 
+						}   
 						_status_label.setLabel(" Running ");
-						_start_acquisition_button.setSensitive(false);
+						//_start_acquisition_button.setSensitive(false);
+						_start_acquisition_button.setLabel(" restart ");
 						_pause_acquisition_button.setSensitive(true);
 						_stop_acquisition_button.setSensitive(true);
+						_mbs_source.setSensitive(false);
+						_mbs_source_select_button.setSensitive(false);
+						_elder_config_file_chooser_button.setSensitive(false);					
 					}
-					catch(Exception e) { }
+					catch(Exception e) { import std.stdio; writeln("start button error: ", e.msg); }
 				});
 			_pause_acquisition_button = new Button("pause", delegate(Button button) {
 					try { 
@@ -2877,9 +2887,14 @@ class ElderPtWindow : ApplicationWindow
 						ui.elderpt("stop"); 
 						_status_label.setLabel(" Stopped ");
 						_pause_acquisition_button.setLabel(" pause ");
-						_start_acquisition_button.setSensitive(true);
+						//_start_acquisition_button.setSensitive(true);
+						_start_acquisition_button.setLabel(" start ");
 						_stop_acquisition_button.setSensitive(false);
 						_pause_acquisition_button.setSensitive(false);	
+						_mbs_source.setSensitive(true);
+						_mbs_source_select_button.setSensitive(true);
+						_elder_config_file_chooser_button.setSensitive(true);
+
 					}
 					catch(Exception e) {}
 				});
@@ -2888,19 +2903,36 @@ class ElderPtWindow : ApplicationWindow
 				import ui;
 				auto status = ui.elderpt("status");
 				if (status == "stopped") {
-					_start_acquisition_button.setSensitive(true);
+					//_start_acquisition_button.setSensitive(true);
 					_stop_acquisition_button.setSensitive(false);
 					_pause_acquisition_button.setSensitive(false);
+					_mbs_source.setSensitive(true);
+					_mbs_source_select_button.setSensitive(true);
+					_elder_config_file_chooser_button.setSensitive(true);					
 				}
 				if (status == "running") {
-					_start_acquisition_button.setSensitive(false);
+					//_start_acquisition_button.setSensitive(false);
 					_stop_acquisition_button.setSensitive(true);
 					_pause_acquisition_button.setSensitive(true);
+					_mbs_source.setSensitive(false);
+					_mbs_source_select_button.setSensitive(false);
+					_elder_config_file_chooser_button.setSensitive(false);					
 				}
-				if (status == "paused") {
-					_start_acquisition_button.setSensitive(false);
+				if (status == "done") {
+					//_start_acquisition_button.setSensitive(false);
 					_stop_acquisition_button.setSensitive(true);
 					_pause_acquisition_button.setSensitive(false);
+					_mbs_source.setSensitive(false);
+					_mbs_source_select_button.setSensitive(false);
+					_elder_config_file_chooser_button.setSensitive(false);					
+				}
+				if (status == "paused") {
+					//_start_acquisition_button.setSensitive(false);
+					_stop_acquisition_button.setSensitive(true);
+					_pause_acquisition_button.setSensitive(false);
+					_mbs_source.setSensitive(false);
+					_mbs_source_select_button.setSensitive(false);
+					_elder_config_file_chooser_button.setSensitive(false);					
 				}
 			} catch (Exception e) {}
 			control_box.append(_start_acquisition_button);
@@ -2940,29 +2972,52 @@ class ElderPtWindow : ApplicationWindow
 			add(box);
 
 
+			string previous_sources;
 			_status_update_timeout = new Timeout(100, delegate bool() {
 				try {
 					string status = ui.elderpt("status"); // check frequently if the status was changed from console user interface
 					if (status == "running") {
 						_status_label.setLabel(" Running ");
 						_pause_acquisition_button.setLabel(" pause ");
-						_start_acquisition_button.setSensitive(false);
+						//_start_acquisition_button.setSensitive(false);
+						_start_acquisition_button.setLabel(" restart ");
 						_stop_acquisition_button.setSensitive(true);
 						_pause_acquisition_button.setSensitive(true);	
+						_mbs_source.setSensitive(false);
+						_mbs_source_select_button.setSensitive(false);
+						_elder_config_file_chooser_button.setSensitive(false);
+					}
+					if (status == "done") {
+						_status_label.setLabel(" Done ");
+						_pause_acquisition_button.setLabel(" pause ");
+						//_start_acquisition_button.setSensitive(false);
+						_start_acquisition_button.setLabel(" restart ");
+						_stop_acquisition_button.setSensitive(true);
+						_pause_acquisition_button.setSensitive(false);	
+						_mbs_source.setSensitive(false);
+						_mbs_source_select_button.setSensitive(false);
+						_elder_config_file_chooser_button.setSensitive(false);
 					}
 					if (status == "paused") {
 						_status_label.setLabel(" Paused ");
 						_pause_acquisition_button.setLabel(" continue ");
-						_start_acquisition_button.setSensitive(false);
+						//_start_acquisition_button.setSensitive(false);
 						_stop_acquisition_button.setSensitive(true);
 						_pause_acquisition_button.setSensitive(true);	
+						_mbs_source.setSensitive(false);
+						_mbs_source_select_button.setSensitive(false);
+						_elder_config_file_chooser_button.setSensitive(false);
 					}
 					if (status == "stopped") {
 						_status_label.setLabel(" Stopped ");
 						_pause_acquisition_button.setLabel(" pause ");
-						_start_acquisition_button.setSensitive(true);
+						//_start_acquisition_button.setSensitive(true);
+						_start_acquisition_button.setLabel(" start ");
 						_stop_acquisition_button.setSensitive(false);
 						_pause_acquisition_button.setSensitive(false);	
+						_mbs_source.setSensitive(true);
+						_mbs_source_select_button.setSensitive(true);
+						_elder_config_file_chooser_button.setSensitive(true);
 					}	
 					import std.path;
 					string configfile = absolutePath(ui.elderpt("config"));
@@ -2973,8 +3028,9 @@ class ElderPtWindow : ApplicationWindow
 					}
 					import std.array;
 					string sources = ui.elderpt("source");
-					if (sources !is null) {
+					if (sources !is null && sources != previous_sources) {
 						_mbs_source.setText(sources);
+						previous_sources = sources;
 					}
 
 				} catch (Exception e) {

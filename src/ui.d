@@ -1245,6 +1245,7 @@ string elderpt(string command, string config_file = null, string mbs_source = nu
 	if (command == "status") {
 		if (!elderpt.running) return "stopped";
 		if (elderpt.running && elderpt.paused)   return "paused";
+		if (elderpt.done) return "done";
 		return "running";
 	}
 	if (command == "config") {
