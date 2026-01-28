@@ -3,6 +3,7 @@ module graphics;
 
 interface Gui {
 	void add_window(string name, ref CanvasProperties canvas);
+	void update_session(); // e.g. update session name in window titles
 	void close_window(string name);
 	void redraw_window(string name);
 	void save_window(string name);

@@ -162,12 +162,14 @@ string session_open(string session_name) {
 	["new session name, file is immediately written"])
 string session_save(string session_name) {
 	import fairy, histogram;
+	foreach(name; fairy.session.windows.byKey) fairy.main_gui.save_window(name); // transfer window position to canvas properties (which are stored in file)
 	import std.algorithm;
 	if (session_name.endsWith(".session")) {
 		session_name = session_name[0..$-8];
 	}
 	fairy.session.name = session_name;
 	fairy.session.write_to_file();
+	fairy.main_gui.update_session();
 	return "";
 }
 

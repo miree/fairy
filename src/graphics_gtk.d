@@ -25,6 +25,10 @@ class GtkGui : Gui {
 	override void add_window(string name, ref CanvasProperties canvas) {
 		main_windows[name] = new MainWindow(name, &canvas, application);
 	}
+	override void update_session() {
+		import fairy;
+		foreach(window_name, ref window; GtkGui.main_windows) window.header_bar.setTitle("fairy - " ~ fairy.session.name ~ " - " ~ window_name);
+	}
 	override void close_window(string name) {
 		//import std.stdio;
 		//writeln("close window ", name , "     all windows ", main_windows);
@@ -340,7 +344,6 @@ public:
 		save_session = new SimpleAction("save_session", null);
 		save_session.addOnActivate(delegate(Variant var, SimpleAction action) {
 			import fairy;
-			foreach(name; GtkGui.main_windows.byKey) fairy.main_gui.save_window(name); // transfer window position to canvas properties (which are stored in file)
 			fairy.session.write_to_file();
 		});
 		addAction(save_session);
@@ -367,7 +370,9 @@ public:
 						}
 						if (filename.endsWith(".session")) { filename = filename[0..$-8]; }
 						import ui;
+						import fairy;
 						session_save(filename);
+						//foreach(ref window; GtkGui.main_windows) window.header_bar.setTitle("fairy - " ~ fairy.session.name ~ " - " ~ window_name);
 						//runningSession.rename(filename); 
 						//runningSession.writeToFile();
 						//notifySessionChange();
@@ -501,13 +506,14 @@ public:
 
 		header_bar = new HeaderBar;
 		// add title to header bar
-		header_title = new Label("fairy - " ~ window_name);
+		import fairy;
+		header_title = new Label("fairy - " ~ fairy.session.name ~ " - " ~ window_name);
 		version(gtk4) { 
 			header_bar.setTitleWidget(header_title); 
 			//header_bar.setShowTitleButtons(false); // to match gtk3 behavior
 		}
 		version(gtk3) { 
-			header_bar.setTitle("fairy - " ~ window_name); 
+			header_bar.setTitle("fairy - " ~ fairy.session.name ~ " - " ~ window_name); 
 		}
 
 		// add menu and other buttons to title bar
