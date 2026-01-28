@@ -275,6 +275,7 @@ private:
 		PlotWidget plot_widget;
 
 	SimpleAction new_window;
+	SimpleAction save_session;
 	SimpleAction save_session_as;
 	SimpleAction open_session;
 	SimpleAction quit_program;
@@ -335,6 +336,14 @@ public:
 			}
 		});
 		addAction(new_window);
+
+		save_session = new SimpleAction("save_session", null);
+		save_session.addOnActivate(delegate(Variant var, SimpleAction action) {
+			import fairy;
+			foreach(name; GtkGui.main_windows.byKey) fairy.main_gui.save_window(name); // transfer window position to canvas properties (which are stored in file)
+			fairy.session.write_to_file();
+		});
+		addAction(save_session);
 
 		save_session_as = new SimpleAction("save_session_as", null);
 		save_session_as.addOnActivate(delegate(Variant var, SimpleAction action) {
@@ -536,6 +545,7 @@ public:
 
 		menu_top = new Menu;
 		menu_top.append("new window",      "win.new_window");
+		menu_top.append("save session",    "win.save_session");
 		menu_top.append("save session as", "win.save_session_as");
 		menu_top.append("open session",    "win.open_session");
 		menu_top.append("quit",            "win.quit");
