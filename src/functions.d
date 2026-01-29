@@ -37,6 +37,7 @@ public:
 		@SERIALIZE bool     loglikelihood; // if true performs log likelihood fit instead of chisquare fit
 		@SERIALIZE double[] parameters;
 		@SERIALIZE double[] fitresult;
+		@SERIALIZE double[][] covar; // covariance matrix of fit result
 		@SERIALIZE double   result_red_chi_sqr;
 	}
 
@@ -310,8 +311,8 @@ public:
 
 		// calculate covariance matrix (it to be corrected because of the parameter rescaling)
 		fitter.calc_covar();
-		auto covar = fitter.result_covar();
-		if (verbose) {
+		data.covar = fitter.result_covar();
+		if (verbose) { // write parameter names above the covar matrix
 			foreach(parameter_name2,idx2;expr.param_index_lookup) {
 				if (idx2==x_idx) continue;
 				uint j = idx2;
@@ -329,8 +330,8 @@ public:
 				if (idx2==x_idx) continue;
 				uint j = idx2;
 				if (idx2>x_idx) --j;
-				covar[i][j] *= all_params[idx] * all_params[idx2];
-				if (verbose) writef("%20s",covar[i][j]);
+				data.covar[i][j] *= all_params[idx] * all_params[idx2];
+				if (verbose) writef("%20s",data.covar[i][j]);
 			}
 			if (verbose) writeln();
 		}
@@ -345,7 +346,7 @@ public:
 				uint j = idx2;
 				if (idx2>x_idx) --j;
 				import std.math;
-				if (verbose) writef("%20s",covar[i][j]/sqrt(covar[i][i]*covar[j][j]));
+				if (verbose) writef("%20s",data.covar[i][j]/sqrt(data.covar[i][i]*data.covar[j][j]));
 			}
 			if (verbose) writeln();
 		}
@@ -394,7 +395,7 @@ public:
 				foreach(j; 0..result_params[index].length) {
 					auto idx_j = result_param_indices[index][j];
 					if (idx_j == -1) continue; // skip the "binwidth" parameter
-					double covar_ij = covar[idx_i][idx_j];
+					double covar_ij = data.covar[idx_i][idx_j];
 					//writeln("covar ", i, " ", j, " (",idx_i,",",idx_j,")  = ", covar_ij);
 					data.result_errors[index] +=  covar_ij * result_derivatives[index][i] * result_derivatives[index][j];
 				}
@@ -515,7 +516,7 @@ public:
 
 		// calculate covariance matrix (it to be corrected because of the parameter rescaling)
 		fitter.calc_covar();
-		auto covar = fitter.result_covar();
+		data.covar = fitter.result_covar();
 		if (verbose) {
 			foreach(parameter_name2,idx2;expr.param_index_lookup) {
 				if (idx2==x_idx) continue;
@@ -534,8 +535,8 @@ public:
 				if (idx2==x_idx) continue;
 				uint j = idx2;
 				if (idx2>x_idx) --j;
-				covar[i][j] *= all_params[idx] * all_params[idx2];
-				if (verbose) writef("%20s",covar[i][j]);
+				data.covar[i][j] *= all_params[idx] * all_params[idx2];
+				if (verbose) writef("%20s",data.covar[i][j]);
 			}
 			if (verbose) writeln();
 		}
@@ -550,7 +551,7 @@ public:
 				uint j = idx2;
 				if (idx2>x_idx) --j;
 				import std.math;
-				if (verbose) writef("%20s",covar[i][j]/sqrt(covar[i][i]*covar[j][j]));
+				if (verbose) writef("%20s",data.covar[i][j]/sqrt(data.covar[i][i]*data.covar[j][j]));
 			}
 			if (verbose) writeln();
 		}
@@ -599,7 +600,7 @@ public:
 				foreach(j; 0..result_params[index].length) {
 					auto idx_j = result_param_indices[index][j];
 					if (idx_j == -1) continue; // skip the "binwidth" parameter
-					double covar_ij = covar[idx_i][idx_j];
+					double covar_ij = data.covar[idx_i][idx_j];
 					//writeln("covar ", i, " ", j, " (",idx_i,",",idx_j,")  = ", covar_ij);
 					data.result_errors[index] +=  covar_ij * result_derivatives[index][i] * result_derivatives[index][j];
 				}
@@ -852,7 +853,7 @@ public:
 					//funct.data.fitresult[x_idx] = x;
 					//y = funct.expr.e.eval(funct.data.fitresult);					
 					local_fitresults[x_idx] = x;
-					y = funct.expr.e.eval(local_fitresults);					
+					y = funct.expr.e.eval(local_fitresults);
 				}
 				if (i>0) {
 					d.line(t[0].world2canvas(t[0].log(x_old)),t[1].world2canvas(t[1].log(y_old)), 
