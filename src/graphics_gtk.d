@@ -1537,6 +1537,8 @@ class ItemView : TreeView {
 			popup_menu.append( new MenuItem( (m) => show_all_selected(),   "show", "show selected items"));
 			popup_menu.append( new MenuItem( (m) => hide_all_selected(),   "hide", "hide only selected items"));
 			popup_menu.append( new MenuItem( (m) => reset_all_selected(),  "reset", "reset selected items and"));
+			popup_menu.append( new MenuItem( (m) {return;},  "       ", "sepration so that it becomes more unlikely to accidentally click on remove when aiming for clicking on reset"));
+			popup_menu.append( new MenuItem( (m) {return;},  "       ", "sepration so that it becomes more unlikely to accidentally click on remove when aiming for clicking on reset"));
 			popup_menu.append( new MenuItem( (m) => remove_all_selected(), "remove", "remove selected items"));
 			addOnButtonPress(
 				delegate bool(GdkEventButton* e, Widget w) {
