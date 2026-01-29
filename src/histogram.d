@@ -119,7 +119,8 @@ public:
 		return "histogram.Hist1";
 	}
 	override void reset() {
-		data.bins[] = double.init;
+		if (data.zero_init) data.bins[] = 0.0;
+		else                data.bins[] = double.init;
 		++item_version;
 	}
 
