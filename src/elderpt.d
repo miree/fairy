@@ -303,6 +303,8 @@ struct MsgAck {}
 struct MsgErr {}
 struct MsgGetRate{}
 struct MsgRate{double rate;}
+struct MsgGetCurrentSource{}
+struct MsgCurrentSource{string name;}
 //struct MsgStopAck {} // sent in response to MsgStop
 //struct MsgEventsPerSecond {long events;}
 void run_elderpt(Tid main_thread_tid, const string config_filename, const string[] mbs_sourcesc) {
@@ -348,6 +350,7 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 	}
 	int source_idx = 0;
 	string mbs_source;
+	string active_source;
 
 	string open_mbs_source(ref s_evt_channel* mbs, string mbs_source) {
 		if (mbs_source !is null && mbs_source.length > 0) {
@@ -364,10 +367,13 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 				else if (parts[0] == "revserv") source_type = GETEVT_REVSERV;
 				else throw new Exception("unknown source type: " ~ parts[0] ~ ".  Possible source types are: file stream trans event revserv");
 				mbs_source = parts[1];
+				active_source = mbs_source;
 			} else if (mbs_source.endsWith(".lmd")) {
 				source_type = GETEVT_FILE;
+				active_source = mbs_source;
 			} else if (mbs_source.endsWith(".lmd.gz")) {
 				writeln("zipped lmd file");
+				active_source = mbs_source;
 				import std.process;
 				auto command = "gunzip -k -c " ~mbs_source~ " > /tmp/current.lmd";
 				writeln("unzip command: ", command);
@@ -389,6 +395,7 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 				           &file_header,
 				           1,0) != GETEVT_SUCCESS) {
 				writeln("failed to open file \'", mbs_source,"\'");
+				active_source = null;
 				return null;
 			}
 			writeln("opening file ", mbs_source);
@@ -396,8 +403,9 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 		}
 		return null;
 	}
-	if (mbs_sources !is null && mbs_sources.length > 0)
+	if (mbs_sources !is null && mbs_sources.length > 0) {
 		mbs_source = open_mbs_source(mbs_channel, mbs_sources[0]);
+	}
 
 	elder_histograms_2D_count = 0;
 	elder_histograms_1D_count = 0;
@@ -525,10 +533,12 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 			elder_pt_controller_process(ctrl, iface);
 		}
 		receiveTimeout((paused||done)?(100.msecs):(Duration.zero),
-			(MsgPause    msg) { paused = true;  main_thread.send(MsgAck()); },
-			(MsgContinue msg) { paused = false; main_thread.send(MsgAck()); },
-			(MsgStop     msg) { paused = false; stop = true;  done = false; main_thread.send(MsgAck()); },
-			(MsgGetRate  msg) { main_thread.send(MsgRate(rate)); });
+			(MsgPause            msg) { paused = true;  main_thread.send(MsgAck()); },
+			(MsgContinue         msg) { paused = false; main_thread.send(MsgAck()); },
+			(MsgStop             msg) { paused = false; stop = true;  done = false; main_thread.send(MsgAck()); },
+			(MsgGetRate          msg) { main_thread.send(MsgRate(rate)); },
+			(MsgGetCurrentSource msg) { main_thread.send(MsgCurrentSource(active_source.idup)); }
+		);
 		if (stop) break;
 	}
 	f_evt_get_close(mbs_channel);

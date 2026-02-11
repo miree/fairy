@@ -221,6 +221,7 @@ class SingleWindow(WindowClass)
 		} else {
 			// rise window if it is already open
 			version (gtk3) {
+				window.present();
 				window.setKeepAbove(true);
 				window.setKeepAbove(false);
 
@@ -2837,7 +2838,10 @@ class ElderPtWindow : ApplicationWindow
 			try {
 				auto status = ui.elderpt("status");
 				if (status == "stopped") _status_label.setLabel(" Stopped ");
-				if (status == "running") _status_label.setLabel(" Running ");
+				if (status == "running") {
+					string active_source = ui.elderpt("current");
+					_status_label.setLabel(" Running      " ~ active_source);
+				}
 				if (status == "done")    _status_label.setLabel(" Done ");
 				if (status == "paused")  _status_label.setLabel(" Paused ");
 			} catch(Exception e) {}
@@ -2865,7 +2869,8 @@ class ElderPtWindow : ApplicationWindow
 						} else if (status == "running" || status == "paused" || status == "done") {
 							ui.elderpt("restart", relativePath(config_filename), source, more_sources); 
 						}   
-						_status_label.setLabel(" Running ");
+						string active_source = ui.elderpt("current");
+						_status_label.setLabel(" Running      " ~ active_source);
 						//_start_acquisition_button.setSensitive(false);
 						_start_acquisition_button.setLabel(" restart ");
 						_pause_acquisition_button.setSensitive(true);
@@ -2882,6 +2887,8 @@ class ElderPtWindow : ApplicationWindow
 						if (status == "paused") {
 							ui.elderpt("continue");
 							_status_label.setLabel(" Running ");
+							string active_source = ui.elderpt("current");
+							_status_label.setLabel(" Running      " ~ active_source);
 							_pause_acquisition_button.setLabel(" pause ");
 						}
 						if (status == "running") {
@@ -2996,6 +3003,8 @@ class ElderPtWindow : ApplicationWindow
 					string status = ui.elderpt("status"); // check frequently if the status was changed from console user interface
 					if (status == "running") {
 						_status_label.setLabel(" Running ");
+						string active_source = ui.elderpt("current");
+						_status_label.setLabel(" Running      " ~ active_source);
 						_pause_acquisition_button.setLabel(" pause ");
 						//_start_acquisition_button.setSensitive(false);
 						_start_acquisition_button.setLabel(" restart ");
