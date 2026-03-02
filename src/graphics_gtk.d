@@ -2998,13 +2998,31 @@ class ElderPtWindow : ApplicationWindow
 
 
 			string previous_sources;
+			int current_source_request_in_flight = 0;
+			string active_source;
 			_status_update_timeout = new Timeout(100, delegate bool() {
 				try {
+
 					string status = ui.elderpt("status"); // check frequently if the status was changed from console user interface
 					if (status == "running") {
-						_status_label.setLabel(" Running ");
-						string active_source = ui.elderpt("current");
-						_status_label.setLabel(" Running      " ~ active_source);
+						// don't use ui.elderpt("current") because it may block
+						//string active_source = ui.elderpt("current");
+						import elderpt;
+						import std.concurrency;
+						if (elderpt.running && (current_source_request_in_flight == 0)) {
+							elderpt.tid.send(MsgGetCurrentSource());
+							++current_source_request_in_flight;
+						}
+						if (current_source_request_in_flight > 0) {
+							import std.datetime;
+							if (receiveTimeout(0.msecs, (MsgCurrentSource msg) {active_source = msg.name.dup;})) // receiveTimeout returns false if timeout was hit
+							{
+								import std.conv;
+								--current_source_request_in_flight;
+							}
+						}
+						if (active_source !is null) _status_label.setLabel(" Running      " ~ active_source);
+						else                        _status_label.setLabel(" Running ");
 						_pause_acquisition_button.setLabel(" pause ");
 						//_start_acquisition_button.setSensitive(false);
 						_start_acquisition_button.setLabel(" restart ");
@@ -3036,6 +3054,12 @@ class ElderPtWindow : ApplicationWindow
 						_elder_config_file_chooser_button.setSensitive(false);
 					}
 					if (status == "stopped") {
+						if (current_source_request_in_flight > 0) {
+							import std.concurrency;
+							receive((MsgCurrentSource msg) {});
+							current_source_request_in_flight--;
+						}
+
 						_status_label.setLabel(" Stopped ");
 						_pause_acquisition_button.setLabel(" pause ");
 						//_start_acquisition_button.setSensitive(true);
@@ -3101,23 +3125,6 @@ class ElderPtWindow : ApplicationWindow
 
 
 	}
-	//~this() {
-	//	_end_thread_idle_process = true;
-	//	_acquisition_thread.send(MsgStop());
-	//	receiveTimeout(2000.msecs, (MsgStopAck stopack) { 
-	//			import std.stdio;
-	//			writeln("elderpt destructor received MsgStopAck");
-	//		});		
-
-
-	//	//receive((MsgStopAck stopack) { 
-	//	//		import std.stdio;
-	//	//		writeln("elderpt-destructor received MsgStopAck");
-	//	//	});
-	//	//elderpt_running = false;
-	//	//elderpt_paused = false;
-	//	//elderpt_closed = true;		
-	//}
 }
 
 }

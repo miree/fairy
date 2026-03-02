@@ -1292,14 +1292,10 @@ string elderpt(string command, string config_file = null, string mbs_source = nu
 		return rate_result.to!string;
 	}
 	if (command == "current") {
-		import std.stdio;
-		writeln("elderpt current");
 		if (!elderpt.running) throw new Exception("elderpt is not running");
 		elderpt.tid.send(MsgGetCurrentSource());
-		writeln("message sent");
 		string name;
 		receive((MsgCurrentSource msg) {
-			writeln("response received ", msg.name);
 			name = msg.name.dup;
 		});
 		return name;

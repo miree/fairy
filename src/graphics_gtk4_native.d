@@ -76,7 +76,10 @@ class Gtk4NativeGui : Gui {
 		main_window.update_from_canvas();
 		return false; // don't continue
 	}
-
+	override void update_session() {
+		//import fairy;
+		//foreach(window_name, ref window; GtkGui.main_windows) window.header_bar.setTitle("fairy - " ~ fairy.session.name ~ " - " ~ window_name);
+	}
 	override void add_window(string name, ref CanvasProperties canvas) {
 		main_windows[name] = new MainWindow(name, &canvas, application);
 		main_windows[name].item_view.refresh_string_list();
