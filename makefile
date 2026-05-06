@@ -14,7 +14,7 @@ elderpt: src/*.d
 	dmd -Isrc -i src/app.d src/mbsapi/*.c -of=fairy -version=allegro5 -version=elderpt $(LD_FLAGS)
 
 gtk3: src/*.d
-	ldc -Isrc -i src/app.d src/mbsapi/*.c -of=fairy --d-version=gtk3 --d-version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-3
+	ldc -Isrc -i src/app.d src/mbsapi/*.c -of=fairy --d-version=gtk3 --d-version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-3 -link-defaultlib-shared
 
 gtk4: src/*.d
 	dmd -Isrc -i src/app.d src/mbsapi/*.c  -of=fairy -version=gtk4 -version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-4 -I/src/mbsapi
