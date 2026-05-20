@@ -57,6 +57,54 @@ string fix_name(string itemname) {
 }
 
 import histogram;
+
+string[] elder_traces; // traces are anyway expensive. They are not shared but completely send via message passing after filling is finished
+double[][] elder_trace_buffers;
+int elder_trace_count;
+struct MsgTraceCreate {
+	string name;
+	string title;
+	string axis;
+	int length;
+}
+struct MsgTraceUpdate {
+	immutable string name;
+	immutable double[] content;
+}
+extern(C) int trace_create(const char *name,
+	                       const char *title,
+	                       const char *axis,
+	                       int length) 
+{
+	import std.conv;
+	int handle = elder_histograms_1D_count++;
+	string itemname = fix_name(name.to!string);
+	import std.string;
+	if (elder_traces.length <= handle) {
+		elder_traces.length = handle+1;
+	}
+	if (elder_trace_buffers.length <= handle) {
+		elder_trace_buffers.length = handle+1;
+	}
+
+	elder_traces[handle] = itemname;
+	elder_trace_buffers[handle] = new double[length];
+	elder_trace_buffers[handle][] = 0.0;
+	main_thread.send(MsgTraceCreate(itemname, title.to!string, axis.to!string, length));
+	return handle;
+}
+extern(C) void trace_set_value(int handle, int position, double value) 
+{
+	if (handle < elder_traces.length) {
+		if (position >= 0 && position < elder_trace_buffers[handle].length) {
+			elder_trace_buffers[handle][position] = value;
+			if (position == elder_trace_buffers[handle].length-1) {
+				main_thread.send(MsgTraceUpdate(elder_traces[handle],elder_trace_buffers[handle].idup));
+			}
+		}
+	}
+}
+
 Hist1[] elder_histograms_1D;
 bool[] elder_histograms_1D_is_smart;
 int elder_histograms_1D_count;
@@ -257,6 +305,12 @@ extern(C) void cond2d_get(int handle,
 
 struct ElderPT_VisConInterface
 {
+	extern(C) int function ( const char *name,
+								   const char *title,
+								   const char *axis,
+								   int length) _trace_create = &trace_create;
+	extern(C) void function ( int handle, int bin, double value) _trace_set_value = &trace_set_value;
+
 	extern(C) int function(const char *name,
 	                       const char *title,
 	                       const char *axis,

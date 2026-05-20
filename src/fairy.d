@@ -409,6 +409,19 @@ version (elderpt) {
 	}
 
 	@trusted
+	void handle_elderpt_MsgTraceCreate(MsgTraceCreate msg) {
+		import item, histogram, std.conv;
+		fairy.session.add_item(msg.name, new Hist1(msg.length, 0, msg.length, msg.axis.to!string, true), NameCollisionPolicy.replace);
+	}
+	@trusted
+	void handle_elderpt_MsgTraceUpdate(MsgTraceUpdate msg) {
+		import item, histogram;
+		foreach(bin,value; msg.content) {
+			auto h1 = cast(Hist1)fairy.session.items[msg.name].item;
+			h1.set_bin(cast(int)bin,value);
+		}
+	}
+	@trusted
 	void handle_elderpt_MsgHist1dCreate(MsgHist1dCreate msg) {
 		import item, histogram;
 		fairy.session.add_item(msg.name, cast(Hist1)msg.hist, NameCollisionPolicy.replace);
@@ -472,6 +485,8 @@ bool iterate(uint timeout_ms) {
 	)) { got_cmd = true; }	
 	version(elderpt) {
 		while (receiveTimeout(dur!"msecs"(0),
+			&handle_elderpt_MsgTraceCreate,
+			&handle_elderpt_MsgTraceUpdate,
 			&handle_elderpt_MsgHist1dCreate,
 			&handle_elderpt_MsgHist2dCreate,
 			&handle_elderpt_MsgGate1DCreate,
