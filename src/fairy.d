@@ -416,11 +416,11 @@ version (elderpt) {
 	@trusted
 	void handle_elderpt_MsgTraceUpdate(MsgTraceUpdate msg) {
 		import item, histogram;
-		foreach(bin,value; msg.content) {
-			auto itemstore = msg.name in fairy.session.items;
-			if (itemstore !is null) {
-				auto h1 = cast(Hist1)itemstore.item;
-				if (h1 !is null) {
+		auto itemstore = msg.name in fairy.session.items;
+		if (itemstore !is null) {
+			auto h1 = cast(Hist1)itemstore.item;
+			if (h1 !is null) {
+				foreach(bin,value; msg.content) {
 					h1.set_bin(cast(int)bin,value);
 				}
 			}
