@@ -83,6 +83,7 @@ class Hist1 : Visual, Hist1Export, FitDataSource, Item
 public:
 	struct Data{
 		@SERIALIZE double[] bins;
+		@SERIALIZE string bins_base64;
 		@SERIALIZE double left;
 		@SERIALIZE double right;
 		@SERIALIZE string xlabel;
@@ -92,7 +93,9 @@ public:
 	}
 	this(ulong length, double left, double right, string xlabel, bool zero = false) { 
 		data.bins = new double[length];
+		backbuffer = new double[length];
 		if (zero) data.bins[] = 0.0;
+		if (zero) backbuffer[] = 0.0;
 		data.left = left;
 		data.right = right;
 		data.xlabel = xlabel;
@@ -108,13 +111,25 @@ public:
 	}
 	this(ref JSONValue json) {
 		import std.stdio;
+		import std.base64;
 		try{
 			data = deserialize!Data(json);
+			if (data.bins_base64.length > 0) {
+				data.bins = cast(double[])Base64.decode(data.bins_base64);
+				data.bins_base64.length = 0;
+			}
 		} catch(Exception e) {
 			writeln("XXX ", e.msg);
 		} 
 	}
-	override JSONValue toJSON() { return serialize(data); }
+	override JSONValue toJSON() {
+		import std.base64;
+		data.bins_base64 = Base64.encode(cast(ubyte[])data.bins);
+		auto tmp = data.bins;
+		data.bins.length = 0;
+		return serialize(data);
+		data.bins = tmp; 
+	}
 	override string get_type()  {
 		return "histogram.Hist1";
 	}
@@ -217,7 +232,12 @@ public:
 	void set_bin(int bin, double value) {
 		if (bin >= 0 && bin < data.bins.length) {
 			++item_version;
-			data.bins[bin] = value;
+			//data.bins[bin] = value;
+			backbuffer[bin] = value;
+			if (bin == data.bins.length-1) {
+				import std.algorithm;
+				swap(data.bins, backbuffer);
+			}
 		} 
 	}
 
@@ -256,6 +276,7 @@ public:
 
 private:
 	Data data;
+	double[] backbuffer;
 	ulong item_version = 0;
 }
 
@@ -289,6 +310,7 @@ public:
 	struct Data{
 		@SERIALIZE double initial;
 		@SERIALIZE double[] bins;
+		@SERIALIZE string bins_base64;
 		@SERIALIZE ulong  bins_x;
 		@SERIALIZE ulong  bins_y;
 		@SERIALIZE string xlabel;
@@ -331,13 +353,27 @@ public:
 	}
 	this(ref JSONValue json) {
 		import std.stdio;
+		import std.base64;
 		try{
 			data = deserialize!Data(json);
+			if (data.bins_base64.length > 0) {
+				data.bins = cast(double[])Base64.decode(data.bins_base64);
+				data.bins_base64.length = 0;
+			}
 		} catch(Exception e) {
 			writeln("exception in JSON-constructor of histogram.Hist2 ", e.msg);
 		} 
 	}
-	override JSONValue toJSON()  { return serialize(data); }
+	override JSONValue toJSON()  
+	{ 
+		import std.base64;
+		data.bins_base64 = Base64.encode(cast(ubyte[])data.bins);
+		auto tmp = data.bins;
+		data.bins.length = 0;
+		return serialize(data);
+		data.bins = tmp; 
+		return serialize(data); 
+	}
 	override string get_type()  {
 		return "histogram.Hist2";
 	}

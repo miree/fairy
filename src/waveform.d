@@ -40,6 +40,7 @@ public:
 		@SERIALIZE double   left;
 		@SERIALIZE double   right;
 		@SERIALIZE double[] data;
+		@SERIALIZE string data_base64;
 		
 
 		ulong[]  itemversion;
@@ -75,8 +76,14 @@ public:
 		d.dx.length = 1;
 		d.dx[0] = -1;
 	}
+	@trusted
 	this(ref JSONValue json) { 
+		import std.base64;
 		d = deserialize!(shared(Data))(json); 
+		if (d.data_base64.length > 0) {
+			d.data = cast(shared double[])Base64.decode(d.data_base64);
+			d.data_base64.length = 0;
+		}
 		d.itemversion.length = 1;
 		d.itemversion[0] = 0;
 		d.data_start_idx.length = 1;
@@ -84,7 +91,15 @@ public:
 		d.dx.length = 1;
 		d.dx[0] = -1;
 	}
-	override JSONValue toJSON()  { return serialize(d); }
+	@trusted
+	override JSONValue toJSON()  
+	{ 
+		import std.base64;
+		d.data_base64 = Base64.encode(cast(shared ubyte[])d.data);
+		auto tmp = d.data;
+		d.data.length = 0;
+		return serialize(d); 
+	}
 	override string get_type() {
 		return "waveform.Waveform";
 	}
