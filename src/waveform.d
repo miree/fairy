@@ -79,9 +79,10 @@ public:
 	@trusted
 	this(ref JSONValue json) { 
 		import std.base64;
+		import std.zlib;
 		d = deserialize!(shared(Data))(json); 
 		if (d.data_base64.length > 0) {
-			d.data = cast(shared double[])Base64.decode(d.data_base64);
+			d.data = cast(shared double[])std.zlib.uncompress(Base64.decode(d.data_base64));
 			d.data_base64.length = 0;
 		}
 		d.itemversion.length = 1;
@@ -95,7 +96,8 @@ public:
 	override JSONValue toJSON()  
 	{ 
 		import std.base64;
-		d.data_base64 = Base64.encode(cast(shared ubyte[])d.data);
+		import std.zlib;
+		d.data_base64 = cast(shared string)Base64.encode(std.zlib.compress(cast(ubyte[])d.data));
 		auto tmp = d.data;
 		d.data.length = 0;
 		return serialize(d); 

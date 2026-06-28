@@ -109,22 +109,26 @@ public:
 			data.right = data.bins.length;
 		}
 	}
+	@trusted
 	this(ref JSONValue json) {
 		import std.stdio;
 		import std.base64;
+		import std.zlib;
 		try{
 			data = deserialize!Data(json);
 			if (data.bins_base64.length > 0) {
-				data.bins = cast(double[])Base64.decode(data.bins_base64);
+				data.bins = cast(double[])std.zlib.uncompress(Base64.decode(data.bins_base64));
 				data.bins_base64.length = 0;
 			}
 		} catch(Exception e) {
 			writeln("XXX ", e.msg);
 		} 
 	}
+	@trusted
 	override JSONValue toJSON() {
 		import std.base64;
-		data.bins_base64 = Base64.encode(cast(ubyte[])data.bins);
+		import std.zlib;
+		data.bins_base64 = Base64.encode(std.zlib.compress(cast(ubyte[])data.bins));
 		auto tmp = data.bins;
 		data.bins.length = 0;
 		return serialize(data);
@@ -351,23 +355,27 @@ public:
 			throw new Exception("left,right,bottom,top must be specified all together or not at all");
 		}
 	}
+	@trusted
 	this(ref JSONValue json) {
 		import std.stdio;
 		import std.base64;
+		import std.zlib;
 		try{
 			data = deserialize!Data(json);
 			if (data.bins_base64.length > 0) {
-				data.bins = cast(double[])Base64.decode(data.bins_base64);
+				data.bins = cast(double[])std.zlib.uncompress(Base64.decode(data.bins_base64));
 				data.bins_base64.length = 0;
 			}
 		} catch(Exception e) {
 			writeln("exception in JSON-constructor of histogram.Hist2 ", e.msg);
 		} 
 	}
+	@trusted
 	override JSONValue toJSON()  
 	{ 
 		import std.base64;
-		data.bins_base64 = Base64.encode(cast(ubyte[])data.bins);
+		import std.zlib;
+		data.bins_base64 = Base64.encode(std.zlib.compress(cast(ubyte[])data.bins));
 		auto tmp = data.bins;
 		data.bins.length = 0;
 		return serialize(data);
