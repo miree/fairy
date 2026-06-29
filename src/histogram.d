@@ -131,8 +131,9 @@ public:
 		data.bins_base64 = Base64.encode(std.zlib.compress(cast(ubyte[])data.bins));
 		auto tmp = data.bins;
 		data.bins.length = 0;
-		return serialize(data);
+		auto result = serialize(data);
 		data.bins = tmp; 
+		return result;
 	}
 	override string get_type()  {
 		return "histogram.Hist1";
@@ -378,9 +379,9 @@ public:
 		data.bins_base64 = Base64.encode(std.zlib.compress(cast(ubyte[])data.bins));
 		auto tmp = data.bins;
 		data.bins.length = 0;
-		return serialize(data);
+		auto result = serialize(data);
 		data.bins = tmp; 
-		return serialize(data); 
+		return result; 
 	}
 	override string get_type()  {
 		return "histogram.Hist2";

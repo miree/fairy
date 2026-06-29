@@ -100,7 +100,9 @@ public:
 		d.data_base64 = cast(shared string)Base64.encode(std.zlib.compress(cast(ubyte[])d.data));
 		auto tmp = d.data;
 		d.data.length = 0;
-		return serialize(d); 
+		auto result = serialize(d); 
+		d.data = tmp;
+		return result;
 	}
 	override string get_type() {
 		return "waveform.Waveform";
