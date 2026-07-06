@@ -68,6 +68,28 @@ If "x-fit" mode is active each tile will scale and translate the x-axis such tha
 If "y-fit" mode is active each tile will scale and translate the y-axis such that the y-bounding-box of the item is fully contained. 
 If "z-fit" mode is active each tile will scale and translate the color bar such that the z-bounding-box of the item is fully covered by the colorbar. 
 
+### interactive items
+Interactive items (1D-windows, 2D-windows, polygon gates) can be manipulated with the left mouse button. 
+Elements of interactive items are 
+ - left/right border of a 1D-Window
+ - points of a polygon gate
+
+Hovering the mouse over an element of an interactive item will highligh that element in green.
+A single left click on an element of an interactive item will select only that element and deselect all previously selected elements.
+A single left click into the void will deselect all selected elelments.
+Holding Ctrl while left clicking an unselected/selected element will add/remove that element to/from the set of selected elements.
+Left click and hold will open a selection box. When releasing the left mouse button, all elements inside the box will be added/removed to/from the set of selected elelments if the Shift key is inactive/pressed. 
+Click and hold any highlighted or selected element will allow to move all highlighted and selected elements together with the mouse unless a selected element is in a different tile in grid mode then where the mouse click happened.
+If elments of different items should be moved together, this should be done in overlay mode.
+
+#### polygon gates
+
+Polygon gates have a richer set of actions than 1D/2D-windows.
+ - Line segments can be split by left click on the line while the Shift key is pressed. 
+ - A point can be deleted by left click on the point while the Shift key is pressed.
+ - The entire polygon can be scaled/rotated around its center by a left click an hold into the polygon area while the Shift/Ctrl key is pressed.
+
+
 
 ## keyboard shortcuts
 
