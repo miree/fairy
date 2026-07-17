@@ -2006,7 +2006,7 @@ class PlotWidget : Box {
 		///////////////////////////////////////////////
 		// instanciate all the controls
 		///////////////////////////////////////////////
-		check_autorefresh = new CheckButton("auto");
+		check_autorefresh = new CheckButton("slow");
 		check_autorefresh.setActive(canvas.autorefresh);
 		check_autorefresh.addOnToggled(
 				delegate void(CheckOrToggleButton button) {
@@ -3046,93 +3046,103 @@ class ElderPtWindow : ApplicationWindow
 			string previous_sources;
 			int current_source_request_in_flight = 0;
 			string active_source;
-			_status_update_timeout = new Timeout(100, delegate bool() {
-				try {
-
-					string status = ui.elderpt("status"); // check frequently if the status was changed from console user interface
-					if (status == "running") {
-						// don't use ui.elderpt("current") because it may block
-						//string active_source = ui.elderpt("current");
-						import elderpt;
+			bool check_and_update_status(bool result) {
+				string status = ui.elderpt("status"); // check frequently if the status was changed from console user interface
+				if (status == "running") {
+					// don't use ui.elderpt("current") because it may block
+					//string active_source = ui.elderpt("current");
+					import elderpt;
+					import std.concurrency;
+					if (elderpt.running && (current_source_request_in_flight == 0)) {
+						elderpt.tid.send(MsgGetCurrentSource());
+						++current_source_request_in_flight;
+					}
+					if (current_source_request_in_flight > 0) {
+						import std.datetime;
+						if (receiveTimeout(0.msecs, (MsgCurrentSource msg) {active_source = msg.name.dup;})) // receiveTimeout returns false if timeout was hit
+						{
+							import std.conv;
+							--current_source_request_in_flight;
+						}
+					}
+					if (active_source !is null) _status_label.setLabel(" Running      " ~ active_source);
+					else                        _status_label.setLabel(" Running ");
+					_pause_acquisition_button.setLabel(" pause ");
+					//_start_acquisition_button.setSensitive(false);
+					_start_acquisition_button.setLabel(" restart ");
+					_stop_acquisition_button.setSensitive(true);
+					_pause_acquisition_button.setSensitive(true);	
+					_mbs_source.setSensitive(false);
+					_mbs_source_select_button.setSensitive(false);
+					_elder_config_file_chooser_button.setSensitive(false);
+				}
+				if (status == "done") {
+					_status_label.setLabel(" Done ");
+					_pause_acquisition_button.setLabel(" pause ");
+					//_start_acquisition_button.setSensitive(false);
+					_start_acquisition_button.setLabel(" restart ");
+					_stop_acquisition_button.setSensitive(true);
+					_pause_acquisition_button.setSensitive(false);	
+					_mbs_source.setSensitive(false);
+					_mbs_source_select_button.setSensitive(false);
+					_elder_config_file_chooser_button.setSensitive(false);
+				}
+				if (status == "paused") {
+					_status_label.setLabel(" Paused ");
+					_pause_acquisition_button.setLabel(" continue ");
+					//_start_acquisition_button.setSensitive(false);
+					_stop_acquisition_button.setSensitive(true);
+					_pause_acquisition_button.setSensitive(true);	
+					_mbs_source.setSensitive(false);
+					_mbs_source_select_button.setSensitive(false);
+					_elder_config_file_chooser_button.setSensitive(false);
+				}
+				if (status == "stopped") {
+					if (current_source_request_in_flight > 0) {
 						import std.concurrency;
-						if (elderpt.running && (current_source_request_in_flight == 0)) {
-							elderpt.tid.send(MsgGetCurrentSource());
-							++current_source_request_in_flight;
-						}
-						if (current_source_request_in_flight > 0) {
-							import std.datetime;
-							if (receiveTimeout(0.msecs, (MsgCurrentSource msg) {active_source = msg.name.dup;})) // receiveTimeout returns false if timeout was hit
-							{
-								import std.conv;
-								--current_source_request_in_flight;
-							}
-						}
-						if (active_source !is null) _status_label.setLabel(" Running      " ~ active_source);
-						else                        _status_label.setLabel(" Running ");
-						_pause_acquisition_button.setLabel(" pause ");
-						//_start_acquisition_button.setSensitive(false);
-						_start_acquisition_button.setLabel(" restart ");
-						_stop_acquisition_button.setSensitive(true);
-						_pause_acquisition_button.setSensitive(true);	
-						_mbs_source.setSensitive(false);
-						_mbs_source_select_button.setSensitive(false);
-						_elder_config_file_chooser_button.setSensitive(false);
-					}
-					if (status == "done") {
-						_status_label.setLabel(" Done ");
-						_pause_acquisition_button.setLabel(" pause ");
-						//_start_acquisition_button.setSensitive(false);
-						_start_acquisition_button.setLabel(" restart ");
-						_stop_acquisition_button.setSensitive(true);
-						_pause_acquisition_button.setSensitive(false);	
-						_mbs_source.setSensitive(false);
-						_mbs_source_select_button.setSensitive(false);
-						_elder_config_file_chooser_button.setSensitive(false);
-					}
-					if (status == "paused") {
-						_status_label.setLabel(" Paused ");
-						_pause_acquisition_button.setLabel(" continue ");
-						//_start_acquisition_button.setSensitive(false);
-						_stop_acquisition_button.setSensitive(true);
-						_pause_acquisition_button.setSensitive(true);	
-						_mbs_source.setSensitive(false);
-						_mbs_source_select_button.setSensitive(false);
-						_elder_config_file_chooser_button.setSensitive(false);
-					}
-					if (status == "stopped") {
-						if (current_source_request_in_flight > 0) {
-							import std.concurrency;
-							receive((MsgCurrentSource msg) {});
-							current_source_request_in_flight--;
-						}
-
-						_status_label.setLabel(" Stopped ");
-						_pause_acquisition_button.setLabel(" pause ");
-						//_start_acquisition_button.setSensitive(true);
-						_start_acquisition_button.setLabel(" start ");
-						_stop_acquisition_button.setSensitive(false);
-						_pause_acquisition_button.setSensitive(false);	
-						_mbs_source.setSensitive(true);
-						_mbs_source_select_button.setSensitive(true);
-						_elder_config_file_chooser_button.setSensitive(true);
-					}	
-					import std.path;
-					string configfile = absolutePath(ui.elderpt("config"));
-					import std.stdio;
-					//writeln(_elder_config_file_chooser_button.getFilename, "   ", configfile);
-					if (_elder_config_file_chooser_button.getFilename != configfile) {
-						_elder_config_file_chooser_button.setFilename(configfile);
-					}
-					import std.array;
-					string sources = ui.elderpt("source");
-					if (sources !is null && sources != previous_sources) {
-						_mbs_source.setText(sources);
-						previous_sources = sources;
+						receive((MsgCurrentSource msg) {});
+						current_source_request_in_flight--;
 					}
 
+					_status_label.setLabel(" Stopped ");
+					_pause_acquisition_button.setLabel(" pause ");
+					//_start_acquisition_button.setSensitive(true);
+					_start_acquisition_button.setLabel(" start ");
+					_stop_acquisition_button.setSensitive(false);
+					_pause_acquisition_button.setSensitive(false);	
+					_mbs_source.setSensitive(true);
+					_mbs_source_select_button.setSensitive(true);
+					_elder_config_file_chooser_button.setSensitive(true);
+				}	
+				import std.path;
+				string configfile = absolutePath(ui.elderpt("config"));
+				import std.stdio;
+				//writeln(_elder_config_file_chooser_button.getFilename, "   ", configfile);
+				if (_elder_config_file_chooser_button.getFilename != configfile) {
+					_elder_config_file_chooser_button.setFilename(configfile);
+				}
+				import std.array;
+				string sources = ui.elderpt("source");
+				if (sources !is null && sources != previous_sources) {
+					_mbs_source.setText(sources);
+					previous_sources = sources;
+				}
+				return result;
+			}
+			_status_update_timeout = new Timeout(666, delegate bool() {
+				try {
+					return check_and_update_status(true);
 				} catch (Exception e) {
 				}
 				return true;
+			});
+			// only once immedeately
+			new Timeout(10, delegate bool() {
+				try {
+					return check_and_update_status(false);
+				} catch (Exception e) {
+				}
+				return false;
 			});
 
 			int rate_request_in_flight = 0;
