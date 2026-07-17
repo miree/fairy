@@ -219,6 +219,12 @@ struct Session {
 	void read_from_file() {
 		try {
 			JSONValue json = readText(name~".session").parseJSON(-1,JSONOptions.specialFloatLiterals);
+			// restore the elderpt window
+			if (!json["elder"].isNull) {
+				JSONValue elder_json = json["elder"];
+				import elderpt;
+				elderpt.state = deserialize!(elderpt.State)(elder_json);
+			}
 			// loading windows by deserializing the entire JSONValue
 			if (!json["windows"].isNull) {
 				JSONValue window_jsons = json["windows"];
@@ -254,6 +260,8 @@ struct Session {
 		//writeln("save session to file ", filename);
 		JSONValue json_out;
 		writeln("write_to_file");
+		import elderpt;
+		json_out["elder"] = serialize(elderpt.state);
 		// windows are easy, because we can directly serialize the array
 		json_out["windows"] = serialize(windows);
 

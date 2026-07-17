@@ -1234,8 +1234,8 @@ string elderpt(string command, string config_file = null, string mbs_source = nu
 		if (elderpt.running) throw new Exception("elderpt already running, try \"elderpt stop\" or \"elderpt restart\"");
 
 		if (config_file is null) config_file = "analysis.config";
-		elderpt.configname = config_file;
-		elderpt.sourcename = sources.dup;
+		elderpt.state.configname = config_file;
+		elderpt.state.sourcename = sources.dup;
 		elderpt.tid = spawn(&run_elderpt, thisTid, config_file, sources.idup);
 		receive(
 			(MsgAck msg) {elderpt.running = true;},
@@ -1249,7 +1249,7 @@ string elderpt(string command, string config_file = null, string mbs_source = nu
 			receive((MsgAck msg) {});
 			elderpt.running = false;
 		}
-		elderpt.tid = spawn(&run_elderpt, thisTid, elderpt.configname, elderpt.sourcename.idup);
+		elderpt.tid = spawn(&run_elderpt, thisTid, elderpt.state.configname, elderpt.state.sourcename.idup);
 		receive(
 			(MsgAck msg) {elderpt.running = true;},
 			(MsgErr msg) {throw new Exception("elderpt couldn't start");}	
@@ -1262,14 +1262,14 @@ string elderpt(string command, string config_file = null, string mbs_source = nu
 		return "running";
 	}
 	if (command == "config") {
-		if (config_file !is null) elderpt.configname = config_file;
-		return elderpt.configname;
+		if (config_file !is null) elderpt.state.configname = config_file;
+		return elderpt.state.configname;
 	}
 	if (command == "source") {
 		import std.array;
-		if (mbs_source !is null) elderpt.sourcename = [mbs_source];
-		if (more_sources !is null) elderpt.sourcename ~= more_sources;
-		return elderpt.sourcename.join(' ');
+		if (mbs_source !is null) elderpt.state.sourcename = [mbs_source];
+		if (more_sources !is null) elderpt.state.sourcename ~= more_sources;
+		return elderpt.state.sourcename.join(' ');
 	}
 	if (command == "pause") {
 		if (!elderpt.running) throw new Exception("elderpt is not running");

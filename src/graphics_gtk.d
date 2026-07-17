@@ -109,6 +109,7 @@ class GtkGui : Gui {
 		import app; 
 		application = new gtk.Application.Application("de.risingedge.fairy", GApplicationFlags.NON_UNIQUE);
 
+
 		import gio.Application;
 		application.addOnActivate(
 			delegate void(gio.Application.Application app) { 
@@ -143,13 +144,31 @@ class GtkGui : Gui {
 				foreach(name, ref canvas; session.windows) {
 					add_window(name, canvas);
 				}
+
+				import elderpt;
+				// uncomment this to create the elderpt window on gui startup if it was open before... but doesnt work yet
+				if (elderpt.state.winopen) {  new SingleWindow!ElderPtWindow(application); }
+
 			}
 		);
 		application.addOnShutdown(
 			delegate void(gio.Application.Application app) {
+				// save all canvas windows
 				foreach(name; main_windows.byKey) save_window(name);
 				import std.stdio;
 				stderr.writeln("Application shutdown");
+				// save elderptwindow
+				import elderpt;
+				if (elderpt.state.winopen) {
+					import gdk.Window;
+					import gdk.Rectangle;
+					import gdk.c.types;
+					GdkRectangle rectangle;
+					auto gdk_window = SingleWindow!ElderPtWindow.window.getWindow();
+					gdk_window.getFrameExtents(rectangle);
+					elderpt.state.winpos_x = rectangle.x;
+					elderpt.state.winpos_y = rectangle.y;
+				}
 			}
 		);
 
@@ -2731,7 +2750,6 @@ private:
 
 version(elderpt) {
 
-
 class ElderPtWindow : ApplicationWindow
 {
 
@@ -2790,6 +2808,10 @@ class ElderPtWindow : ApplicationWindow
 
 		super(application);
 		setDefaultSize( 100, 100 );
+		elderpt.state.winopen = true;
+		version(gtk3) {
+			move(elderpt.state.winpos_x, elderpt.state.winpos_y);
+		}
 
 		auto box = new Box(GtkOrientation.VERTICAL,0);
 
@@ -2836,10 +2858,10 @@ class ElderPtWindow : ApplicationWindow
 							auto filenames = (cast(FileChooserDialog)dialog).getFilenames().toArray!string.map!(a=>a.fixWindowsPaths().chompPrefix(cwd~"/"));
 							string sources;
 							import elderpt;
-							elderpt.sourcename.length = 0; 
+							elderpt.state.sourcename.length = 0; 
 							foreach(filename; filenames) { 
 								sources ~= filename ~ " ";
-								//elderpt.sourcename ~= filename; 
+								//elderpt.state.sourcename ~= filename; 
 							}
 							//writeln("sources = ", sources);
 							import ui;
@@ -3012,6 +3034,10 @@ class ElderPtWindow : ApplicationWindow
 				//elderpt_running = false;
 				//elderpt_paused = false;
 				//elderpt_closed = true;
+
+
+
+				elderpt.state.winopen = false;
 				writeln("exit onHide callback");
 			});
 			add(box);

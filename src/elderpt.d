@@ -10,8 +10,18 @@ Tid main_thread;
 bool running = false;
 bool paused  = false;
 __gshared bool done = false; // this is only written by this thread, but may be read by other threads
-string configname = "analysis.config";
-string[] sourcename = [];
+
+import serializeJSON;
+struct State {
+	@SERIALIZE string configname = "analysis.config";
+	@SERIALIZE string[] sourcename = [];
+	@SERIALIZE bool winopen;
+	@SERIALIZE int winpos_x;
+	@SERIALIZE int winpos_y;
+}
+State state;
+//string configname = "analysis.config";
+//string[] sourcename = [];
 Tid  tid;
 
 // D bindings for the elderpt C interface
