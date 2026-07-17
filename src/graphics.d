@@ -153,6 +153,7 @@ struct CanvasProperties {
 	@SERIALIZE bool[3]      autoscale        = [false,false,false];
 	@SERIALIZE bool[3]      axislabel        = [true,true,false];
 	@SERIALIZE bool         autorefresh      = false;
+	@SERIALIZE bool         fastrefresh      = false;
 	@SERIALIZE bool         zoom             = false;
 	@SERIALIZE bool         stats            = false;
 	@SERIALIZE bool         filled           = true;

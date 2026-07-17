@@ -113,6 +113,7 @@ class GtkGui : Gui {
 		application.addOnActivate(
 			delegate void(gio.Application.Application app) { 
 				import fairy;
+				static refresh_count = 0;
 				// this prevents the application 
 				//  from terminating if no GUI is pesent
 				app.hold(); 
@@ -126,10 +127,16 @@ class GtkGui : Gui {
 						stdout.write("fairy> ");
 						stdout.flush();
 					}
+					++refresh_count;
 					foreach(name, window; main_windows) {
 						import ui;
-						if (window.canvas.autorefresh) winrefresh(window.name);
+						if ((!window.canvas.fastrefresh && window.canvas.autorefresh && !(refresh_count%50)) || 
+							(window.canvas.fastrefresh && window.canvas.autorefresh && !(refresh_count%10)) || 
+							(window.canvas.fastrefresh && !window.canvas.autorefresh) ) {
+							winrefresh(window.name);
+						}
 					}
+					if (refresh_count == 50) refresh_count = 0;
 					return true;
 				});
 
@@ -1881,7 +1888,9 @@ class PlotWidget : Box {
 		alias CheckOrRadioButton = CheckButton;
 		alias CheckOrToggleButton = CheckButton;
 	}
+	Box         box_refresh;
 	CheckButton check_autorefresh;
+	CheckButton check_fastrefresh;
 	Button      button_refresh;
 	Label       autoscale_label;
 	Box         fit_log_labels;
@@ -1930,6 +1939,7 @@ class PlotWidget : Box {
 
 	void sync_with_canvas(CanvasProperties *canvas) {
 		check_autorefresh.setActive(canvas.autorefresh);
+		check_fastrefresh.setActive(canvas.fastrefresh);
 		check_autoscale_x.setActive(canvas.autoscale[0]);
 		check_autoscale_y.setActive(canvas.autoscale[1]);
 		check_autoscale_z.setActive(canvas.autoscale[2]);
@@ -1977,11 +1987,18 @@ class PlotWidget : Box {
 		///////////////////////////////////////////////
 		// instanciate all the controls
 		///////////////////////////////////////////////
-		check_autorefresh = new CheckButton("auto\nrefr.");
+		check_autorefresh = new CheckButton("auto");
 		check_autorefresh.setActive(canvas.autorefresh);
 		check_autorefresh.addOnToggled(
 				delegate void(CheckOrToggleButton button) {
 					ui.winpoll(name, button.getActive()?"true":"false");
+				}
+			);
+		check_fastrefresh = new CheckButton("fast");
+		check_fastrefresh.setActive(canvas.fastrefresh);
+		check_fastrefresh.addOnToggled(
+				delegate void(CheckOrToggleButton button) {
+					ui.winfastpoll(name, button.getActive()?"true":"false");
 				}
 			);
 
@@ -2108,7 +2125,10 @@ class PlotWidget : Box {
 		///////////////////////////////////////////////
 		// add all controls into the Box Widget
 		///////////////////////////////////////////////
-		controls.append(check_autorefresh);
+		box_refresh = new Box(GtkOrientation.VERTICAL, 0);
+		box_refresh.append(check_autorefresh);
+		box_refresh.append(check_fastrefresh);
+		controls.append(box_refresh);
 		controls.append(button_refresh);
 
 		//controls.append(new Separator(GtkOrientation.VERTICAL));

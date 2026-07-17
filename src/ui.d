@@ -986,6 +986,17 @@ void winpoll(string window_name, string action="toggle") {
 	}
 }
 
+@UI_EXPORT("faster periodic update of all visualizers in window", 
+	["name of the window",
+	 "\"true\" enables, \"false\" disables, \"toggle\" toggles faster refresh for given window"])
+void winfastpoll(string window_name, string action="toggle") {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	if (toggle_action(action, canvas.fastrefresh)) {
+		update_window_gui(window_name,true);
+	}
+}
+
 @UI_EXPORT("histogram width will be measured on the filled bins instead of histogram borders", 
 	["name of the window",
 	 "\"true\" enables, \"false\" disables, \"toggle\" toggles autozoom setting for the given window"])
