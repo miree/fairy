@@ -1303,7 +1303,7 @@ class ItemView : TreeView {
 						"hist2projector "~projname~" "~fullname~" "~gatename~"\n"~
 						"win       "~windowname~"\n"~
 						"show      "~projname~" "~windowname~"\n"~
-						"winpoll   "~windowname~"\n"~
+						"winfastpoll "~windowname~"\n"~
 						"autoscale "~windowname~" y"~"\n"~
 						"winfit    "~windowname~"\n"~
 						"colorbar  "~windowname~"\n"~
@@ -2915,6 +2915,7 @@ class ElderPtWindow : ApplicationWindow
 						_status_label.setLabel(" Running      " ~ active_source);
 						//_start_acquisition_button.setSensitive(false);
 						_start_acquisition_button.setLabel(" restart ");
+						_pause_acquisition_button.setLabel(" pause ");
 						_pause_acquisition_button.setSensitive(true);
 						_stop_acquisition_button.setSensitive(true);
 						_mbs_source.setSensitive(false);

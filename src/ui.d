@@ -854,6 +854,16 @@ string show(string item_name, string window_name, string action = "true", bool u
 @UI_EXPORT("quit program")
 @trusted
 string quit() {
+	version(elderpt) {
+		import elderpt;
+		//bool elderpt_was_running = elderpt.running;
+		if (elderpt.running) {
+			ui.elderpt("stop");
+			assert(elderpt.running == false);
+		}
+	}
+
+
 	import fairy;
 	fairy.running = false;
 	return "";
@@ -1248,6 +1258,7 @@ string elderpt(string command, string config_file = null, string mbs_source = nu
 			elderpt.tid.send(MsgStop());
 			receive((MsgAck msg) {});
 			elderpt.running = false;
+			elderpt.paused = false;
 		}
 		elderpt.tid = spawn(&run_elderpt, thisTid, elderpt.state.configname, elderpt.state.sourcename.idup);
 		receive(
