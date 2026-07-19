@@ -307,6 +307,15 @@ void run(string[] args) {
 	console_tid = spawn(&cmdline.run_console, thisTid);
 	if (execute.length)	thisTid.send(cmdline.Command(cast(immutable string)execute, thisTid));
 	loop(args);
+
+	version(elderpt) {
+		import elderpt, ui;
+		//bool elderpt_was_running = elderpt.running;
+		if (elderpt.running) {
+			ui.elderpt("stop");
+			assert(elderpt.running == false);
+		}
+	}	
 	// cause the cmdline.run_console thread to stop
 	//cmdline.close_stdin(); 
 	session.write_to_file();
