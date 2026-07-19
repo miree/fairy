@@ -3129,7 +3129,7 @@ class ElderPtWindow : ApplicationWindow
 				}
 				return result;
 			}
-			_status_update_timeout = new Timeout(666, delegate bool() {
+			_status_update_timeout = new Timeout(1000, delegate bool() {
 				try {
 					return check_and_update_status(true);
 				} catch (Exception e) {
