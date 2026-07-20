@@ -67,6 +67,8 @@ class GtkGui : Gui {
 			window.canvas.width  -= frame_size;
 			window.canvas.height -= frame_size;
 
+			window.canvas.gui_paned_value = window.workspace.getPosition();
+
 			////window.getPosition(window.canvas.xpos, window.canvas.ypos);
 			//GdkRectangle header_rect;
 			//window.header_bar.getAllocation(header_rect);
@@ -621,7 +623,7 @@ public:
 		item_view_scrolled_window.setChild(item_view);
 
 		workspace = new Paned(GtkOrientation.HORIZONTAL);
-		workspace.setPosition(200);
+		workspace.setPosition(canvas_properties.gui_paned_value);
 		version (gtk3) {
 			workspace.add(item_view_scrolled_window, plot_widget);
 			//add(workspace);

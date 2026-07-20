@@ -159,6 +159,9 @@ struct CanvasProperties {
 	@SERIALIZE bool         filled           = true;
 	@SERIALIZE string[]     itemnames        = [];
 	@SERIALIZE Transform[3] transform;
+	
+	// the following data is not for direct canvas logic, but for external gui implementation
+	@SERIALIZE int          gui_paned_value  = 200; // this can be used by the GUI implementation to separate itemlist from canvas
 
 	bool fit_content = false;
 	bool refresh     = false;
