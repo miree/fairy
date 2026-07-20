@@ -482,7 +482,7 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 	if (config_filename !is null) {
 		name = config_filename;
 		import std.stdio;
-		writeln("config_filename ", config_filename);
+		//writeln("config_filename ", config_filename);
 	}
 	name ~= '\0';
 	void *ctrl = elder_pt_controller_create(name.ptr, iface);

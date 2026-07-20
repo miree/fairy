@@ -268,7 +268,7 @@ struct Session {
 		auto filename = name~".session";
 		//writeln("save session to file ", filename);
 		JSONValue json_out;
-		writeln("write_to_file");
+		//writeln("write_to_file");
 		import elderpt;
 		json_out["elder"] = serialize(elderpt.state);
 		// windows are easy, because we can directly serialize the array
@@ -308,7 +308,7 @@ void run(string[] args) {
 
 	import std.stdio, std.algorithm;
 	if (session.name.endsWith(".session")) session.name = session.name[0..$-".session".length];
-	writeln("session ", session.name);
+	//writeln("session ", session.name);
 	session.read_from_file();
 
 

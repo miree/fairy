@@ -158,7 +158,7 @@ class GtkGui : Gui {
 				// save all canvas windows
 				foreach(name; main_windows.byKey) save_window(name);
 				import std.stdio;
-				stderr.writeln("Application shutdown");
+				//stderr.writeln("Application shutdown");
 				// save elderptwindow
 				import elderpt;
 				if (elderpt.state.winopen) {
