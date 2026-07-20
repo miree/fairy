@@ -220,31 +220,40 @@ struct Session {
 		try {
 			JSONValue json = readText(name~".session").parseJSON(-1,JSONOptions.specialFloatLiterals);
 			// restore the elderpt window
-			if (!json["elder"].isNull) {
-				JSONValue elder_json = json["elder"];
-				import elderpt;
-				elderpt.state = deserialize!(elderpt.State)(elder_json);
-			}
-			// loading windows by deserializing the entire JSONValue
-			if (!json["windows"].isNull) {
-				JSONValue window_jsons = json["windows"];
-				windows = deserialize!(CanvasProperties[string])(window_jsons);
-			}
-			// we first need to read the item types ...
-			if (!json["items"].isNull) {
-				JSONValue item_jsons = json["items"];
-				items = deserialize!(ItemStore[string])(item_jsons);
-			}
-			// ... then restore the item using the type and the item factory
-			import std.stdio;
-			foreach(name, ref item; items) {
-				auto factory = item.type in item_factories;
-				if (factory !is null) {
-					item.item = factory.create(item.data);
-				} else {
-					writeln("Found item \"", name, "\" with unknown type: \"", item.type, "\"");
+			try {
+				if (!json["elder"].isNull) {
+					JSONValue elder_json = json["elder"];
+					import elderpt;
+					elderpt.state = deserialize!(elderpt.State)(elder_json);
 				}
+			} catch(Exception e) {
+				// nothing should happen if a key is not found
+				// catching here is good for backwards compatibility if new keys are added later
 			}
+			try {
+				// loading windows by deserializing the entire JSONValue
+				if (!json["windows"].isNull) {
+					JSONValue window_jsons = json["windows"];
+					windows = deserialize!(CanvasProperties[string])(window_jsons);
+				}
+			} catch(Exception e) { }
+			try {
+				// we first need to read the item types ...
+				if (!json["items"].isNull) {
+					JSONValue item_jsons = json["items"];
+					items = deserialize!(ItemStore[string])(item_jsons);
+				}
+				// ... then restore the item using the type and the item factory
+				import std.stdio;
+				foreach(name, ref item; items) {
+					auto factory = item.type in item_factories;
+					if (factory !is null) {
+						item.item = factory.create(item.data);
+					} else {
+						writeln("Found item \"", name, "\" with unknown type: \"", item.type, "\"");
+					}
+				}
+			} catch (Exception e) {}
 
 		} catch (Exception e) {
 			import std.stdio;
