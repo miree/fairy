@@ -1,6 +1,10 @@
 module expression;
 @safe:
 
+pragma(lib, "gsl");
+pragma(lib, "gslcblas");
+pragma(lib, "m");
+
 import std.stdio;
 
 interface Expression {

@@ -1120,7 +1120,7 @@ import interactive;
 class PolyGateVisualizer : Visualizer,  Interactive
 {
 private:
-
+	static
 	bool closest_point_on_line(out double x, out double y, // 
 		                       double ax, double ay, // beginning of line
 		                       double bx, double by, // end of line

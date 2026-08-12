@@ -1,43 +1,35 @@
-LD_FLAGS =  -L-L/home/michael/local/lib -L-rpath=/home/michael/local/lib -L-L/home/michael/.local/lib -L-rpath=/home/michael/.local/lib -L-L/home/mreese/.local/lib -L-rpath=/home/mreese/.local/lib
+###############################################################################
+# Choose your D compiler
+###############################################################################
+DC=ldc  # LDC on Arch Linux 
+#DC=ldc2 # LDC on Debian Linux
+#DC=dmd
 
+# Replace -L with -L-L and -l with -L-l in pkg-config output 
+# (all linker arguments start with -L for the D compilers LDC or DMD)
+LD_FLAGS = `pkg-config --libs elderpt-0.1 gsl | sed -e 's/-L/-L-L/g' | sed -e 's/-l/-L-l/g'`
 
-fairy: src/*.d
+# for some reason the --cflags of gtkd-3 pkg-config return -pthread. filter it out!
+CFLAGS = `pkg-config --cflags gtkd-3 | sed -e 's/-pthread/ /'` \
+         -link-defaultlib-shared \
+         -O4
+
+##############################################################################
+# Main Target: The canonical fairy gui version is at the moment with Gtk3
+###############################################################################
+fairy:
+	$(DC) -Isrc -i src/app.d src/mbsapi/*.c -of=fairy --d-version=gtk3 --d-version=elderpt $(LD_FLAGS) $(CFLAGS)
+
+##############################################################################
+# Command line interface version without any gui support and 
+# always dmd compiler for fast builds
+##############################################################################
+cli-dmd: src/*.d
 	dmd -Isrc -i src/app.d -of=fairy $(LD_FLAGS)
 
-allegro5: src/*.d
-	dmd -Isrc -i src/app.d -of=fairy -version=allegro5 $(LD_FLAGS)
-
-allegro5-elder: src/*.d
-	dmd -Isrc -i src/app.d src/mbsapi/*.c -of=fairy -version=allegro5 -version=elderpt $(LD_FLAGS)
-
-elderpt: src/*.d
-	dmd -Isrc -i src/app.d src/mbsapi/*.c -of=fairy -version=allegro5 -version=elderpt $(LD_FLAGS)
-
-gtk3: src/*.d
-	ldc -Isrc -i src/app.d src/mbsapi/*.c -of=fairy --d-version=gtk3 --d-version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-3 -link-defaultlib-shared
-
-gtk4: src/*.d
-	dmd -Isrc -i src/app.d src/mbsapi/*.c  -of=fairy -version=gtk4 -version=elderpt $(LD_FLAGS) -I/usr/include/d/gtkd-4 -I/src/mbsapi
-
-minigui: src/*.d
-	dmd -I.. -Isrc -i src/app.d src/mbsapi/*.c  -of=fairy -version=minigui -version=elderpt  $(LD_FLAGS) -I/src/mbsapi
-
-minigui_gl: src/*.d
-	dmd -I.. -Isrc -i src/app.d src/mbsapi/*.c  -of=fairy -version=minigui_gl -version=elderpt  $(LD_FLAGS) -I/src/mbsapi
-
-ldc-allegro5: src/*.d
-	ldc -O -release -Isrc -i src/app.d -of=fairy --d-version=allegro5 -L-lallegro_ttf -L-lallegro_font -L-lallegro -L-lallegro_primitives -L-lallegro_color -L-lasound
-
-gdc:
-	make -C include          # (re-)generate all include files
-	make -f makefile.gdc-new 
-
-gdc-clean:
-	make -f makefile.gdc-new clean
-
-# gdc-allegro5:
-# 	make allegro5 -f makefile.gdc
-
+###############################################################################
+####  targets below are for unittesting
+###############################################################################
 test: test-serializeJSON test-transform test-graphics
 
 test-serializeJSON:
@@ -48,6 +40,9 @@ test-transform:
 
 test-graphics:
 	dmd -g -cov -Isrc -i -unittest -main -run src/graphics.d      && tail -n 1 src-graphics.lst
+
+test-expression:
+	dmd -g -cov -Isrc -i -unittest -main -run src/expression.d    && tail -n 1 src-expression.lst
 
 clean:
 	rm -f fairy *.o src/*.i

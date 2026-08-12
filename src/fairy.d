@@ -220,15 +220,17 @@ struct Session {
 		try {
 			JSONValue json = readText(name~".session").parseJSON(-1,JSONOptions.specialFloatLiterals);
 			// restore the elderpt window
-			try {
-				if (!json["elder"].isNull) {
-					JSONValue elder_json = json["elder"];
-					import elderpt;
-					elderpt.state = deserialize!(elderpt.State)(elder_json);
+			version(elderpt) {
+				try {
+					if (!json["elder"].isNull) {
+						JSONValue elder_json = json["elder"];
+						import elderpt;
+						elderpt.state = deserialize!(elderpt.State)(elder_json);
+					}
+				} catch(Exception e) {
+					// nothing should happen if a key is not found
+					// catching here is good for backwards compatibility if new keys are added later
 				}
-			} catch(Exception e) {
-				// nothing should happen if a key is not found
-				// catching here is good for backwards compatibility if new keys are added later
 			}
 			try {
 				// loading windows by deserializing the entire JSONValue
@@ -269,8 +271,10 @@ struct Session {
 		//writeln("save session to file ", filename);
 		JSONValue json_out;
 		//writeln("write_to_file");
-		import elderpt;
-		json_out["elder"] = serialize(elderpt.state);
+		version(elderpt) {
+			import elderpt;
+			json_out["elder"] = serialize(elderpt.state);
+		}
 		// windows are easy, because we can directly serialize the array
 		json_out["windows"] = serialize(windows);
 
