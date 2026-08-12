@@ -45,4 +45,4 @@ test-expression:
 	dmd -g -cov -Isrc -i -unittest -main -run src/expression.d    && tail -n 1 src-expression.lst
 
 clean:
-	rm -f fairy *.o src/*.i
+	rm -f fairy *.o src/*.i *.lst
