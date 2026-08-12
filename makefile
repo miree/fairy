@@ -17,7 +17,7 @@ CFLAGS = `pkg-config --cflags gtkd-3 | sed -e 's/-pthread/ /'` \
 ##############################################################################
 # Main Target: The canonical fairy gui version is at the moment with Gtk3
 ###############################################################################
-fairy:
+fairy: src/*.d src/mbsapi/*.c 
 	$(DC) -Isrc -i src/app.d src/mbsapi/*.c -of=fairy --d-version=gtk3 --d-version=elderpt $(LD_FLAGS) $(CFLAGS)
 
 ##############################################################################
