@@ -44,6 +44,39 @@ Each window can display data (1D/2D histograms, 1D/2D gates, 1D functions) in tr
 | color bar manipulation | ![ColorZoom](color_zoom_animation_small.gif) | Color bar translation and zoom work in exactly the same way as the for the x- and y-axis with middle and right mouse buttons, only the click point has to be within the color bar.   |
 | tiling mode            | ![GridTranslation](grid_translate_animation_small.gif) | In tiling mode, the canvas navigation with the mouse works exactly the same as with one item or in overlay mode. All tiles share the same boundaries unless "x-fit" mode or "y-fit" mode are acitve. If "x-fit" mode is active each tile will scale and translate the x-axis such that the x-bounding-box of the item is fully contained. If "y-fit" mode is active each tile will scale and translate the y-axis such that the y-bounding-box of the item is fully contained. If "z-fit" mode is active each tile will scale and translate the color bar such that the z-bounding-box of the item is fully covered by the colorbar. |
 
+<<<<<<< Updated upstream
+=======
+### translation
+![Drag](translation_animation_small.gif) 
+
+Translations can be done by click and hold on the canvas with the middle mouse button. 
+Moving the mouse while holding the middle mouse button down will keep the clicked point under the mouse cursor, even if the mouse leaves the window.
+
+
+
+### scaling (zooming)
+![Zoom](scale_animation_small.gif)
+
+By click and hold the canvas with the right mouse button the canvas can be scaled around the point that was clicked. 
+Moving the mouse while hoding the right mouse button will keep the clicked point at a fixed position.
+Moving the in the x-axis to the left/right while hodling the right mouse button down will zoom/unzoom in x-direction around the clicked point unless "x-fit" mode is active.
+Moving the in the y-axis up/down while hodling the right mouse button down will zoom/unzoom in y-direction around the clicked point unless "y-fit" mode is active.
+Zooming is possible with the mouse wheel as well. In this case the zoom happens around the location of the mouse pointer.
+
+### color bar manipulation
+![ColorZoom](color_zoom_animation_small.gif)
+
+Color bar translation and zoom work in exactly the same way as the for the x- and y-axis with middle and right mouse buttons, only the click point has to be within the color bar.
+
+### canvas navigation in tiling mode with multiple items
+![GridTranslation](grid_translate_animation_small.gif)
+
+In tiling mode, the canvas navigation with the mouse works exactly the same as with one item or in overlay mode.
+All tiles share the same boundaries unless "x-fit" mode or "y-fit" mode are acitve. 
+If "x-fit" mode is active each tile will scale and translate the x-axis such that the x-bounding-box of the item is fully contained. 
+If "y-fit" mode is active each tile will scale and translate the y-axis such that the y-bounding-box of the item is fully contained. 
+If "z-fit" mode is active each tile will scale and translate the color bar such that the z-bounding-box of the item is fully covered by the colorbar. 
+>>>>>>> Stashed changes
 
 ### interactive items
 Interactive items (1D-windows, 2D-windows, polygon gates) can be manipulated with the left mouse button. 

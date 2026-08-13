@@ -299,6 +299,10 @@ private:
 			Menu menu_top;
 				version(gtk3) { Popover menu_popover; }
 				version(gtk4) { PopoverMenu menu_popover; }
+		Button settings_menu;
+			Menu settings_menu_top;
+				version(gtk3) { Popover settings_menu_popover; }
+				version(gtk4) { PopoverMenu settings_menu_popover; }
 		Button open_soundscope;
 		Button open_elderpt;
 		Button shortcut_help;
@@ -307,6 +311,12 @@ private:
 		ScrolledWindow item_view_scrolled_window;
 			ItemView item_view;
 		PlotWidget plot_widget;
+
+	SimpleAction window_fontsize_10;
+	SimpleAction window_fontsize_15;
+	SimpleAction window_fontsize_20;
+	SimpleAction window_fontsize_25;
+	SimpleAction window_fontsize_30;
 
 	SimpleAction new_window;
 	SimpleAction save_session;
@@ -356,6 +366,32 @@ public:
 
 
 		import ui;
+
+		window_fontsize_10 = new SimpleAction("window_fontsize_10", null);
+		window_fontsize_10.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winfontsize(window_name, 10);
+		});
+		addAction(window_fontsize_10);
+		window_fontsize_15 = new SimpleAction("window_fontsize_15", null);
+		window_fontsize_15.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winfontsize(window_name, 15);
+		});
+		addAction(window_fontsize_15);
+		window_fontsize_20 = new SimpleAction("window_fontsize_20", null);
+		window_fontsize_20.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winfontsize(window_name, 20);
+		});
+		addAction(window_fontsize_20);
+		window_fontsize_25 = new SimpleAction("window_fontsize_25", null);
+		window_fontsize_25.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winfontsize(window_name, 25);
+		});
+		addAction(window_fontsize_25);
+		window_fontsize_30 = new SimpleAction("window_fontsize_30", null);
+		window_fontsize_30.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winfontsize(window_name, 30);
+		});
+		addAction(window_fontsize_30);
 
 		new_window = new SimpleAction("new_window", null);
 		new_window.addOnActivate(delegate(Variant var, SimpleAction action) {
@@ -547,13 +583,16 @@ public:
 		}
 
 		// add menu and other buttons to title bar
-		open_menu    = new Button();
-		//close_window = new Button();
+		open_menu      = new Button();
+		settings_menu  = new Button();
 		version(gtk3) {
 			import gtk.Image, gtk.c.types;
 			auto open_image = new Image;
 			open_image.setFromIconName("open-menu-symbolic", IconSize.LARGE_TOOLBAR);
 			open_menu.setImage(open_image);
+			auto settings_image = new Image;
+			settings_image.setFromIconName("preferences-other-symbolic", IconSize.LARGE_TOOLBAR);
+			settings_menu.setImage(settings_image);
 			header_bar.setShowCloseButton(true);
 			header_bar.setDecorationLayout("menu:minimize,maximize,close");
 		}
@@ -565,8 +604,9 @@ public:
 
 
 
-		//header_bar.packEnd(close_window);
+
 		header_bar.packStart(open_menu);
+		header_bar.packStart(settings_menu);
 
 		version(elderpt) {
 			open_elderpt = new Button("Elderpt");
@@ -601,6 +641,27 @@ public:
 		}
 		menu_popover.setPosition(PositionType.BOTTOM);
 		open_menu.addOnClicked((Button button) => menu_popover.setVisible(true));
+
+
+		settings_menu_top = new Menu;
+		settings_menu_top.append("canvas fontsize 10", "win.window_fontsize_10");
+		settings_menu_top.append("canvas fontsize 15", "win.window_fontsize_15");
+		settings_menu_top.append("canvas fontsize 20", "win.window_fontsize_20");
+		settings_menu_top.append("canvas fontsize 25", "win.window_fontsize_25");
+		settings_menu_top.append("canvas fontsize 30", "win.window_fontsize_30");
+		version(gtk3) { 
+			settings_menu_popover = new Popover(settings_menu); 
+			settings_menu_popover.bindModel(settings_menu_top, null);
+			//settings_menu_popover.setHasArrow(false); // how to remove the arrow?
+		}
+		version(gtk4) { 
+			settings_menu_popover = new PopoverMenu(settings_menu_top); 
+			settings_menu_popover.setParent(settings_menu);
+			//settings_menu_popover.setHasArrow(false);
+		}
+		settings_menu_popover.setPosition(PositionType.BOTTOM);
+		settings_menu.addOnClicked((Button button) => settings_menu_popover.setVisible(true));
+
 
 		//open_soundscope = new Button("soundscope");
 		//open_soundscope.addOnClicked(delegate(Button button) {
