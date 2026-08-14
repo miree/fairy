@@ -1,6 +1,14 @@
-# FAIRY - flexible analysis of irradiation yields
+# FAIRY - Flexible Analysis of Ionizing Radiation Yields
 
-Fairy is a light-weight data visualization and analysis tool. It is meant to be used with the [Elder](https://git.gsi.de/eel-software/elder/elderpt) data analysis framework.
+This is fairy, a software tool for flexible analsysis of ionizing radaition yields in 1D or 2D spectra of experimental nuclear physics or other data. It is meant to be used with the [Elder](https://git.gsi.de/eel-software/elder/elderpt) data analysis framework.
+
+Fairy is free software, you can redistribute it and/or modify it under the terms of the GNU General Public License.
+
+The GNU General Public License does not permit this software to be redistributed in proprietary programs.
+
+This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+## Design goals
 
 The Design goals of fairy were:
   - quick response in interactive use 
