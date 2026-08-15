@@ -321,7 +321,6 @@ private:
 				version(gtk4) { PopoverMenu settings_menu_popover; }
 		Button open_soundscope;
 		Button open_elderpt;
-		Button shortcut_help;
 		Label  header_title;
 	Paned workspace;
 		ScrolledWindow item_view_scrolled_window;
@@ -338,6 +337,8 @@ private:
 	SimpleAction save_session;
 	SimpleAction save_session_as;
 	SimpleAction open_session;
+	SimpleAction show_keyboard_shortcuts;
+	SimpleAction show_about_window;
 	SimpleAction quit_program;
 	SimpleAction expand_all_selected;
 	SimpleAction hist2d_projection_y;
@@ -630,21 +631,29 @@ public:
 			header_bar.packStart(open_elderpt);
 		}
 
-		shortcut_help = new Button("Keys");
-		shortcut_help.addOnClicked((Button button) {new SingleWindow!KeyboardShortcutWindow(application); } );
-		header_bar.packEnd(shortcut_help);
-
-
+		show_keyboard_shortcuts = new SimpleAction("show_keyboard_shortcuts", null);
+		show_keyboard_shortcuts.addOnActivate(delegate(Variant var, SimpleAction action) {
+									new SingleWindow!KeyboardShortcutWindow(application); 
+								});
+		addAction(show_keyboard_shortcuts);
+		
+		show_about_window = new SimpleAction("show_about_window", null);
+		show_about_window.addOnActivate(delegate(Variant var, SimpleAction action) {
+									new SingleWindow!AboutWindow(application); 
+								});
+		addAction(show_about_window);
 
 		application.setAccelsForAction("win.new_window", ["<Control>n"]);
 		application.setAccelsForAction("win.open_session", ["<Control>o"]);
 
 		menu_top = new Menu;
-		menu_top.append("new window",      "win.new_window");
-		menu_top.append("save session",    "win.save_session");
-		menu_top.append("save session as", "win.save_session_as");
-		menu_top.append("open session",    "win.open_session");
-		menu_top.append("quit",            "win.quit");
+		menu_top.append("new window",         "win.new_window");
+		menu_top.append("save session",       "win.save_session");
+		menu_top.append("save session as",    "win.save_session_as");
+		menu_top.append("open session",       "win.open_session");
+		menu_top.append("keyboard shortcuts", "win.show_keyboard_shortcuts"); 
+		menu_top.append("about fairy",        "win.show_about_window"); 
+		menu_top.append("quit",               "win.quit");
 		version(gtk3) { 
 			menu_popover = new Popover(open_menu); 
 			menu_popover.bindModel(menu_top, null);
@@ -2839,80 +2848,65 @@ class KeyboardShortcutWindow : ApplicationWindow
 
 		auto box = new Box(GtkOrientation.VERTICAL,0);
 		Label label;
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>| key      | action                                                                        |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|----------|-------------------------------------------------------------------------------|</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>| Ctrl-n   | open new window                                                               |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>| Ctrl-w   | close window                                                                  |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>| Ctrl-q   | quit program                                                                  |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   u      | update content                                                                |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   p      | toggle poll mode (aka auto update)                                            |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   f      | fit viewport to content                                                       |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   x      | toggle auto fit mode on x axis                                                |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   y      | toggle auto fit mode on y axis                                                |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   z      | toggle auto fit mode on z axis                                                |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   l      | toggle logscale mode (affects y or z axis)                                    |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   g      | toggle grid                                                                   |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   i      | toggle fill mode for 1D histograms                                            |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   t      | toggle statistics display for 1D histograms                                   |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   m      | toggle zoom mode (only filled bins are considered when fitting the viewport)  |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   o      | overlay mode (no tiling, all histograms are drawn on top of each other)       |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   r      | row-major mode                                                                |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   c      | column-major mode                                                             |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>| 1...9    | set number of rows/columns in row-/column-major mode                          |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|   b      | toggle color bar                                                              |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>| a,s,d,w  | navigate the viewport                                                         |</span>");
-		label.setXalign(0);
-		box.append(label = new Label(""));
-		label.setMarkup("<span font_desc='Monospace 12'>|  e,q     | zoom in/out                                                                   |</span>");
-		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'> key       action                                                                        </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>-----------------------------------------------------------------------------------------</span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'> Ctrl-n    open new window                                                               </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'> Ctrl-w    close window                                                                  </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'> Ctrl-q    quit program                                                                  </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   u       update content                                                                </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   p       toggle poll mode (aka auto update)                                            </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   f       fit viewport to content                                                       </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   x       toggle auto fit mode on x axis                                                </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   y       toggle auto fit mode on y axis                                                </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   z       toggle auto fit mode on z axis                                                </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   l       toggle logscale mode (affects y or z axis)                                    </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   g       toggle grid                                                                   </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   i       toggle fill mode for 1D histograms                                            </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   t       toggle statistics display for 1D histograms                                   </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   m       toggle zoom mode (only filled bins are considered when fitting the viewport)  </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   o       overlay mode (no tiling, all histograms are drawn on top of each other)       </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   r       row-major mode                                                                </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   c       column-major mode                                                             </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'> 1...9     set number of rows/columns in row-/column-major mode                          </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>   b       toggle color bar                                                              </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'> a,s,d,w   navigate the viewport                                                         </span>");		label.setXalign(0);
+		box.append(label = new Label(""));		label.setMarkup("<span font_desc='Monospace 12'>  e,q      zoom in/out                                                                   </span>");		label.setXalign(0);
 
 		add(box);
 		showAll();
 	}	
 }
+
+
+class AboutWindow : ApplicationWindow
+{
+	import gtk.Box;
+	import gtk.Label;
+	this(Application application) {
+		super(application);
+
+		auto box = new Box(GtkOrientation.VERTICAL,0);
+		box.append(new Label(""));
+    	box.append(new Label("Fairy: Flexible Analysis of Ionizing Radiation Yields"));
+    	box.append(new Label("Copyright (C) 2019-2026 Michael Reese"));
+    	box.append(new Label("License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>"));
+    	box.append(new Label(""));
+		box.append(new Label("This program is free software: you can redistribute it and/or modify"));
+		box.append(new Label("it under the terms of the GNU General Public License as published by"));
+		box.append(new Label("the Free Software Foundation, either version 3 of the License, or"));
+		box.append(new Label("(at your option) any later version."));
+		box.append(new Label(""));
+		box.append(new Label("This program is distributed in the hope that it will be useful,"));
+		box.append(new Label("but WITHOUT ANY WARRANTY; without even the implied warranty of"));
+		box.append(new Label("MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the"));
+		box.append(new Label("GNU General Public License for more details."));
+		box.append(new Label(""));
+		add(box);
+		showAll();
+	}	
+}
+
+
 
 version(elderpt) {
 
