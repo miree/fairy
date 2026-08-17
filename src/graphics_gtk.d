@@ -899,6 +899,10 @@ class ItemView : TreeView {
 
 		Menu loglh_fitting_submenu;
 		MenuItem loglh_fitting; // submenu is attached to this item
+
+		Menu create_marker_submenu;
+		MenuItem create_marker;  // submenu is attached to this item
+
 	}
 	version(gtk4) {
 		import gtk.PopoverMenu, gtk.Popover;
@@ -1623,6 +1627,30 @@ class ItemView : TreeView {
 
 		void nothing() {}
 		version(gtk3) {
+
+			create_marker_submenu = new Menu;
+			create_marker_submenu.append(new MenuItem( delegate (MenuItem m) {
+					foreach(selected_iter; getSelectedIters()) {
+						auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+						string markername;
+						for (int i = 0; i < 100; ++i) {
+							import std.conv;
+							markername = fullname~"/marker"~i.to!string;
+							import fairy, std.algorithm;
+							if (!session.items.byKey.canFind(markername)) break;
+						}
+						auto left  = main_window.canvas.transform[0].min; 
+						auto right = main_window.canvas.transform[0].max;
+						import ui;					
+						ui.value(markername, 0.5*(left+right), 'x', markername);
+						break;
+					}
+				}
+				, "x-marker", "create a marker that can be moved on the x-axis" ));
+			create_marker = new MenuItem( (m)=>nothing, "add marker", "marker options");
+			create_marker.setSubmenu(create_marker_submenu);
+
+
 			chi2_fitting_submenu = new Menu;
 			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_cauchy(true,false), "cauchy linear-bg", "interactively fit a cuchy function to histogram data" ));
 			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,false), "gauss linear-bg", "interactively fit a gaussian function to histogram data" ));
@@ -1644,6 +1672,7 @@ class ItemView : TreeView {
 			loglh_fitting.setSubmenu(loglh_fitting_submenu);
 
 			popup_menu = new Menu;
+			popup_menu.append( create_marker );
 			popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
 			popup_menu.append( new MenuItem( (m) => copy_selected_to_clipboard(), "copy to clipboard", "copy fullname of all selected items to the clipboard" ));
 			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
