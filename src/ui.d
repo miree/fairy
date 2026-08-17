@@ -579,10 +579,13 @@ string rm(string name) {
 @UI_EXPORT("add 1D-histogram that refers to a file on disk",
 	["name of histogram",
 	 "value",
-	 "y, z, or z"])
-string value(string name, double x, char dimension = 'x') {
+	 "y, z, or z",
+	 "label"])
+string value(string name, double x, char dimension = 'x', string text = "") {
 	import fairy, value;
-	fairy.session.add_item(name, new Value(x, 0));
+	int dim=0;
+	if (dimension == 'y') dim = 1;
+	fairy.session.add_item(name, new Value(x, dim, text));
 	return "";
 }
 
