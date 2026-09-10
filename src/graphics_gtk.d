@@ -1933,10 +1933,12 @@ class ItemView : TreeView {
 			if (remove_paths.length == 0) {
 				break;
 			}
-			import app, ui;
-			foreach(windowname, window; GtkGui.main_windows) {
-				window.item_view.removePathNames(remove_paths);
-			}
+			// only prune this window's own treestore: remove_paths was computed from
+			// this.treestore, and other windows' treestores are not guaranteed to have
+			// the same row indices at this exact path (they are pruned independently
+			// via their own removeEmptyPaths() call, see GtkGui.remove_item and
+			// remove_all_selected)
+			removePathNames(remove_paths);
 		}
 	}
 	void removePathNames(string[] pathNames) {
@@ -1955,7 +1957,7 @@ class ItemView : TreeView {
 		TreeIter iter = null;
 		foreach (n ; 0..n_children) {
 			if (treestore.iterNthChild(iter, parent, n)) {
-				if( treestore.iterNChildren(parent) ) {
+				if( treestore.iterNChildren(iter) ) {
 					auto found_iter = find_iter_for_itemname(itemname, treestore, iter);
 					if (found_iter !is null) {
 						return found_iter;
