@@ -1,0 +1,88 @@
+###############################################################################
+# Build fairy with the experimental native-GTK4 backend (graphics_gtk4_native.d)
+#
+# This backend talks to GTK4/GDK/X11 directly via D's ImportC, instead of
+# going through the gtkd binding library used by the canonical gtk3/gtk4
+# backend in ../makefile. That has two consequences that make this file
+# look different from ../makefile:
+#
+#  1. `import gtk4_import;` (from graphics_gtk4_native.d) pulls in the real
+#     <gtk/gtk.h> / <gdk/gdk.h> / X11 headers. LDC's ImportC handles that
+#     fine as long as it only has to produce *declarations* for it -- but
+#     if LDC is ever asked to fully *compile* that header/translation unit
+#     (which happens if you pass -i, or compile gtk4_import.c with ldc2
+#     directly), the include chain reaches glibc's <stdlib.h> ->
+#     <mm_malloc.h> -> <mmintrin.h>/<emmintrin.h>, and LDC's ImportC
+#     rejects the small MMX vector typedef there ("vector type
+#     `__vector(char[8])` is not supported on this platform"). So:
+#       - gtk4_import.c is compiled with a real C compiler ($(CC)), never
+#         with $(DC).
+#       - $(DC) is invoked WITHOUT `-i`: `-i` would make ldc2 try to fully
+#         compile whatever `import gtk4_import;` resolves to, hitting the
+#         same error. Instead all needed .d sources are listed explicitly
+#         (SRC, below), same idea as the historical makefile.gdc.
+#
+#  2. Because this backend never links a D-implemented shared library (no
+#     gtkd involved), `-link-defaultlib-shared` is not needed here, unlike
+#     ../makefile (which needs it because libgtkd-3.so is itself a D
+#     shared object with its own embedded druntime).
+#
+# GDC was tried instead of LDC for this backend and gets further than you'd
+# expect (the whole codebase compiles), but linking then fails with
+# "undefined reference to `object.RTInfoImpl!(...)`" -- GDC never emits a
+# handful of druntime GC-scan template instantiations needed by fairy's
+# class-heavy modules (item.d, interactive.d, expression.d, ...), even when
+# every source is handed to one gdc invocation. That looks like a genuine
+# bug in the currently installed GDC, not a build-system problem, so LDC is
+# used here instead.
+###############################################################################
+
+###############################################################################
+# Choose your D and C compilers
+###############################################################################
+DC=ldc  # LDC on Arch Linux
+#DC=ldc2 # LDC on Debian Linux
+CC=gcc
+
+###############################################################################
+# .d source files for this backend: everything except the other GUI
+# backends' graphics_*.d modules (which pull in gtkd/allegro5/arsd and
+# aren't needed here) and the orphaned, unused gtk4_native.d (superseded by
+# graphics_gtk4_native.d, nothing imports it).
+###############################################################################
+ALL_D_SRC = $(wildcard src/*.d)
+EXCLUDE_D_SRC = src/graphics_gtk.d src/graphics_allegro5.d src/graphics_minigui.d \
+                src/graphics_minigui_gl.d src/graphics_gtk4.d src/gtk4_native.d
+SRC = $(filter-out $(EXCLUDE_D_SRC),$(ALL_D_SRC))
+
+###############################################################################
+# gtk4/epoxy cflags, in two flavours:
+#  - CC_CFLAGS: plain, for compiling gtk4_import.c with $(CC)
+#  - DC_PFLAGS: same flags, each prefixed with -P so ldc2 forwards them to
+#    the C preprocessor it uses to resolve `import gtk4_import;`
+###############################################################################
+CC_CFLAGS = `pkg-config --cflags gtk4 epoxy`
+DC_PFLAGS = $(addprefix -P,$(shell pkg-config --cflags gtk4 epoxy))
+
+# Replace -L with -L-L and -l with -L-l in pkg-config output
+# (all linker arguments start with -L for the D compilers LDC or DMD)
+LD_FLAGS = `pkg-config --libs gtk4 epoxy elderpt-0.1 gsl | sed -e 's/-L/-L-L/g' | sed -e 's/-l/-L-l/g'` \
+           -L-lasound -L-lX11
+
+DFLAGS = --d-version=gtk4_native --d-version=elderpt -O4
+
+###############################################################################
+# Main target
+###############################################################################
+fairy: src/gtk4_import.o $(SRC) src/mbsapi/*.c
+	$(DC) -Isrc $(DC_PFLAGS) $(DFLAGS) -of=fairy \
+		$(SRC) src/mbsapi/*.c src/gtk4_import.o \
+		$(LD_FLAGS)
+
+# gtk4_import.c is compiled with the real C compiler, never with $(DC) --
+# see the comment at the top of this file.
+src/gtk4_import.o: src/gtk4_import.c src/gtk4_import.h src/gdc_importc.h
+	$(CC) -c $(CC_CFLAGS) $< -o $@
+
+clean:
+	rm -f fairy src/gtk4_import.o src/*.i *.lst

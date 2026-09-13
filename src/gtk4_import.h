@@ -30,3 +30,5 @@ gulong g_signal_connect_after_d(void* widget, const char* signal_name, void* cal
 int get_window_position_and_size(GtkWindow *window, int *x, int *y, int *w, int *h);
 int set_window_position(GtkWindow *window, int x, int y);
 
+bool gdk_is_x11_display(GdkDisplay* d);
+
