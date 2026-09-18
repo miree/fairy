@@ -11,16 +11,45 @@
 #     fine as long as it only has to produce *declarations* for it -- but
 #     if LDC is ever asked to fully *compile* that header/translation unit
 #     (which happens if you pass -i, or compile gtk4_import.c with ldc2
-#     directly), the include chain reaches glibc's <stdlib.h> ->
-#     <mm_malloc.h> -> <mmintrin.h>/<emmintrin.h>, and LDC's ImportC
-#     rejects the small MMX vector typedef there ("vector type
-#     `__vector(char[8])` is not supported on this platform"). So:
+#     directly), the include chain reaches <graphene-config.h> (pulled in
+#     for GTK4/graphene support), which on x86_64 with SSE enabled does
+#     `#include <xmmintrin.h>` / `<emmintrin.h>`. Those transitively include
+#     <mmintrin.h>, whose legacy MMX intrinsics (`_mm_cvtsi32_si64` and
+#     friends) use an 8-byte `__vector(int[2])`/`__vector(char[8])` type
+#     that ImportC rejects ("vector type ... is not supported on this
+#     platform"). This is NOT glibc's <mm_malloc.h> -- predefining its
+#     include guard does nothing here, since graphene includes
+#     <xmmintrin.h> directly.
+#       - Root cause confirmed to be a DMD/LDC *backend* limitation, not a
+#         frontend/parsing one: `dmd --version` and `ldc --version` report
+#         the identical frontend (2.113.0) here, yet dmd fails on this and
+#         ldc doesn't. dmd's native backend hardcodes vector-type support
+#         to 16-byte (SSE) and 32-byte (AVX) shapes only (see
+#         `Target.isVectorTypeSupported` in dmd's target.d) -- 8-byte MMX
+#         vectors were never part of D's `__vector` extension, since MMX
+#         predates it and was obsolete before D added SIMD support. LDC's
+#         LLVM backend has no such restriction.
+#       - Fix for dmd (see DC_PFLAGS below): pass `-P-U__SSE__` so the
+#         ImportC preprocessing pass never defines `__SSE__`. That alone
+#         makes <graphene-config.h> fall through to its `__GNUC__` branch
+#         instead (`typedef float graphene_simd4f_t
+#         __attribute__((vector_size(16)));`), a 16-byte float32 vector,
+#         which IS in dmd's supported whitelist -- so it parses cleanly.
+#         Verified against the full header chain with zero errors. This
+#         only affects declaration-time parsing, not the real gtk4/graphene
+#         .so (built normally with real SSE) or its ABI: a 16-byte vector's
+#         size/alignment is identical regardless of which C syntax declared
+#         it, which is all ImportC needs to get right.
 #       - gtk4_import.c is compiled with a real C compiler ($(CC)), never
 #         with $(DC).
-#       - $(DC) is invoked WITHOUT `-i`: `-i` would make ldc2 try to fully
-#         compile whatever `import gtk4_import;` resolves to, hitting the
-#         same error. Instead all needed .d sources are listed explicitly
-#         (SRC, below), same idea as the historical makefile.gdc.
+#       - $(DC) is invoked WITHOUT `-i`: `-i` would make ldc2/dmd try to
+#         fully compile whatever `import gtk4_import;` resolves to. Even
+#         with `-P-U__SSE__`, this reopens a much worse can of worms inside
+#         <graphene-simd4f.h>'s actual function bodies (GNU statement
+#         expressions, `__builtin_object_size`, `object._d_arrayliteralTX`
+#         not found, ...) -- confirmed by testing `-i` with dmd directly.
+#         So all needed .d sources are listed explicitly (SRC, below),
+#         same idea as the historical makefile.gdc.
 #
 #  2. Because this backend never links a D-implemented shared library (no
 #     gtkd involved), `-link-defaultlib-shared` is not needed here, unlike
@@ -34,7 +63,23 @@
 # class-heavy modules (item.d, interactive.d, expression.d, ...), even when
 # every source is handed to one gdc invocation. That looks like a genuine
 # bug in the currently installed GDC, not a build-system problem, so LDC is
-# used here instead.
+# used as the default here.
+#
+# DMD is also supported (`DC=dmd` below) and compiles MUCH faster than LDC
+# for iterative development -- but it hits the exact same class of
+# RTInfoImpl linker error GDC does, for a different reason: with `-i`
+# avoided (see point 1 above), gsl_import.c (the ImportC shim for GSL,
+# resolved implicitly via `import gsl_import;` against -Isrc) never gets a
+# real codegen pass, only a declarations-only one. `gsl_vector`/`gsl_matrix`
+# etc. contain raw pointer fields, so their TypeInfo needs a real
+# `RTInfoImpl!([size, bitmask])` instantiation -- normally emitted as a
+# weak/comdat symbol wherever the compiler first codegens it -- but nothing
+# ever does, since gsl_import.c isn't a proper translation unit here. Fix:
+# add src/gsl_import.c to SRC (below) so $(DC) gives it a real, isolated
+# codegen pass, same treatment gtk4_import.c gets from $(CC). Unlike
+# gtk4_import.c, gsl_import.c never touches SIMD headers, so this is safe
+# for dmd. Verified end to end: with both `-P-U__SSE__` and
+# src/gsl_import.c in SRC, `DC=dmd` produces a working fairy binary.
 ###############################################################################
 
 ###############################################################################
@@ -42,6 +87,9 @@
 ###############################################################################
 DC=ldc  # LDC on Arch Linux
 #DC=ldc2 # LDC on Debian Linux
+#DC=dmd  # DMD -- much faster iterative compiles than LDC; needs the dmd-only
+         # workarounds below (-P-U__SSE__ and gsl_import.c in SRC), see the
+         # comment at the top of this file for why
 CC=gcc
 
 ###############################################################################
@@ -55,21 +103,41 @@ EXCLUDE_D_SRC = src/graphics_gtk.d src/graphics_allegro5.d src/graphics_minigui.
                 src/graphics_minigui_gl.d src/graphics_gtk4.d src/gtk4_native.d
 SRC = $(filter-out $(EXCLUDE_D_SRC),$(ALL_D_SRC))
 
+ifeq ($(DC),dmd)
+# dmd needs gsl_import.c compiled as a real (codegen'd) translation unit,
+# not just imported for declarations -- see the RTInfoImpl comment at the
+# top of this file.
+SRC += src/gsl_import.c
+endif
+
 ###############################################################################
 # gtk4/epoxy cflags, in two flavours:
 #  - CC_CFLAGS: plain, for compiling gtk4_import.c with $(CC)
-#  - DC_PFLAGS: same flags, each prefixed with -P so ldc2 forwards them to
-#    the C preprocessor it uses to resolve `import gtk4_import;`
+#  - DC_PFLAGS: same flags, each prefixed with -P so ldc2/dmd forward them
+#    to the C preprocessor used to resolve `import gtk4_import;`
 ###############################################################################
 CC_CFLAGS = `pkg-config --cflags gtk4 epoxy`
 DC_PFLAGS = $(addprefix -P,$(shell pkg-config --cflags gtk4 epoxy))
+
+ifeq ($(DC),dmd)
+# see the graphene/MMX-vector comment at the top of this file
+DC_PFLAGS += -P-U__SSE__
+endif
 
 # Replace -L with -L-L and -l with -L-l in pkg-config output
 # (all linker arguments start with -L for the D compilers LDC or DMD)
 LD_FLAGS = `pkg-config --libs gtk4 epoxy elderpt-0.1 gsl | sed -e 's/-L/-L-L/g' | sed -e 's/-l/-L-l/g'` \
            -L-lasound -L-lX11
 
+ifeq ($(DC),dmd)
+DFLAGS = -version=gtk4_native -version=elderpt -O
+else
+# ldc treats `-version=` as an abbreviation of `--version` (prints the
+# compiler version and exits), so it needs the `--d-version=` spelling
+# instead; dmd has no such ambiguity. `-O4` is an ldc/gdc-ism -- dmd's
+# optimizer flag is just `-O`.
 DFLAGS = --d-version=gtk4_native --d-version=elderpt -O4
+endif
 
 ###############################################################################
 # Main target
