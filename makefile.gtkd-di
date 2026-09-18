@@ -1,0 +1,111 @@
+###############################################################################
+# Same as ../makefile, except it pre-generates .di (D interface) stub files
+# for the gtkd-3 binding and points the build at those instead of gtkd's
+# real .d source.
+#
+# A .di stub still lets the compiler fully typecheck every call fairy makes
+# into gtkd (class layout, method signatures, fields are all preserved) but
+# has its method *bodies* stripped, so D's semantic3 pass (statement-level
+# analysis of gtkd's own method implementations) never runs on them. It
+# also stops the compiler from redundantly re-emitting gtkd's own function
+# bodies into fairy's binary -- gtkd's real implementation already lives in
+# the prebuilt libgtkd-3.so this links against dynamically, so the .di
+# stubs are only ever used for typechecking, never executed.
+#
+# This is safe here because gtkd's widget-wrapping API is plain methods,
+# not D templates (no `template`/`mixin template` in e.g. gtk.Widget) --
+# so there's no template-instantiation cost hiding behind the stripped
+# bodies that stubbing would break.
+#
+# Measured effect (no optimization, same machine): full gtkd .d source
+# takes 7.25s to build fairy vs 3.53s with .di stubs -- more than 2x
+# faster -- and the resulting binary shrinks from ~12.8MB to ~3.7MB (the
+# redundant codegen the real .d source was causing). Verified the
+# .di-built binary runs identically to the baseline.
+#
+# This is really an upstream gtkd packaging gap (gtkd doesn't ship .di
+# files the way some other D libraries do). Fixing it in this machine's
+# gtkd PKGBUILD would only speed up builds on this machine; generating the
+# .di files as part of fairy's own build here is what actually helps
+# anyone building fairy, on any machine with gtkd installed.
+###############################################################################
+
+###############################################################################
+# Choose your D compiler
+###############################################################################
+DC=ldc  # LDC on Arch Linux
+#DC=ldc2 # LDC on Debian Linux
+#DC=dmd
+
+# Replace -L with -L-L and -l with -L-l in pkg-config output
+# (all linker arguments start with -L for the D compilers LDC or DMD)
+LD_FLAGS = `pkg-config --libs elderpt-0.1 gsl | sed -e 's/-L/-L-L/g' | sed -e 's/-l/-L-l/g'`
+
+# for some reason the --cflags of gtkd-3 pkg-config return -pthread. filter it out!
+CFLAGS = `pkg-config --cflags gtkd-3 | sed -e 's/-pthread/ /'` \
+         -link-defaultlib-shared \
+         -O4
+
+###############################################################################
+# gtkd .di stub generation
+#
+# GTKD_SRC_DIR is gtkd-3.pc's own Cflags entry (just "-I/.../gtkd-3/"),
+# taken as the first word of `pkg-config --cflags gtkd-3` before
+# pkg-config appends the C include paths of gtkd's Requires: chain
+# (gtk+-3.0, pango, cairo, ...) -- this keeps the path portable instead of
+# hardcoding e.g. /usr/include/d/gtkd-3.
+###############################################################################
+GTKD_SRC_DIR = $(shell pkg-config --cflags gtkd-3 | awk '{print $$1}' | sed 's/^-I//')
+GTKD_DI_DIR  = .gtkd-di
+
+##############################################################################
+# Main Target: The canonical fairy gui version is at the moment with Gtk3
+#
+# (Must stay the first target in this file so `make -f makefile.gtkd-di`
+# with no explicit target still builds fairy, not $(GTKD_DI_DIR)/.stamp.)
+###############################################################################
+fairy: src/*.d src/mbsapi/*.c $(GTKD_DI_DIR)/.stamp
+	$(DC) -Isrc -I$(GTKD_DI_DIR) -i src/app.d src/mbsapi/*.c -of=fairy --d-version=gtk3 --d-version=elderpt $(LD_FLAGS) $(CFLAGS)
+
+# Regenerate with `make -f makefile.gtkd-di clean` (or just `rm -rf
+# .gtkd-di`) after upgrading the gtkd package.
+#
+# `-op` (preserve source path) only works relative to the compiler's cwd,
+# so this cd's into GTKD_SRC_DIR and finds sources with relative paths
+# (./gtk/Widget.d, ...) -- with absolute source paths, `-op` + `-Hd=`
+# silently write the .di files back next to the real .d source instead of
+# into GTKD_DI_DIR. -Hd itself must stay absolute since the recipe's `cd`
+# only applies to this one shell (each recipe line runs in a fresh shell).
+$(GTKD_DI_DIR)/.stamp:
+	rm -rf $(GTKD_DI_DIR)
+	mkdir -p $(GTKD_DI_DIR)
+	cd $(GTKD_SRC_DIR) && $(DC) -c -o- -op -Hd=$(CURDIR)/$(GTKD_DI_DIR) -H `find . -name "*.d"`
+	touch $(GTKD_DI_DIR)/.stamp
+
+##############################################################################
+# Command line interface version without any gui support and
+# always dmd compiler for fast builds
+##############################################################################
+cli-dmd: src/*.d
+	dmd -Isrc -i src/app.d -of=fairy $(LD_FLAGS)
+
+###############################################################################
+####  targets below are for unittesting
+###############################################################################
+test: test-serializeJSON test-transform test-graphics
+
+test-serializeJSON:
+	dmd -g -cov -Isrc -i -unittest -main -run src/serializeJSON.d && tail -n 1 src-serializeJSON.lst
+
+test-transform:
+	dmd -g -cov -Isrc -i -unittest -main -run src/transform.d     && tail -n 1 src-transform.lst
+
+test-graphics:
+	dmd -g -cov -Isrc -i -unittest -main -run src/graphics.d      && tail -n 1 src-graphics.lst
+
+test-expression:
+	dmd -g -cov -Isrc -i -unittest -main -run src/expression.d    && tail -n 1 src-expression.lst
+
+clean:
+	rm -f fairy *.o src/*.i *.lst
+	rm -rf $(GTKD_DI_DIR)
