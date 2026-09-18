@@ -130,7 +130,7 @@ LD_FLAGS = `pkg-config --libs gtk4 epoxy elderpt-0.1 gsl | sed -e 's/-L/-L-L/g' 
            -L-lasound -L-lX11
 
 ifeq ($(DC),dmd)
-DFLAGS = -version=gtk4_native -version=elderpt -O
+DFLAGS = -version=gtk4_native -version=elderpt 
 else
 # ldc treats `-version=` as an abbreviation of `--version` (prints the
 # compiler version and exits), so it needs the `--d-version=` spelling
