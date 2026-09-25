@@ -139,6 +139,7 @@ class Gtk4NativeGui : Gui {
 				window.canvas.width  = allocation.width;
 				window.canvas.height = allocation.height;
 			}
+			window.canvas.gui_paned_value = gtk_paned_get_position(window.paned);
 		}
 	}
 	override void remove_item(string name) {
@@ -408,7 +409,7 @@ private:
 		gtk_frame_set_child (cast(GtkFrame*)frame, cast(GtkWidget*)toplevel);
 		//gtk_box_append(toplevel, cast(GtkWidget*)header_bar);
 		gtk_box_append(toplevel, cast(GtkWidget*)paned);
-		gtk_paned_set_position(paned, 200);
+		gtk_paned_set_position(paned, canvas_properties.gui_paned_value);
 		gtk_paned_set_start_child(paned, cast(GtkWidget*)item_view.scrolled_window);
 		gtk_paned_set_resize_start_child(paned, false);
 		gtk_paned_set_shrink_start_child(paned, true);
