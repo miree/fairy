@@ -29,6 +29,71 @@
 # .di files as part of fairy's own build here is what actually helps
 # anyone building fairy, on any machine with gtkd installed.
 ###############################################################################
+#
+# DC=dmd needs more than just the .di stubs, because of how the system's
+# gtkd-3 package is built:
+#
+# The system's libgtkd-3.so is compiled with LDC and dynamically depends on
+# LDC's *own* shared runtime -- libphobos2-ldc-shared.so /
+# libdruntime-ldc-shared.so -- which is a completely separate codebase from
+# dmd's own druntime/Phobos (same D API, not ABI-compatible, not
+# swappable). dmd doesn't even recognize `-link-defaultlib-shared` (LDC's
+# flag for linking a program against a shared runtime instead of a static
+# one), so a dmd-built fairy statically embeds DMD's own runtime while
+# still transitively depending on LDC's shared runtime through
+# libgtkd-3.so -- two independent, incompatible D runtimes alive in one
+# process. Confirmed with gdb: it segfaults before main() even runs real
+# logic, inside LDC's associative-array code (core.internal.newaa /
+# core.internal.hash) in libgtkd-3.so, called from gtkd's own module
+# constructor (atk.c.functions._sharedStaticCtor...), which is in turn
+# invoked by *dmd's* own module-constructor walker (rt_moduleCtor /
+# ModuleGroup.runCtors, part of dmd's statically-linked runtime) as it
+# iterates every loaded shared object's module info -- dmd's runtime has
+# no idea libgtkd-3.so belongs to a different runtime instance entirely.
+#
+# Fix: compile gtkd's real .d source with dmd itself, against dmd's own
+# officially-distributed *shared* runtime (`-defaultlib=libphobos2.so`,
+# from the separate `libphobos` package -- this is dmd's equivalent of
+# LDC's `-link-defaultlib-shared`), into GTKD_DMD_LIB_DIR/libgtkd-3.so
+# (built once and cached, same idea as GTKD_DI_DIR/.stamp below), and link
+# fairy against that -- both then share the one dmd-linked runtime
+# instance instead of each bringing an incompatible one of their own.
+#
+# fairy's own graphics_gtk.d has `pragma(lib, "gtkd-3")`, which dmd honors
+# automatically by adding `-lgtkd-3` at link time no matter what's passed
+# explicitly -- tested passing a differently-located library directly by
+# path first, and the system's .so (and LDC's runtime with it) still got
+# linked in alongside it. So instead of fighting the pragma,
+# GTKD_DMD_LIB_DIR is added to the linker search path (-L-L) *ahead of*
+# the system's, so the pragma's own `-lgtkd-3` resolves to our
+# locally-built .so there instead of the system one, with an rpath
+# pointing at the same directory so it's also found at runtime.
+#
+# gtkd ships several *optional* integrations as separate subpackages --
+# GL extensions (glgdk/glgtk/gtkglc), GStreamer (gst*), GtkSourceView
+# (gsv*), VTE (vte*), and libpeas scripting (peas*). The distro's own gtkd
+# PKGBUILD builds each of those as its own separate shared-{gtkdgl,sv,
+# gstreamer,vte,peas} library, precisely so the core libgtkd-3.so never
+# needs those optional libraries (gtkglext, libpeas, ...) installed to
+# even start up. fairy uses none of them, so GTKD_DMD_LIB_DIR mirrors that
+# split and excludes them from its own from-scratch compile -- otherwise
+# gtkd's module constructors for e.g. libpeas/gtkglext try to eagerly
+# dlopen those libraries at process startup and throw if they're not
+# installed. Confirmed by trying it both ways: statically linking the
+# *full* tree (an earlier version of this file) happened to work because
+# static linking's dead-code elimination stripped those modules' unused
+# constructors before this ever became visible; a shared library can't do
+# that (any future caller might need any module initialized), so building
+# GTKD_DMD_LIB_DIR as a .so surfaced it immediately as an uncaught
+# druntime exception at startup ("Library load failed
+# (libgdkglext-3.0.so.0)", then the same for libpeas) until the same
+# optional subpackages the distro splits out were excluded here too.
+#
+# Verified end to end: no libgtkd-3.so or LDC runtime anywhere in `ldd`
+# output, no missing-optional-library exceptions, and the binary shrinks
+# from ~17MB (the earlier static-archive version of this file) to ~5.3MB
+# while still running (including a real GUI launch, no crash).
+###############################################################################
 
 ###############################################################################
 # Choose your D compiler
@@ -36,20 +101,6 @@
 DC=ldc  # LDC on Arch Linux
 #DC=ldc2 # LDC on Debian Linux
 #DC=dmd
-
-# compiler specific CFLAGS
-DCFLAGS = --d-version=gtk3 --d-version=elderpt -link-defaultlib-shared -O4
-ifeq ($(DC),dmd)
-# see the graphene/MMX-vector comment at the top of this file
-DCFLAGS = -version=gtk3 -version=elderpt
-endif
-
-# Replace -L with -L-L and -l with -L-l in pkg-config output
-# (all linker arguments start with -L for the D compilers LDC or DMD)
-LD_FLAGS = `pkg-config --libs elderpt-0.1 gsl | sed -e 's/-L/-L-L/g' | sed -e 's/-l/-L-l/g'`
-
-# for some reason the --cflags of gtkd-3 pkg-config return -pthread. filter it out!
-CFLAGS = `pkg-config --cflags gtkd-3 | sed -e 's/-pthread/ /'` 
 
 ###############################################################################
 # gtkd .di stub generation
@@ -59,17 +110,52 @@ CFLAGS = `pkg-config --cflags gtkd-3 | sed -e 's/-pthread/ /'`
 # pkg-config appends the C include paths of gtkd's Requires: chain
 # (gtk+-3.0, pango, cairo, ...) -- this keeps the path portable instead of
 # hardcoding e.g. /usr/include/d/gtkd-3.
+#
+# GTKD_DI_STAMP is keyed by $(DC): for DC=dmd the stubs only cover the
+# core subpackages (see GTKD_OPTIONAL_DIRS below), to stay consistent with
+# GTKD_DMD_LIB_DIR; for ldc/ldc2 they cover the full tree, since ldc links
+# against the prebuilt system .so regardless. Keying the stamp by $(DC)
+# means switching compilers regenerates the stubs (a couple of seconds)
+# instead of silently reusing a stale, wrongly-scoped set.
 ###############################################################################
-GTKD_SRC_DIR = $(shell pkg-config --cflags gtkd-3 | awk '{print $$1}' | sed 's/^-I//')
-GTKD_DI_DIR  = .gtkd-di
+GTKD_SRC_DIR  = $(shell pkg-config --cflags gtkd-3 | awk '{print $$1}' | sed 's/^-I//')
+GTKD_DI_DIR   = .gtkd-di
+GTKD_DI_STAMP = $(GTKD_DI_DIR)/.stamp-$(DC)
+
+# for some reason the --cflags of gtkd-3 pkg-config return -pthread. filter it out!
+CFLAGS = `pkg-config --cflags gtkd-3 | sed -e 's/-pthread/ /'`
+
+# Replace -L with -L-L and -l with -L-l in pkg-config output
+# (all linker arguments start with -L for the D compilers LDC or DMD)
+LD_FLAGS = `pkg-config --libs elderpt-0.1 gsl | sed -e 's/-L/-L-L/g' | sed -e 's/-l/-L-l/g'`
+
+###############################################################################
+# compiler specific flags -- see the big dmd/gtkd-runtime comment up top
+# for why dmd needs a locally-built gtkd instead of the system's shared
+# libgtkd-3.so.
+###############################################################################
+GTKD_DMD_LIB_DIR = .gtkd-dmd-lib
+EXTRA_PREREQ =
+
+# gtkd's optional subpackages (see big comment up top) -- excluded from
+# both GTKD_DI_STAMP (dmd case) and GTKD_DMD_LIB_DIR.
+GTKD_OPTIONAL_DIRS     = glgdk glgtk gtkglc gsv gsvc gst gstinterfaces gstreamer gstreamerc vte vtec peas peasc
+GTKD_CORE_FIND_EXCLUDE = $(foreach d,$(GTKD_OPTIONAL_DIRS),-not -path "./$(d)/*")
+
+DCFLAGS = --d-version=gtk3 --d-version=elderpt -link-defaultlib-shared -O4
+ifeq ($(DC),dmd)
+DCFLAGS = -version=gtk3 -version=elderpt -defaultlib=libphobos2.so
+EXTRA_PREREQ = $(GTKD_DMD_LIB_DIR)/.stamp
+LD_FLAGS += -L-L$(GTKD_DMD_LIB_DIR) -L-rpath=$(CURDIR)/$(GTKD_DMD_LIB_DIR)
+endif
 
 ##############################################################################
 # Main Target: The canonical fairy gui version is at the moment with Gtk3
 #
 # (Must stay the first target in this file so `make -f makefile.gtkd-di`
-# with no explicit target still builds fairy, not $(GTKD_DI_DIR)/.stamp.)
+# with no explicit target still builds fairy, not $(GTKD_DI_STAMP).)
 ###############################################################################
-fairy: src/*.d src/mbsapi/*.c $(GTKD_DI_DIR)/.stamp
+fairy: src/*.d src/mbsapi/*.c $(GTKD_DI_STAMP) $(EXTRA_PREREQ)
 	$(DC) -Isrc -I$(GTKD_DI_DIR) -i src/app.d src/mbsapi/*.c -of=fairy $(DCFLAGS) $(LD_FLAGS) $(CFLAGS)
 
 # Regenerate with `make -f makefile.gtkd-di clean` (or just `rm -rf
@@ -81,11 +167,29 @@ fairy: src/*.d src/mbsapi/*.c $(GTKD_DI_DIR)/.stamp
 # silently write the .di files back next to the real .d source instead of
 # into GTKD_DI_DIR. -Hd itself must stay absolute since the recipe's `cd`
 # only applies to this one shell (each recipe line runs in a fresh shell).
-$(GTKD_DI_DIR)/.stamp:
+$(GTKD_DI_STAMP):
 	rm -rf $(GTKD_DI_DIR)
 	mkdir -p $(GTKD_DI_DIR)
+ifeq ($(DC),dmd)
+	cd $(GTKD_SRC_DIR) && $(DC) -c -o- -op -Hd=$(CURDIR)/$(GTKD_DI_DIR) -H `find . -name "*.d" $(GTKD_CORE_FIND_EXCLUDE)`
+else
 	cd $(GTKD_SRC_DIR) && $(DC) -c -o- -op -Hd=$(CURDIR)/$(GTKD_DI_DIR) -H `find . -name "*.d"`
-	touch $(GTKD_DI_DIR)/.stamp
+endif
+	touch $(GTKD_DI_STAMP)
+
+# dmd-only: gtkd compiled into a shared library fairy links and rpaths
+# against instead of the system's (LDC-built) shared libgtkd-3.so -- see
+# the big comment up top. `-defaultlib=libphobos2.so` is dmd's own
+# officially-distributed shared runtime (the separate `libphobos`
+# package), so fairy and this library end up sharing one D runtime
+# instance instead of each bringing an incompatible one of their own.
+# Regenerate with `make -f makefile.gtkd-di clean` (or `rm -rf
+# .gtkd-dmd-lib`) after upgrading the gtkd package.
+$(GTKD_DMD_LIB_DIR)/.stamp:
+	rm -rf $(GTKD_DMD_LIB_DIR)
+	mkdir -p $(GTKD_DMD_LIB_DIR)
+	cd $(GTKD_SRC_DIR) && $(DC) -shared -fPIC -defaultlib=libphobos2.so -of=$(CURDIR)/$(GTKD_DMD_LIB_DIR)/libgtkd-3.so `find . -name "*.d" $(GTKD_CORE_FIND_EXCLUDE)`
+	touch $(GTKD_DMD_LIB_DIR)/.stamp
 
 ##############################################################################
 # Command line interface version without any gui support and
@@ -113,4 +217,4 @@ test-expression:
 
 clean:
 	rm -f fairy *.o src/*.i *.lst
-	rm -rf $(GTKD_DI_DIR)
+	rm -rf $(GTKD_DI_DIR) $(GTKD_DMD_LIB_DIR)
