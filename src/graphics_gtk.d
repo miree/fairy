@@ -1692,13 +1692,30 @@ class ItemView : TreeView {
 			addOnButtonPress(
 				delegate bool(GdkEventButton* e, Widget w) {
 					if (e.button == 3)	{
+						// make sure the row under the cursor is selected before opening the popup,
+						// so that the popup menu (e.g. the fitting menu) acts on the item that was
+						// right-clicked instead of on a possibly unrelated, previously selected item.
+						// if the row under the cursor is already part of the current (possibly
+						// multi-row) selection, leave the selection untouched so that right-clicking
+						// inside an existing multi-selection still allows batch actions on all of it.
+						import gtk.TreePath, gtk.TreeViewColumn;
+						TreePath path;
+						TreeViewColumn column;
+						int cellX, cellY;
+						if (getPathAtPos(cast(int)e.x, cast(int)e.y, path, column, cellX, cellY)) {
+							auto selection = getSelection();
+							if (!selection.pathIsSelected(path)) {
+								selection.unselectAll();
+								selection.selectPath(path);
+							}
+						}
 						popup_menu.popup(e.button, e.time);
-						popup_menu.showAll(); 
+						popup_menu.showAll();
 						return true;
 					}
-					w.onButtonPressEvent(e); 
+					w.onButtonPressEvent(e);
 					return false;
-				} 
+				}
 			);
 		}
 
@@ -1722,6 +1739,20 @@ class ItemView : TreeView {
 			right_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
 				//import std.stdio; writeln("right click");
 				auto w = cast(ItemView)g.getWidget();
+				// make sure the row under the cursor is selected before opening the popup (see the
+				// matching version(gtk3) comment above for why), unless it is already part of the
+				// current (possibly multi-row) selection.
+				import gtk.TreePath, gtk.TreeViewColumn;
+				TreePath path;
+				TreeViewColumn column;
+				int cellX, cellY;
+				if (w.getPathAtPos(cast(int)x, cast(int)y, path, column, cellX, cellY)) {
+					auto selection = w.getSelection();
+					if (!selection.pathIsSelected(path)) {
+						selection.unselectAll();
+						selection.selectPath(path);
+					}
+				}
 				w.popup_menu.setParent(w);
 				auto rect = GdkRectangle(cast(int)x, cast(int)y, 4,4);
 				w.popup_menu.setPointingTo(&rect);
