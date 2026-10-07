@@ -65,7 +65,7 @@ A single left click into the void will deselect all selected elelments.
 Holding Ctrl while left clicking an unselected/selected element will add/remove that element to/from the set of selected elements.
 Left click and hold will open a selection box. When releasing the left mouse button, all elements inside the box will be added/removed to/from the set of selected elelments if the Shift key is inactive/pressed. 
 Click and hold any highlighted or selected element will allow to move all highlighted and selected elements together with the mouse unless a selected element is in a different tile in grid mode then where the mouse click happened.
-If elments of different items should be moved together, this should be done in overlay mode.
+If elments of different items should be moved together, this must be done in overlay mode.
 
 #### polygon gates
 
@@ -76,7 +76,7 @@ Polygon gates have a richer set of actions than 1D/2D-windows.
 
 #### interactive function fitting
 
-A `function` item is a 1D formula (e.g. a peak shape on top of a background) that can be fit to the data of a 1D histogram over some region, and that can additionally expose some of its parameters as draggable "handles" on the canvas, so that the start parameters of the fit can be adjusted interactively with the mouse instead of by editing numbers.
+A `function` item is a 1D formula (e.g. a peak shape on top of a background) with parameters that can be fit to the data of a 1D histogram over some region, and that can additionally expose some of its parameters as draggable "handles" on the canvas, so that the start parameters of the fit can be adjusted interactively with the mouse instead of by editing numbers.
 
 ##### quickest way to get started: the right-click menu
 
@@ -85,6 +85,7 @@ Right-click on a 1D-histogram in the item tree-view and choose "chi^2 fit" (or "
  - a function item with handles already placed at reasonable start values, derived from the currently visible part of the canvas.
 
 From there, just drag the handles onto the peak you want to fit (see below), then let go of the mouse to fit.
+Holding Ctrl while dragging will continuously run a quick (20-step) fit so you can see a live preview of the fit result as you adjust the handles; releasing the mouse button always triggers a full fit over the gate's region.
 
 ##### creating a function by hand with the `funct` command
 
@@ -113,7 +114,9 @@ This has two practical consequences:
  - Dragging a child handle on its own only changes that child's own parameters (e.g. only the width/amplitude), leaving the parent (e.g. the peak position) untouched.
  - Siblings (nodes not nested inside one another) move completely independently of each other.
 
-While dragging, holding Ctrl additionally runs a quick (20-step) fit so you can see a live preview of the fit result as you adjust the handles; releasing the mouse button always triggers a full fit over the gate's region. You can fit without using the mouse at all with the `fit` (chi-square) or `fitLL` (log-likelihood) commands, giving the function name, histogram name, and a left/right fit region directly.
+##### command line fitting
+
+You can fit without using the mouse at all with the `fit` (chi-square) or `fitLL` (log-likelihood) commands, giving the function name, histogram name, and a left/right fit region directly.
 
 ###### example: the simplest possible handle, a one-node tree
 
