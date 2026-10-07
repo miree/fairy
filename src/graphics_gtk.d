@@ -313,12 +313,9 @@ private:
 	HeaderBar header_bar;
 		Button open_menu;
 			Menu menu_top;
+				Menu fontsize_submenu; // "canvas fontsize" submenu of menu_top
 				version(gtk3) { Popover menu_popover; }
 				version(gtk4) { PopoverMenu menu_popover; }
-		Button settings_menu;
-			Menu settings_menu_top;
-				version(gtk3) { Popover settings_menu_popover; }
-				version(gtk4) { PopoverMenu settings_menu_popover; }
 		Button open_soundscope;
 		Button open_elderpt;
 		Label  header_title;
@@ -601,15 +598,11 @@ public:
 
 		// add menu and other buttons to title bar
 		open_menu      = new Button();
-		settings_menu  = new Button();
 		version(gtk3) {
 			import gtk.Image, gtk.c.types;
 			auto open_image = new Image;
 			open_image.setFromIconName("open-menu-symbolic", IconSize.LARGE_TOOLBAR);
 			open_menu.setImage(open_image);
-			auto settings_image = new Image;
-			settings_image.setFromIconName("preferences-other-symbolic", IconSize.LARGE_TOOLBAR);
-			settings_menu.setImage(settings_image);
 			header_bar.setShowCloseButton(true);
 			header_bar.setDecorationLayout("menu:minimize,maximize,close");
 		}
@@ -623,7 +616,6 @@ public:
 
 
 		header_bar.packStart(open_menu);
-		header_bar.packStart(settings_menu);
 
 		version(elderpt) {
 			open_elderpt = new Button("Elderpt");
@@ -646,46 +638,34 @@ public:
 		application.setAccelsForAction("win.new_window", ["<Control>n"]);
 		application.setAccelsForAction("win.open_session", ["<Control>o"]);
 
+		fontsize_submenu = new Menu;
+		fontsize_submenu.append("10", "win.window_fontsize_10");
+		fontsize_submenu.append("15", "win.window_fontsize_15");
+		fontsize_submenu.append("20", "win.window_fontsize_20");
+		fontsize_submenu.append("25", "win.window_fontsize_25");
+		fontsize_submenu.append("30", "win.window_fontsize_30");
+
 		menu_top = new Menu;
 		menu_top.append("new window",         "win.new_window");
 		menu_top.append("save session",       "win.save_session");
 		menu_top.append("save session as",    "win.save_session_as");
 		menu_top.append("open session",       "win.open_session");
-		menu_top.append("keyboard shortcuts", "win.show_keyboard_shortcuts"); 
-		menu_top.append("about fairy",        "win.show_about_window"); 
+		menu_top.appendSubmenu("canvas fontsize", fontsize_submenu);
+		menu_top.append("keyboard shortcuts", "win.show_keyboard_shortcuts");
+		menu_top.append("about fairy",        "win.show_about_window");
 		menu_top.append("quit",               "win.quit");
-		version(gtk3) { 
-			menu_popover = new Popover(open_menu); 
+		version(gtk3) {
+			menu_popover = new Popover(open_menu);
 			menu_popover.bindModel(menu_top, null);
 			//menu_popover.setHasArrow(false); // how to remove the arrow?
 		}
-		version(gtk4) { 
-			menu_popover = new PopoverMenu(menu_top); 
+		version(gtk4) {
+			menu_popover = new PopoverMenu(menu_top);
 			menu_popover.setParent(open_menu);
 			//menu_popover.setHasArrow(false);
 		}
 		menu_popover.setPosition(PositionType.BOTTOM);
 		open_menu.addOnClicked((Button button) => menu_popover.setVisible(true));
-
-
-		settings_menu_top = new Menu;
-		settings_menu_top.append("canvas fontsize 10", "win.window_fontsize_10");
-		settings_menu_top.append("canvas fontsize 15", "win.window_fontsize_15");
-		settings_menu_top.append("canvas fontsize 20", "win.window_fontsize_20");
-		settings_menu_top.append("canvas fontsize 25", "win.window_fontsize_25");
-		settings_menu_top.append("canvas fontsize 30", "win.window_fontsize_30");
-		version(gtk3) { 
-			settings_menu_popover = new Popover(settings_menu); 
-			settings_menu_popover.bindModel(settings_menu_top, null);
-			//settings_menu_popover.setHasArrow(false); // how to remove the arrow?
-		}
-		version(gtk4) { 
-			settings_menu_popover = new PopoverMenu(settings_menu_top); 
-			settings_menu_popover.setParent(settings_menu);
-			//settings_menu_popover.setHasArrow(false);
-		}
-		settings_menu_popover.setPosition(PositionType.BOTTOM);
-		settings_menu.addOnClicked((Button button) => settings_menu_popover.setVisible(true));
 
 
 		//open_soundscope = new Button("soundscope");
