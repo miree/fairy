@@ -169,10 +169,11 @@ class GtkGui : Gui {
 					add_window(name, canvas);
 				}
 
-				import elderpt;
-				// uncomment this to create the elderpt window on gui startup if it was open before... but doesnt work yet
-				if (elderpt.state.winopen) {  new SingleWindow!ElderPtWindow(application); }
-
+				version(elderpt) {
+					import elderpt;
+					// uncomment this to create the elderpt window on gui startup if it was open before... but doesnt work yet
+					if (elderpt.state.winopen) {  new SingleWindow!ElderPtWindow(application); }
+				}
 			}
 		);
 		application.addOnShutdown(
@@ -182,16 +183,18 @@ class GtkGui : Gui {
 				import std.stdio;
 				//stderr.writeln("Application shutdown");
 				// save elderptwindow
-				import elderpt;
-				if (elderpt.state.winopen) {
-					import gdk.Window;
-					import gdk.Rectangle;
-					import gdk.c.types;
-					GdkRectangle rectangle;
-					auto gdk_window = SingleWindow!ElderPtWindow.window.getWindow();
-					gdk_window.getFrameExtents(rectangle);
-					elderpt.state.winpos_x = rectangle.x;
-					elderpt.state.winpos_y = rectangle.y;
+				version(elderpt) {
+					import elderpt;
+					if (elderpt.state.winopen) {
+						import gdk.Window;
+						import gdk.Rectangle;
+						import gdk.c.types;
+						GdkRectangle rectangle;
+						auto gdk_window = SingleWindow!ElderPtWindow.window.getWindow();
+						gdk_window.getFrameExtents(rectangle);
+						elderpt.state.winpos_x = rectangle.x;
+						elderpt.state.winpos_y = rectangle.y;
+					}
 				}
 			}
 		);
