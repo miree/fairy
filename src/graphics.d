@@ -498,12 +498,25 @@ struct CanvasPainter {
 	// the set of displayed items changed, some item's version no longer matches what's cached in
 	// its Visualizer (see the "canvas.refresh" branch in draw_content(), which this mirrors
 	// without the side effects of actually recreating anything), or there's a pending explicit
-	// reset (reset_item_names) still waiting to be processed. Lets a periodic/automatic refresh
-	// skip the actual redraw when the canvas would come out pixel-identical, without touching any
-	// other redraw trigger (explicit refresh, show/hide, drag/zoom, window resize, ...), which all
-	// call their own redraw paths directly and are unaffected by this.
+	// reset (reset_item_names) for an item this canvas actually displays. Lets a periodic/
+	// automatic refresh skip the actual redraw when the canvas would come out pixel-identical,
+	// without touching any other redraw trigger (explicit refresh, show/hide, drag/zoom, window
+	// resize, ...), which all call their own redraw paths directly and are unaffected by this.
+	//
+	// reset_item_names is pushed the same item name into *every* window's CanvasPainter whenever
+	// any item anywhere is replaced (see GtkGui.reset_item()/Session.add_item's
+	// NameCollisionPolicy.replace path), regardless of whether a given window actually displays
+	// that item -- and draw_content() only ever removes an entry from it once that window's own
+	// itemnames loop happens to walk past a matching name. A window that never displays a reset
+	// item (e.g. because a live-acquisition run like elderpt recreates many items at once, most
+	// of which some particular window doesn't show) would otherwise see a permanently non-empty
+	// reset_item_names and report "changed" forever -- a real bug this content_changed() mirror
+	// introduced, since nothing previously depended on reset_item_names being drained promptly.
+	// So this only counts a pending reset as "changed" when it's for an item this canvas's own
+	// itemnames actually include.
 	bool content_changed() {
-		if (reset_item_names.length > 0) return true;
+		import std.algorithm : canFind;
+		if (reset_item_names.canFind!(n => canvas.itemnames.canFind(n))) return true;
 		if (canvas.itemnames.length != visualizers.length) return true;
 		foreach(itemname; canvas.itemnames) {
 			auto vis = itemname in visualizers;
