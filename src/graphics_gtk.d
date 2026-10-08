@@ -96,11 +96,13 @@ class GtkGui : Gui {
 	override void remove_item(string name) {
 		foreach(window; main_windows) {
 			window.item_view.removeItem(name);
+			window.item_view.recompute_filter_visibility();
 		}
 	}
 	override void add_item(string name) {
 		foreach(window; main_windows) {
 			window.item_view.addItem(name, null);
+			window.item_view.recompute_filter_visibility();
 		}
 	}
 	override void reset_item(string name) {
@@ -320,8 +322,10 @@ private:
 		Button open_elderpt;
 		Label  header_title;
 	Paned workspace;
-		ScrolledWindow item_view_scrolled_window;
-			ItemView item_view;
+		Box item_view_box; // holds item_view's filter bar above item_view_scrolled_window
+			ScrolledWindow filter_bar_scrolled_window; // lets the filter bar scroll sideways instead of forcing workspace's left pane to stay wide, see the constructor
+			ScrolledWindow item_view_scrolled_window;
+				ItemView item_view;
 		PlotWidget plot_widget;
 
 	SimpleAction window_fontsize_10;
@@ -693,14 +697,34 @@ public:
 		item_view_scrolled_window.setPropagateNaturalHeight(true);
 		item_view_scrolled_window.setChild(item_view);
 
+		// The filter bar's entry + 3 checkboxes have a real combined minimum width (so that
+		// their labels stay readable), and a plain Box reports that minimum straight up through
+		// to workspace -- unlike item_view_scrolled_window, whose own minimum is tiny since
+		// GtkScrolledWindow handles arbitrarily narrow allocations via its own scrollbars. Without
+		// this, workspace's left pane could no longer be dragged narrower than the filter bar's
+		// minimum width, silently clipping item names with no way to scroll back to them. Wrapping
+		// the filter bar in its own horizontally-scrolling ScrolledWindow (same idea as
+		// PlotWidget's controls_scrolled_window below, for the same reason) fixes this: the pane
+		// can shrink arbitrarily narrow again, and the filter bar itself just grows a horizontal
+		// scrollbar if squeezed tighter than its own content needs.
+		filter_bar_scrolled_window = new ScrolledWindow();
+		import gtk.c.types : PolicyType;
+		filter_bar_scrolled_window.setPolicy(PolicyType.AUTOMATIC, PolicyType.NEVER);
+		filter_bar_scrolled_window.setPropagateNaturalHeight(true); // stay only as tall as the filter bar itself needs
+		filter_bar_scrolled_window.setChild(item_view.filter_bar);
+
+		item_view_box = new Box(GtkOrientation.VERTICAL, 0);
+		item_view_box.append(item_view_scrolled_window);
+		item_view_box.append(filter_bar_scrolled_window);
+
 		workspace = new Paned(GtkOrientation.HORIZONTAL);
 		workspace.setPosition(canvas_properties.gui_paned_value);
 		version (gtk3) {
-			workspace.add(item_view_scrolled_window, plot_widget);
+			workspace.add(item_view_box, plot_widget);
 			//add(workspace);
-		} 
+		}
 		version(gtk4) {
-			workspace.setStartChild(item_view_scrolled_window);
+			workspace.setStartChild(item_view_box);
 			workspace.setResizeStartChild(false);
 			workspace.setShrinkStartChild(true);
 			workspace.setEndChild(plot_widget);
@@ -756,11 +780,27 @@ public:
 		});
 
 		version(gtk3) {
+			// GTK3's "key-press-event" is RUN_LAST: handlers connected the normal way (the
+			// default, used here previously) run *before* the window's own default handler,
+			// which is what actually delivers the event to the focused widget first -- so an
+			// unconditional `return true` here swallowed every keystroke before a focused widget
+			// like filter_entry ever got a chance to see it, regardless of what had focus.
+			// Connecting with ConnectFlags.AFTER instead makes this run *after* that default
+			// delivery: if the focused widget already handled the key (e.g. an entry inserting a
+			// character), emission stops there and this is never called; otherwise it proceeds
+			// exactly as before. Must also disable item_view's built-in interactive search (type-
+			// ahead find), which would otherwise start consuming letter keys once a row is
+			// focused, now that this is no longer unconditionally first -- gtk4 avoids the same
+			// problem differently, see the version(gtk4) block below. This alone is enough:
+			// making item_view itself non-focusable (an earlier version of this fix) also broke
+			// Ctrl/Shift multi-select by mouse, which depends on item_view being focusable.
+			item_view.setEnableSearch(false);
+			import gobject.c.types : ConnectFlags;
 			addOnKeyPress(delegate bool(GdkEventKey* e, Widget w) { // the action to perform if that menu entry is selected
 				handle_keyboard_shortcut(e.keyval, (e.state & GdkModifierType.CONTROL_MASK) != 0);
 				return true; // don't propagate
 				//return false; // propagate
-			});
+			}, ConnectFlags.AFTER);
 		}
 		version(gtk4) {
 			event_controller_key = new EventControllerKey();
@@ -840,6 +880,32 @@ import gtk.TreeStore, gtk.TreeView, gtk.TreeIter;
 
 class ItemView : TreeView {
 
+	// the view's model is filtermodel (see the constructor), so getSelectedIters() returns iters
+	// relative to filtermodel; all the rest of this class works directly with treestore, so this
+	// helper converts each selected iter back to its treestore (child) iter once, here, rather
+	// than at every one of this method's many call sites.
+	private TreeIter filterIterToChild(TreeIter filterIter) {
+		TreeIter childIter;
+		filtermodel.convertIterToChildIter(childIter, filterIter);
+		return childIter;
+	}
+
+	version(gtk3) { // override gtkd-3's TreeView.getSelectedIters() convenience function to add the filter->child conversion
+		override TreeIter[] getSelectedIters() {
+			import gtk.TreePath;
+			TreeIter[] iters;
+			auto selection = getSelection();
+			TreeModelIF model = getModel();
+			TreeIter iter = new TreeIter();
+			foreach ( TreePath p; selection.getSelectedRows(model) ) {
+				if ( model.getIter(iter,p) ) {
+					iters ~= filterIterToChild(iter);
+					iter = new TreeIter();
+				}
+			}
+			return iters;
+		}
+	}
 	version(gtk4) { // GtkD-3 has this as convenience function (not a genuine gtk function) that is missing in GtkD-4
 		TreeIter[] getSelectedIters() {
 			import gtk.TreePath;
@@ -850,7 +916,7 @@ class ItemView : TreeView {
 			TreeIter iter;
 			foreach ( TreePath p; paths ) {
 				if ( model.getIter(iter,p) ) {
-					iters ~= iter;
+					iters ~= filterIterToChild(iter);
 				}
 			}
 			return iters;
@@ -863,11 +929,26 @@ class ItemView : TreeView {
 	enum {
 		COLUMN_NAME,
 		COLUMN_FULLNAME,
-		COLUMN_IS_ITEM,    // if this is true, there is an item under that fullname, otherwise it is just a folder
-		COLUMN_VISUALIZED, // the checkbox to visualize the item (or recursively all items in the folder)
+		COLUMN_IS_ITEM,         // if this is true, there is an item under that fullname, otherwise it is just a folder
+		COLUMN_VISUALIZED,      // the checkbox to visualize the item (or recursively all items in the folder)
+		COLUMN_FILTER_VISIBLE,  // whether this row currently passes the name/regex/shown filter (see recompute_filter_visibility); drives filtermodel.
+		                        // must be GType.BOOLEAN (not .INT like COLUMN_VISUALIZED above): unlike a cell renderer's "active"
+		                        // attribute binding, which GTK coerces automatically, TreeModelFilter.setVisibleColumn() reads this
+		                        // column with g_value_get_boolean() directly and asserts if it isn't actually G_TYPE_BOOLEAN.
 	}
 
 	TreeStore treestore;
+	import gtk.TreeModelFilter;
+	TreeModelFilter filtermodel; // wraps treestore using COLUMN_FILTER_VISIBLE; this is the model actually shown in the view
+
+	// item name filter bar: a text entry plus 4 checkboxes ("filter", "regex", "shown", "case sensitive"), see recompute_filter_visibility()
+	import gtk.Entry, gtk.CheckButton, gtk.Box;
+	Box filter_bar;
+	Entry filter_entry;
+	CheckButton filter_check;
+	CheckButton regex_check;
+	CheckButton shown_check;
+	CheckButton case_sensitive_check; // unchecked (the default) means filtering is case-insensitive
 
 
 	version(gtk3) {
@@ -895,7 +976,8 @@ class ItemView : TreeView {
 
 	void expand_all_selected() {
 		foreach(selected_iter; getSelectedIters()) {
-			this.expandRow(treestore.getPath(selected_iter), true);
+			auto filter_path = filtermodel.convertChildPathToPath(treestore.getPath(selected_iter));
+			if (filter_path !is null) this.expandRow(filter_path, true);
 		}
 	}
 	void copy_selected_to_clipboard() {
@@ -1516,9 +1598,15 @@ class ItemView : TreeView {
 	this(PlotWidget pw, MainWindow mainwindow) {
 		plotwidget = pw;
 		main_window = mainwindow;
-	                               // NAME        FULLNAME        IS_ITEM    VISUALIZED
-		treestore = new TreeStore([ GType.STRING , GType.STRING , GType.INT , GType.INT ]);
+	                               // NAME        FULLNAME        IS_ITEM    VISUALIZED  FILTER_VISIBLE
+		treestore = new TreeStore([ GType.STRING , GType.STRING , GType.INT , GType.INT , GType.BOOLEAN ]);
 		super(treestore);
+		// the view displays filtermodel, not treestore directly, so that rows can be hidden by the
+		// filter bar (see recompute_filter_visibility() below) without touching treestore's actual
+		// content -- setVisibleColumn() ties a row's visibility directly to COLUMN_FILTER_VISIBLE.
+		filtermodel = new TreeModelFilter(treestore, null);
+		filtermodel.setVisibleColumn(COLUMN_FILTER_VISIBLE);
+		setModel(filtermodel);
 		setVexpand(true);
 		import gtk.TreeViewColumn, gtk.CellRendererText, gtk.CellRendererToggle;
 		auto text_renderer = new CellRendererText;
@@ -1527,7 +1615,11 @@ class ItemView : TreeView {
 		toggle_renderer.addOnToggled( delegate void(string p, CellRendererToggle crt){
 			import gtk.TreePath, gtk.TreeIter;
 			import std.typecons;
-			auto path = scoped!TreePath(p); // p is something like "2:4:1"
+			// p is relative to filtermodel (the view's current model), something like "2:4:1" --
+			// convert it once to a treestore-relative path here, and do everything below purely
+			// in terms of treestore, whose parent/child structure is unaffected by filtering.
+			auto filter_path = scoped!TreePath(p);
+			auto path = filtermodel.convertPathToChildPath(filter_path);
 			version(gtk3) {
 				auto iter = scoped!TreeIter(treestore, path);
 			} else {
@@ -1536,27 +1628,25 @@ class ItemView : TreeView {
 			}
 			// recursively toggle children (only if iter is not an acutal item)
 			auto is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
-			bool active = switch_iter(treestore, iter, plotwidget, null, false); 
+			bool active = switch_iter(treestore, iter, plotwidget, null, false);
 			if (!is_item) { // only recurse for non-items
 				iterate_children_depth_first(&active, treestore, iter, 0,
-					(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) { 
+					(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) {
 						switch_iter(treestore, iter, plotwidget, force_active, false);
 					});
 			}
 			import ui;
 			ui.update_window_gui(main_window.name, false);
 
-			// check if a parent has to be toggled
-			import std.array;
-			auto path_parts = p.split(':');
-			while (path_parts.length > 1) {
-				path_parts = path_parts[0..$-1];
-				p = path_parts.join(':');
-				path = scoped!TreePath(p);
+			// check if a parent has to be toggled (walk up treestore's own hierarchy, one level
+			// at a time, independent of the current filter)
+			auto ancestor_path = path.copy();
+			while (ancestor_path.getDepth() > 1) {
+				ancestor_path.up();
 				version(gtk3) {
-					iter = scoped!TreeIter(treestore, path);
+					iter = scoped!TreeIter(treestore, ancestor_path);
 				} else {
-					treestore.getIter(iter, path);
+					treestore.getIter(iter, ancestor_path);
 				}
 				is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
 				if (!is_item) {
@@ -1565,16 +1655,16 @@ class ItemView : TreeView {
 						bool none_set = true;
 					}
 					Children children;
-					iterate_children_depth_first(&active, treestore, iter, &children, 
-						(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, Children *children) { 
-							auto child_active = treestore.getInt(iter, COLUMN_VISUALIZED); 
+					iterate_children_depth_first(&active, treestore, iter, &children,
+						(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, Children *children) {
+							auto child_active = treestore.getInt(iter, COLUMN_VISUALIZED);
 							if (child_active) children.none_set = false;
 							if (!child_active) children.all_set = false;
 					});
 					if (children.none_set) {
 						version (gtk3) {
 							treestore.setValue(iter, COLUMN_VISUALIZED, 0);
-						} 
+						}
 						version (gtk4) {
 							import gobject.Value, std.typecons;
 							treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(0));
@@ -1583,7 +1673,7 @@ class ItemView : TreeView {
 					if (children.all_set) {
 						version (gtk3) {
 							treestore.setValue(iter, COLUMN_VISUALIZED, 1);
-						} 
+						}
 						version (gtk4) {
 							import gobject.Value, std.typecons;
 							treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
@@ -1591,6 +1681,7 @@ class ItemView : TreeView {
 					}
 				}
 			}
+			recompute_filter_visibility(); // COLUMN_VISUALIZED may have changed, which the "shown" filter depends on
 		});
 
 		auto column = new TreeViewColumn();
@@ -1604,6 +1695,33 @@ class ItemView : TreeView {
 		//appendColumn(new TreeViewColumn("Name", text_renderer,   "text",   COLUMN_NAME));
 		//appendColumn(new TreeViewColumn("Show", toggle_renderer, "active", COLUMN_VISUALIZED));
 		getSelection().setMode(GtkSelectionMode.MULTIPLE);
+
+		// item name filter bar: typing in filter_entry, or toggling any of the checkboxes,
+		// recomputes which rows are visible (see recompute_filter_visibility()). "filter" is the
+		// master switch for text filtering; "regex" only changes how the text is interpreted and
+		// has no effect while "filter" is unchecked; "shown" is independent of the text filter
+		// and restricts the view to items currently shown on this window's canvas; "case
+		// sensitive" is unchecked by default (text filtering is case-insensitive by default) and
+		// only matters while "filter" is checked.
+		filter_bar = new Box(GtkOrientation.HORIZONTAL, 0);
+		filter_entry = new Entry();
+		filter_entry.setPlaceholderText("filter itemname...");
+		filter_entry.setHexpand(true);
+		filter_check = new CheckButton("filter");
+		regex_check  = new CheckButton("regex");
+		shown_check  = new CheckButton("shown");
+		case_sensitive_check = new CheckButton("case sensitive");
+		filter_bar.append(filter_entry);
+		filter_bar.append(filter_check);
+		filter_bar.append(regex_check);
+		filter_bar.append(shown_check);
+		filter_bar.append(case_sensitive_check);
+		import gtk.EditableIF;
+		filter_entry.addOnChanged((EditableIF e) => recompute_filter_visibility());
+		filter_check.addOnToggled((button) => recompute_filter_visibility());
+		regex_check.addOnToggled( (button) => recompute_filter_visibility());
+		shown_check.addOnToggled( (button) => recompute_filter_visibility());
+		case_sensitive_check.addOnToggled( (button) => recompute_filter_visibility());
 
 		void nothing() {}
 		version(gtk3) {
@@ -1823,13 +1941,70 @@ class ItemView : TreeView {
 
 	import item;
 
+	// Recomputes COLUMN_FILTER_VISIBLE for every row in treestore, which filtermodel uses
+	// (via setVisibleColumn) to decide what to actually display. Bottom-up: an item row is
+	// visible if it passes the active filter criteria itself; a folder row is visible if any
+	// of its descendants is visible, so that a matching item stays reachable even when the
+	// folder containing it doesn't itself match. Call this whenever the filter bar changes, or
+	// whenever item names or "shown" (COLUMN_VISUALIZED) state change.
+	void recompute_filter_visibility() {
+		import gobject.Value, std.typecons;
+
+		bool item_passes_filter(TreeIter iter) {
+			if (shown_check.getActive() && treestore.getInt(iter, COLUMN_VISUALIZED) == 0) return false;
+			if (filter_check.getActive()) {
+				string text = filter_entry.getText();
+				if (text.length > 0) {
+					string fullname = treestore.getString(iter, COLUMN_FULLNAME);
+					if (fullname is null) return false;
+					bool case_sensitive = case_sensitive_check.getActive();
+					if (regex_check.getActive()) {
+						import std.regex;
+						try {
+							auto re = case_sensitive ? regex(text) : regex(text, "i");
+							if (matchFirst(fullname, re).empty) return false;
+						} catch (Exception e) {
+							// invalid/incomplete regex while typing: don't hide anything until it becomes valid again
+						}
+					} else {
+						import std.algorithm : canFind;
+						import std.uni : toLower;
+						if (case_sensitive) {
+							if (!fullname.canFind(text)) return false;
+						} else {
+							if (!fullname.toLower.canFind(text.toLower)) return false;
+						}
+					}
+				}
+			}
+			return true;
+		}
+
+		bool visit(TreeIter parent) {
+			bool any_descendant_visible = false;
+			int n_children = treestore.iterNChildren(parent);
+			TreeIter iter = null;
+			foreach (n; 0..n_children) {
+				if (treestore.iterNthChild(iter, parent, n)) {
+					bool visible = treestore.getInt(iter, COLUMN_IS_ITEM) ? item_passes_filter(iter) : visit(iter);
+					treestore.setValue(iter, COLUMN_FILTER_VISIBLE, scoped!Value(visible));
+					if (visible) any_descendant_visible = true;
+				}
+			}
+			return any_descendant_visible;
+		}
+		visit(null);
+		filtermodel.refilter();
+	}
+
 	void sync_with_session(bool clear = false)
-	{	
+	{
 		if (clear) { treestore.clear(); }
 		import fairy;
 		foreach (itemname, item; session.items) {
 			addItem(itemname, item.item);
 		}
+		recompute_filter_visibility();
 	}
 
 
@@ -1852,10 +2027,11 @@ class ItemView : TreeView {
 			// this way of setting the values only works for the string types
 			//treestore.set(iter, [COLUMN_FULLNAME, COLUMN_COLOR_TEXT, COLUMN_NAME,   COLUMN_TYPE      ], 
 			//	                 [fullname,        (is_item)?"⬤":"", parts[0],      item.typeString()]);
-			treestore.setValue(iter, COLUMN_NAME,       scoped!Value(parts[0]));
-			treestore.setValue(iter, COLUMN_FULLNAME,   scoped!Value(fullname));
-			treestore.setValue(iter, COLUMN_IS_ITEM,    scoped!Value(is_item));
-			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(is_shown?1:0));
+			treestore.setValue(iter, COLUMN_NAME,          scoped!Value(parts[0]));
+			treestore.setValue(iter, COLUMN_FULLNAME,      scoped!Value(fullname));
+			treestore.setValue(iter, COLUMN_IS_ITEM,       scoped!Value(is_item));
+			treestore.setValue(iter, COLUMN_VISUALIZED,    scoped!Value(is_shown?1:0));
+			treestore.setValue(iter, COLUMN_FILTER_VISIBLE,scoped!Value(true)); // corrected by the recompute_filter_visibility() call that follows sync_with_session()/addItem()
 		}
 
 		//iterate all children of the root nodes and try to find one with the correct prefix of the given fullname
@@ -1921,6 +2097,7 @@ class ItemView : TreeView {
 			//expandToPath(path);
 			fix_parent_checkboxes(iter);
 		}
+		recompute_filter_visibility(); // COLUMN_VISUALIZED may have changed, which the "shown" filter depends on
 	}
 
 	void expand_all_shown_items(CanvasProperties* canvas) {
@@ -1932,7 +2109,8 @@ class ItemView : TreeView {
 			if (iter is null) continue;
 			auto path = treestore.getPath(iter);
 			if (path is null) continue;
-			expandToPath(path);
+			auto filter_path = filtermodel.convertChildPathToPath(path);
+			if (filter_path !is null) expandToPath(filter_path);
 			//fix_parent_checkboxes(iter);
 		}
 	}
@@ -2669,7 +2847,14 @@ class PlotArea :  DrawingArea, BackendInterface {
 
 //		// minimum size of PlotArea
 		setSizeRequest(100, 50);
- 
+
+		// make the canvas itself focusable (unlike item_view/plot_widget, which are deliberately
+		// kept unfocusable so they don't steal the window's keyboard shortcuts -- see their
+		// setCanFocus(false)/setFocusable(false) calls), so that a left click here (below) can
+		// grabFocus() and move keyboard focus away from e.g. the item-view filter entry.
+		version(gtk3) { setCanFocus(true); }
+		version(gtk4) { setFocusable(true); }
+
 		version(gtk3) {
 			addOnDraw(&drawCallback);
 			addOnMotionNotify(delegate bool(GdkEventMotion *event_motion, Widget w){
@@ -2686,8 +2871,11 @@ class PlotArea :  DrawingArea, BackendInterface {
 				double x = event_button.x, y = event_button.y;
 				bool ctrl  = (event_button.state & GdkModifierType.CONTROL_MASK) != 0;
 				bool shift = (event_button.state & GdkModifierType.SHIFT_MASK  ) != 0;
-				if (event_button.button == 1) painter.left_button_pressed (nPress,x,y,this,ctrl,shift);
-				if (event_button.button == 2) painter.mid_button_pressed  (nPress,x,y,this,ctrl,shift);		
+				if (event_button.button == 1) {
+					this.grabFocus(); // move keyboard focus here, e.g. away from the item-view filter entry
+					painter.left_button_pressed (nPress,x,y,this,ctrl,shift);
+				}
+				if (event_button.button == 2) painter.mid_button_pressed  (nPress,x,y,this,ctrl,shift);
 				if (event_button.button == 3) painter.right_button_pressed(nPress,x,y,ctrl,shift);
 				return false;
 			});
@@ -2765,6 +2953,7 @@ class PlotArea :  DrawingArea, BackendInterface {
 			left_click.addOnPressed(delegate void(int nPress, double x, double y, GestureClick g) {
 				bool ctrl  = (g.getCurrentEventState() & GdkModifierType.CONTROL_MASK) != 0;
 				bool shift = (g.getCurrentEventState() & GdkModifierType.SHIFT_MASK)   != 0;
+				this.grabFocus(); // move keyboard focus here, e.g. away from the item-view filter entry
 				left_button_pressed(nPress,x,y, cast(PlotArea)g.getWidget(), ctrl, shift);
 			});
 			left_click.addOnReleased(delegate void(int nPress, double x, double y, GestureClick g) {
