@@ -494,6 +494,30 @@ struct CanvasPainter {
 		return false;
 	}
 
+	// Returns true if calling draw_content() right now would actually find anything to redraw:
+	// the set of displayed items changed, some item's version no longer matches what's cached in
+	// its Visualizer (see the "canvas.refresh" branch in draw_content(), which this mirrors
+	// without the side effects of actually recreating anything), or there's a pending explicit
+	// reset (reset_item_names) still waiting to be processed. Lets a periodic/automatic refresh
+	// skip the actual redraw when the canvas would come out pixel-identical, without touching any
+	// other redraw trigger (explicit refresh, show/hide, drag/zoom, window resize, ...), which all
+	// call their own redraw paths directly and are unaffected by this.
+	bool content_changed() {
+		if (reset_item_names.length > 0) return true;
+		if (canvas.itemnames.length != visualizers.length) return true;
+		foreach(itemname; canvas.itemnames) {
+			auto vis = itemname in visualizers;
+			if (vis is null) return true;
+			import fairy;
+			try {
+				if (vis.getVersion() != fairy.session.get_visual_item(itemname).getVersion()) return true;
+			} catch (Exception e) {
+				return true; // let draw_content()'s own error handling deal with it
+			}
+		}
+		return false;
+	}
+
 	void draw_selection_box_helper() {
 		backend.set_line_width(3);
 		backend.set_color(0.9,0.9,0.9);

@@ -151,10 +151,14 @@ class GtkGui : Gui {
 					++refresh_count;
 					foreach(name, window; main_windows) {
 						import ui;
-						if ((!window.canvas.fastrefresh && window.canvas.autorefresh && !(refresh_count%50)) || 
-							(window.canvas.fastrefresh && window.canvas.autorefresh && !(refresh_count%10)) || 
+						if ((!window.canvas.fastrefresh && window.canvas.autorefresh && !(refresh_count%50)) ||
+							(window.canvas.fastrefresh && window.canvas.autorefresh && !(refresh_count%10)) ||
 							(window.canvas.fastrefresh && !window.canvas.autorefresh) ) {
-							winrefresh(window.name);
+							// skip the (expensive) redraw if nothing displayed actually changed
+							// since the last one -- see CanvasPainter.content_changed().
+							if (window.plot_widget.plot_area.painter.content_changed()) {
+								winrefresh(window.name);
+							}
 						}
 					}
 					if (refresh_count == 50) refresh_count = 0;
