@@ -371,6 +371,13 @@ public:
 		assert(item_view !is null);
 		item_view.sync_with_session();
 		item_view.sync_with_canvas(canvas);
+		// reveal items that just got shown programmatically (e.g. "show in new window", or a
+		// 2d-projection window's auto-generated "show" command) -- this only runs when
+		// canvas.itemnames actually changed (see ui.update_window_gui()'s canvas_items_changed
+		// flag), so a plain user checkbox click (which goes through the lighter-weight
+		// update_window=false path) is unaffected, same as for expand_all_shown_items()'s
+		// original call at window-construction time below.
+		item_view.expand_all_shown_items(canvas);
 		plot_widget.sync_with_canvas(canvas);
 	}
 
