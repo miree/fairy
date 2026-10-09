@@ -1554,7 +1554,40 @@ class ItemView : TreeView {
 			}
 		}
 		import ui;
-		ui.update_window_gui(main_window.name, true);		
+		ui.update_window_gui(main_window.name, true);
+	}
+	void show_selected_in_new_window() {
+		string[] names;
+		foreach(selected_iter; getSelectedIters()) {
+			auto name = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			if (name !is null) names ~= name;
+		}
+		if (names.length == 0) return;
+
+		import ui, std.conv;
+		string window_name;
+		// same naming scheme as the "new window" action (win.new_window) above
+		for (int i = 0; i < 100; ++i) {
+			try {
+				auto candidate = "window" ~ i.to!string;
+				ui.win(candidate);
+				window_name = candidate;
+				break;
+			} catch (Exception e) {
+				// window with this name was probably already present
+			}
+		}
+		if (window_name is null) return;
+
+		foreach(name; names) {
+			try {
+				ui.show(name, window_name, "true", false);
+			} catch (Exception e) {
+				import std.stdio;
+				writeln("cannot show " ~ name ~": " ~ e.msg);
+			}
+		}
+		ui.update_window_gui(window_name, true);
 	}
 	void show_all_recursive() {
 		string[] names; 
@@ -1826,7 +1859,8 @@ class ItemView : TreeView {
 			popup_menu.append( new MenuItem( (m) => show_all_recursive(),  "show recursive", "show selected items and their children"));
 			popup_menu.append( new MenuItem( (m) => hide_all_recursive(),  "hide recursive", "hide selected items and their children"));
 			popup_menu.append( new MenuItem( (m) => reset_all_recursive(), "reset recursive", "reset selected items and their children"));
-			popup_menu.append( new MenuItem( (m) => show_all_selected(),   "show", "show selected items"));
+				popup_menu.append( new MenuItem( (m) => show_all_selected(),   "show", "show selected items"));
+			popup_menu.append( new MenuItem( (m) => show_selected_in_new_window(), "show in new window", "create a new window showing only the selected items"));
 			popup_menu.append( new MenuItem( (m) => hide_all_selected(),   "hide", "hide only selected items"));
 			popup_menu.append( new MenuItem( (m) => reset_all_selected(),  "reset", "reset selected items and"));
 			popup_menu.append( new MenuItem( (m) {return;},  "       ", "sepration so that it becomes more unlikely to accidentally click on remove when aiming for clicking on reset"));
