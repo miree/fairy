@@ -897,6 +897,22 @@ class ItemView : TreeView {
 		return childIter;
 	}
 
+	// A stable identifier for a treestore row, independent of its position/index (which can shift
+	// as items are added/removed elsewhere in the tree): the chain of COLUMN_NAME values from the
+	// root down to this row, e.g. "LaBr/Calibrated". Used as the key for expanded_state.
+	private string folder_key(TreeIter iter) {
+		import std.algorithm, std.array, std.range;
+		string[] parts;
+		TreeIter cur = iter;
+		for (;;) {
+			parts ~= treestore.getString(cur, COLUMN_NAME);
+			TreeIter parent = null;
+			if (!treestore.iterParent(parent, cur)) break;
+			cur = parent;
+		}
+		return parts.retro.join("/");
+	}
+
 	version(gtk3) { // override gtkd-3's TreeView.getSelectedIters() convenience function to add the filter->child conversion
 		override TreeIter[] getSelectedIters() {
 			import gtk.TreePath;
@@ -956,6 +972,17 @@ class ItemView : TreeView {
 	CheckButton regex_check;
 	CheckButton shown_check;
 	CheckButton case_sensitive_check; // unchecked (the default) means filtering is case-insensitive
+
+	// Remembers which folders the user has expanded/collapsed, independent of the current filter.
+	// filtermodel.refilter() (see recompute_filter_visibility()) does not preserve a row's
+	// expanded state across it being filtered out and later shown again -- GTK treats a row
+	// reappearing in the filter as new, so it resets to collapsed. Kept up to date live via
+	// addOnRowExpanded()/addOnRowCollapsed() below (which fire for both user clicks and
+	// programmatic expandRow() calls), and re-applied after every refilter() to whichever
+	// remembered-expanded folders are still visible. Keyed by folder_key() (the chain of folder
+	// names from the root, e.g. "LaBr/Calibrated") rather than by row index/path, since indices
+	// can shift as items are added/removed but this doesn't.
+	bool[string] expanded_state;
 
 
 	version(gtk3) {
@@ -1730,6 +1757,17 @@ class ItemView : TreeView {
 		shown_check.addOnToggled( (button) => recompute_filter_visibility());
 		case_sensitive_check.addOnToggled( (button) => recompute_filter_visibility());
 
+		// track user-driven (and programmatic, e.g. expand_all_shown_items()) expand/collapse
+		// choices so recompute_filter_visibility() can restore them after a refilter() -- see
+		// expanded_state's own comment above.
+		import gtk.TreePath;
+		addOnRowExpanded(delegate void(TreeIter filterIter, TreePath filterPath, TreeView tv) {
+			expanded_state[folder_key(filterIterToChild(filterIter))] = true;
+		});
+		addOnRowCollapsed(delegate void(TreeIter filterIter, TreePath filterPath, TreeView tv) {
+			expanded_state[folder_key(filterIterToChild(filterIter))] = false;
+		});
+
 		void nothing() {}
 		version(gtk3) {
 
@@ -2002,6 +2040,28 @@ class ItemView : TreeView {
 		}
 		visit(null);
 		filtermodel.refilter();
+
+		// re-apply remembered expand/collapse state -- refilter() above resets every row that
+		// was filtered out and is now reappearing back to collapsed (GTK treats it as new), so
+		// walk the tree and re-expand whichever folders are remembered as expanded and are
+		// currently visible. See expanded_state's own comment for why this is necessary.
+		void restore_expanded(TreeIter parent) {
+			int n_children = treestore.iterNChildren(parent);
+			TreeIter iter = null;
+			foreach (n; 0..n_children) {
+				if (treestore.iterNthChild(iter, parent, n)) {
+					if (!treestore.getInt(iter, COLUMN_IS_ITEM)) {
+						auto expanded = folder_key(iter) in expanded_state;
+						if (expanded !is null && *expanded) {
+							auto filterPath = filtermodel.convertChildPathToPath(treestore.getPath(iter));
+							if (filterPath !is null) expandRow(filterPath, false);
+						}
+						restore_expanded(iter);
+					}
+				}
+			}
+		}
+		restore_expanded(null);
 	}
 
 	void sync_with_session(bool clear = false)
