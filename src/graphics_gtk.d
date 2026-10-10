@@ -222,7 +222,11 @@ version(gtk3)
 	string getString(TreeStore store , TreeIter iter, int column) {
 		return store.getValue(iter,column).getString();
 	}
-} 
+	// g_value_get_int() asserts on a G_TYPE_BOOLEAN column (e.g. COLUMN_FILTER_VISIBLE) -- use this instead.
+	bool getBool(TreeStore store , TreeIter iter, int column) {
+		return store.getValue(iter,column).getBoolean();
+	}
+}
 version(gtk4) {
 	// get int and string out of a treestore iterator
 	import gtk.TreeStore, gtk.TreeIter, gobject.Value;
@@ -235,6 +239,12 @@ version(gtk4) {
 		auto out_value = new Value;
 		store.getValue(iter, column, out_value);
 		return out_value.get!string();
+	}
+	// g_value_get_int() asserts on a G_TYPE_BOOLEAN column (e.g. COLUMN_FILTER_VISIBLE) -- use this instead.
+	bool getBool(TreeStore store , TreeIter iter, int column) {
+		auto out_value = new Value;
+		store.getValue(iter, column, out_value);
+		return out_value.get!bool();
 	}
 }
 
@@ -1669,6 +1679,88 @@ class ItemView : TreeView {
 	}
 
 
+	// handles a click on a row's checkbox (filter_path is relative to filtermodel, the view's
+	// current model, e.g. "2:4:1"). Extracted out of the CellRendererToggle "toggled" signal
+	// handler (see the constructor) so it can also be driven directly, e.g. by tests.
+	import gtk.TreePath;
+	void toggle_item_checkbox(TreePath filter_path) {
+		import gtk.TreeIter;
+		import std.typecons;
+		// convert once to a treestore-relative path here, and do everything below purely in
+		// terms of treestore, whose parent/child structure is unaffected by filtering.
+		auto path = filtermodel.convertPathToChildPath(filter_path);
+		version(gtk3) {
+			auto iter = scoped!TreeIter(treestore, path);
+		} else {
+			TreeIter iter;
+			treestore.getIter(iter, path);
+		}
+		// recursively toggle children (only if iter is not an acutal item)
+		auto is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
+		bool active = switch_iter(treestore, iter, plotwidget, null, false);
+		if (!is_item) { // only recurse for non-items
+			iterate_children_depth_first(&active, treestore, iter, 0,
+				(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) {
+					// a folder checkbox click should only affect the children currently visible
+					// under the active filter -- a user filtering down to a handful of items and
+					// then clicking a folder's checkbox naturally expects only those to be
+					// affected, not every item hidden by the filter. COLUMN_FILTER_VISIBLE already
+					// reflects the combined text/regex/"shown" filter state (see
+					// recompute_filter_visibility()), and is just "true" for everyone when no
+					// filter is active, so this is a no-op in that case.
+					if (!treestore.getBool(iter, COLUMN_FILTER_VISIBLE)) return;
+					switch_iter(treestore, iter, plotwidget, force_active, false);
+				});
+		}
+		import ui;
+		ui.update_window_gui(main_window.name, false);
+
+		// check if a parent has to be toggled (walk up treestore's own hierarchy, one level
+		// at a time, independent of the current filter)
+		auto ancestor_path = path.copy();
+		while (ancestor_path.getDepth() > 1) {
+			ancestor_path.up();
+			version(gtk3) {
+				iter = scoped!TreeIter(treestore, ancestor_path);
+			} else {
+				treestore.getIter(iter, ancestor_path);
+			}
+			is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
+			if (!is_item) {
+				struct Children {
+					bool all_set = true;
+					bool none_set = true;
+				}
+				Children children;
+				iterate_children_depth_first(&active, treestore, iter, &children,
+					(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, Children *children) {
+						auto child_active = treestore.getInt(iter, COLUMN_VISUALIZED);
+						if (child_active) children.none_set = false;
+						if (!child_active) children.all_set = false;
+				});
+				if (children.none_set) {
+					version (gtk3) {
+						treestore.setValue(iter, COLUMN_VISUALIZED, 0);
+					}
+					version (gtk4) {
+						import gobject.Value, std.typecons;
+						treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(0));
+					}
+				}
+				if (children.all_set) {
+					version (gtk3) {
+						treestore.setValue(iter, COLUMN_VISUALIZED, 1);
+					}
+					version (gtk4) {
+						import gobject.Value, std.typecons;
+						treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
+					}
+				}
+			}
+		}
+		recompute_filter_visibility(); // COLUMN_VISUALIZED may have changed, which the "shown" filter depends on
+	}
+
 	this(PlotWidget pw, MainWindow mainwindow) {
 		plotwidget = pw;
 		main_window = mainwindow;
@@ -1687,75 +1779,9 @@ class ItemView : TreeView {
 		auto color_renderer = new CellRendererText;
 		auto toggle_renderer = new CellRendererToggle;
 		toggle_renderer.addOnToggled( delegate void(string p, CellRendererToggle crt){
-			import gtk.TreePath, gtk.TreeIter;
+			import gtk.TreePath;
 			import std.typecons;
-			// p is relative to filtermodel (the view's current model), something like "2:4:1" --
-			// convert it once to a treestore-relative path here, and do everything below purely
-			// in terms of treestore, whose parent/child structure is unaffected by filtering.
-			auto filter_path = scoped!TreePath(p);
-			auto path = filtermodel.convertPathToChildPath(filter_path);
-			version(gtk3) {
-				auto iter = scoped!TreeIter(treestore, path);
-			} else {
-				TreeIter iter;
-				treestore.getIter(iter, path);
-			}
-			// recursively toggle children (only if iter is not an acutal item)
-			auto is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
-			bool active = switch_iter(treestore, iter, plotwidget, null, false);
-			if (!is_item) { // only recurse for non-items
-				iterate_children_depth_first(&active, treestore, iter, 0,
-					(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, int nothing) {
-						switch_iter(treestore, iter, plotwidget, force_active, false);
-					});
-			}
-			import ui;
-			ui.update_window_gui(main_window.name, false);
-
-			// check if a parent has to be toggled (walk up treestore's own hierarchy, one level
-			// at a time, independent of the current filter)
-			auto ancestor_path = path.copy();
-			while (ancestor_path.getDepth() > 1) {
-				ancestor_path.up();
-				version(gtk3) {
-					iter = scoped!TreeIter(treestore, ancestor_path);
-				} else {
-					treestore.getIter(iter, ancestor_path);
-				}
-				is_item = treestore.getInt(iter, COLUMN_IS_ITEM); // gtk3/gtk4 compatibility/convenience function
-				if (!is_item) {
-					struct Children {
-						bool all_set = true;
-						bool none_set = true;
-					}
-					Children children;
-					iterate_children_depth_first(&active, treestore, iter, &children,
-						(bool* force_active, string full_name, TreeStore treestore, TreeIter iter, Children *children) {
-							auto child_active = treestore.getInt(iter, COLUMN_VISUALIZED);
-							if (child_active) children.none_set = false;
-							if (!child_active) children.all_set = false;
-					});
-					if (children.none_set) {
-						version (gtk3) {
-							treestore.setValue(iter, COLUMN_VISUALIZED, 0);
-						}
-						version (gtk4) {
-							import gobject.Value, std.typecons;
-							treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(0));
-						}
-					}
-					if (children.all_set) {
-						version (gtk3) {
-							treestore.setValue(iter, COLUMN_VISUALIZED, 1);
-						}
-						version (gtk4) {
-							import gobject.Value, std.typecons;
-							treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
-						}
-					}
-				}
-			}
-			recompute_filter_visibility(); // COLUMN_VISUALIZED may have changed, which the "shown" filter depends on
+			toggle_item_checkbox(scoped!TreePath(p));
 		});
 
 		auto column = new TreeViewColumn();
