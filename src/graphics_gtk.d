@@ -2363,6 +2363,7 @@ class PlotWidget : Box {
 	CheckButton check_autorefresh;
 	CheckButton check_fastrefresh;
 	Button      button_refresh;
+	Button      button_fit;
 	Label       autoscale_label;
 	Box         fit_log_labels;
 	Box         fit_log_checks_x;
@@ -2473,8 +2474,27 @@ class PlotWidget : Box {
 				}
 			);
 
-		button_refresh = new Button("refr.");
+		button_refresh = new Button();
+		button_refresh.setTooltipText("redraw window ('u')");
 		button_refresh.addOnClicked((button) => ui.winrefresh(name));
+
+		button_fit = new Button();
+		button_fit.setTooltipText("fit all visible items to canvas ('f')");
+		button_fit.addOnClicked((button) => ui.winfit(name));
+
+		version(gtk3) {
+			import gtk.Image, gtk.c.types;
+			auto refresh_image = new Image;
+			refresh_image.setFromIconName("view-refresh-symbolic", IconSize.LARGE_TOOLBAR);
+			button_refresh.setImage(refresh_image);
+			auto fit_image = new Image;
+			fit_image.setFromIconName("zoom-fit-best-symbolic", IconSize.LARGE_TOOLBAR);
+			button_fit.setImage(fit_image);
+		}
+		version(gtk4) {
+			button_refresh.setIconName("view-refresh-symbolic");
+			button_fit.setIconName("zoom-fit-best-symbolic");
+		}
 
 		///////////////////////////////////////////////////////
 		autoscale_label = new Label("fit");
@@ -2601,6 +2621,7 @@ class PlotWidget : Box {
 		box_refresh.append(check_fastrefresh);
 		controls.append(box_refresh);
 		controls.append(button_refresh);
+		controls.append(button_fit);
 
 		//controls.append(new Separator(GtkOrientation.VERTICAL));
 		fit_log_labels = new Box(GtkOrientation.VERTICAL, 0);
