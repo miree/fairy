@@ -2730,14 +2730,12 @@ version(gtk4) {
 			static char[256] buffer;
 			import core.stdc.stdio;
 
-			if (plot_area.painter.draw_selection_box) snprintf(buffer.ptr, buffer.length, "dx = %.9g", plot_widget.mouse_pos[0]);
-			else snprintf(buffer.ptr, buffer.length, "x = %.9g", plot_widget.mouse_pos[0]);
+			snprintf(buffer.ptr, buffer.length, "x = %.9g", plot_widget.mouse_pos[0]);
 			cairo_move_to(cr, 20,20);
 			cairo_show_text(cr, buffer.ptr);
 			cairo_stroke(cr);			
 
-			if (plot_area.painter.draw_selection_box) snprintf(buffer.ptr, buffer.length, "dy = %.9g", plot_widget.mouse_pos[1]);
-			else snprintf(buffer.ptr, buffer.length, "y = %.9g", plot_widget.mouse_pos[1]);
+			snprintf(buffer.ptr, buffer.length, "y = %.9g", plot_widget.mouse_pos[1]);
 			cairo_move_to(cr, 180,20);
 			cairo_show_text(cr, buffer.ptr);
 			cairo_stroke(cr);			
