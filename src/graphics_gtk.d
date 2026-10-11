@@ -2681,7 +2681,7 @@ class PlotWidget : Box {
 		version (gtk3) {
 			import std.format;
 			auto label = format("  x=%g\n  y=%g", x,y);
-			if (z is double.init) label = format(" dx=%g\n dy=%g", x,y);
+			if (plot_area.painter.draw_selection_box) label = format(" dx=%g\n dy=%g", x,y);
 			mouse_pos.setLabel(label);
 			mouse_pos.setJustify(GtkJustification.LEFT);
 		} else {
@@ -2730,12 +2730,14 @@ version(gtk4) {
 			static char[256] buffer;
 			import core.stdc.stdio;
 
-			snprintf(buffer.ptr, buffer.length, "x = %.9g", plot_widget.mouse_pos[0]);
+			if (plot_area.painter.draw_selection_box) snprintf(buffer.ptr, buffer.length, "dx = %.9g", plot_widget.mouse_pos[0]);
+			else snprintf(buffer.ptr, buffer.length, "x = %.9g", plot_widget.mouse_pos[0]);
 			cairo_move_to(cr, 20,20);
 			cairo_show_text(cr, buffer.ptr);
 			cairo_stroke(cr);			
 
-			snprintf(buffer.ptr, buffer.length, "y = %.9g", plot_widget.mouse_pos[1]);
+			if (plot_area.painter.draw_selection_box) snprintf(buffer.ptr, buffer.length, "dy = %.9g", plot_widget.mouse_pos[1]);
+			else snprintf(buffer.ptr, buffer.length, "y = %.9g", plot_widget.mouse_pos[1]);
 			cairo_move_to(cr, 180,20);
 			cairo_show_text(cr, buffer.ptr);
 			cairo_stroke(cr);			

@@ -904,8 +904,6 @@ struct CanvasPainter {
 		double x_start_world,   y_start_world;
 		double x_current_world, y_current_world;
 		iterate_grid_transforms(start_selection_x,start_selection_y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
-			//import std.stdio;
-			//writeln("inside ", inside, "   ", itemname);
 			if (inside)  {
 				mouse_transform = t;
 				x_start_world = x_world;
@@ -915,7 +913,7 @@ struct CanvasPainter {
 		if (x_start_world !is double.init && y_start_world !is double.init) {
 			x_current_world = mouse_transform[0].exp(mouse_transform[0].canvas2world(x));
 			y_current_world = mouse_transform[1].exp(mouse_transform[1].canvas2world(y));
-			backend.show_mouse_pos(x_current_world-x_start_world, y_current_world-y_start_world, double.init);
+			backend.show_mouse_pos(x_current_world-x_start_world, y_current_world-y_start_world, 0.0);
 		}
 	}
 
