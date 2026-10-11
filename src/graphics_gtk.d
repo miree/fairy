@@ -857,7 +857,7 @@ public:
 		switch(keyval) {
 			case '1': .. case '9': plot_widget.spin_n_columns.setValue(keyval-'0'); break;
 			case 'u': ui.winrefresh(name);                                 break;
-			case 'p': ui.winpoll(name);                                    break;
+			case 'p': ui.winfastpoll(name);                                break;
 			case 'q': if (ctrl_pressed) ui.quit();
 					  else              ui.winzoom(name,1*1.2);                              
 			break;
@@ -2681,6 +2681,7 @@ class PlotWidget : Box {
 		version (gtk3) {
 			import std.format;
 			auto label = format("  x=%g\n  y=%g", x,y);
+			if (z is double.init) label = format(" dx=%g\n dy=%g", x,y);
 			mouse_pos.setLabel(label);
 			mouse_pos.setJustify(GtkJustification.LEFT);
 		} else {

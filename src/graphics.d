@@ -894,6 +894,32 @@ struct CanvasPainter {
 		}
 	}
 
+	// this function calculates the delta_x and delta_y range covered by the selection box on the 
+	// screen. In grid mode (tiling mode), the transformation for both corners of the selection box
+	// is the starting point (where the mouse click was done).
+	void show_value_selection_box(double x, double y, BackendInterface backend) {
+		if (!draw_selection_box) return; // make sure this is only active when a selection box is drawn
+		if (select_or_drag.valid) return; // make sure this is only active when nothing is selected or dragged
+		backend.show_value(double.init, null); // this clears the show_value field
+		double x_start_world,   y_start_world;
+		double x_current_world, y_current_world;
+		iterate_grid_transforms(start_selection_x,start_selection_y,(double x_world, double y_world, double z_world, bool inside, string itemname, in Transform[3] t) {
+			//import std.stdio;
+			//writeln("inside ", inside, "   ", itemname);
+			if (inside)  {
+				mouse_transform = t;
+				x_start_world = x_world;
+				y_start_world = y_world;
+			}
+		});
+		if (x_start_world !is double.init && y_start_world !is double.init) {
+			x_current_world = mouse_transform[0].exp(mouse_transform[0].canvas2world(x));
+			y_current_world = mouse_transform[1].exp(mouse_transform[1].canvas2world(y));
+			backend.show_mouse_pos(x_current_world-x_start_world, y_current_world-y_start_world, double.init);
+		}
+	}
+
+
 	void mouse_motion(double x, double y, BackendInterface backend, bool ctrl = false, bool shift = false) {
 		mouse_pos_x = x;
 		mouse_pos_y = y;
@@ -901,6 +927,7 @@ struct CanvasPainter {
 
 		// mouse motion means that show value has to be called
 		show_value(x,y,backend);
+		show_value_selection_box(x,y,backend);
 
 		//drawer.show_mouse_pos(transform.transform_canvas2world_x(x), transform.transform_canvas2world_y(y));
 		with (canvas.transform[0]) {
