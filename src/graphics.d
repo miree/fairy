@@ -178,6 +178,11 @@ struct CanvasProperties {
 	
 	// the following data is not for direct canvas logic, but for external gui implementation
 	@SERIALIZE int          gui_paned_value  = 200; // this can be used by the GUI implementation to separate itemlist from canvas
+	@SERIALIZE string       filter_entry; // filter string for item selection
+	@SERIALIZE bool         filter_active; // filter feature is active
+	@SERIALIZE bool         filter_regex;  // if true, filter string is a regexp
+	@SERIALIZE bool         filter_shown;  // filter not with filter string, but filter the shown items  
+	@SERIALIZE bool         filter_case_sensitive; // if true, filter string is case sensitive
 
 	bool fit_content = false;
 	bool refresh     = false;

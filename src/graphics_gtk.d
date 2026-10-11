@@ -1806,22 +1806,27 @@ class ItemView : TreeView {
 		filter_bar = new Box(GtkOrientation.HORIZONTAL, 0);
 		filter_entry = new Entry();
 		filter_entry.setPlaceholderText("filter itemname...");
+		if (mainwindow.canvas.filter_entry !is null) filter_entry.setText(mainwindow.canvas.filter_entry);
 		filter_entry.setHexpand(true);
 		filter_check = new CheckButton("filter");
+		if (mainwindow.canvas.filter_active) filter_check.setActive(true);
 		regex_check  = new CheckButton("regex");
+		if (mainwindow.canvas.filter_regex) regex_check.setActive(true);
 		shown_check  = new CheckButton("shown");
+		if (mainwindow.canvas.filter_shown) shown_check.setActive(true);
 		case_sensitive_check = new CheckButton("case sensitive");
+		if (mainwindow.canvas.filter_case_sensitive) case_sensitive_check.setActive(true);
 		filter_bar.append(filter_entry);
 		filter_bar.append(filter_check);
 		filter_bar.append(regex_check);
 		filter_bar.append(shown_check);
 		filter_bar.append(case_sensitive_check);
 		import gtk.EditableIF;
-		filter_entry.addOnChanged((EditableIF e) => recompute_filter_visibility());
-		filter_check.addOnToggled((button) => recompute_filter_visibility());
-		regex_check.addOnToggled( (button) => recompute_filter_visibility());
-		shown_check.addOnToggled( (button) => recompute_filter_visibility());
-		case_sensitive_check.addOnToggled( (button) => recompute_filter_visibility());
+		filter_entry.addOnChanged((EditableIF e){mainwindow.canvas.filter_entry = filter_entry.getText(); recompute_filter_visibility();});
+		filter_check.addOnToggled((button){mainwindow.canvas.filter_active      = filter_check.getActive(); recompute_filter_visibility();});
+		regex_check.addOnToggled( (button){mainwindow.canvas.filter_regex       = regex_check.getActive(); recompute_filter_visibility();});
+		shown_check.addOnToggled( (button){mainwindow.canvas.filter_shown       = shown_check.getActive(); recompute_filter_visibility();});
+		case_sensitive_check.addOnToggled( (button){mainwindow.canvas.filter_case_sensitive = case_sensitive_check.getActive(); recompute_filter_visibility();});
 
 		// track user-driven (and programmatic, e.g. expand_all_shown_items()) expand/collapse
 		// choices so recompute_filter_visibility() can restore them after a refilter() -- see
