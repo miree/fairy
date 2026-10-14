@@ -124,9 +124,26 @@ class GtkGui : Gui {
 			return;
 		}
 
-		// start it as NON_UNIQUE application. That means multiple independent 
+		// gtk_init() (which application.run() below triggers internally, via GtkApplication's
+		// own startup handling) *terminates the whole process* if it cannot connect to a display
+		// -- there is no D exception or signal to catch afterwards. gtk_init_check() is the
+		// documented safe alternative: it attempts the same initialization but returns false
+		// instead of aborting, so a missing display (e.g. when `-g` was NOT passed but there is
+		// no X/Wayland session, such as over a plain ssh connection) can be handled gracefully.
+		{
+			import gtk.Main;
+			string[] no_args;
+			if (!Main.initCheck(no_args)) {
+				import std.stdio, fairy;
+				writeln("Error: could not start the graphical interface (no display available). Continuing without GUI -- type \"gui\" to retry once a display is available.");
+				start_gui = false;
+				return;
+			}
+		}
+
+		// start it as NON_UNIQUE application. That means multiple independent
 		// instances of this application can be started.
-		import app; 
+		import app;
 		application = new gtk.Application.Application("de.risingedge.fairy", GApplicationFlags.NON_UNIQUE);
 
 

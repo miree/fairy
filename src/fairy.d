@@ -405,7 +405,18 @@ void loop(string[] args) {
 
 		}
 
-		if (main_gui !is null) return main_gui.loop();
+		if (main_gui !is null) {
+			main_gui.loop();
+			// main_gui.loop() returns either because the gui ran and was told to quit (which
+			// always also sets running=false first, see ui.quit()/the gtk refresh timeout), or
+			// because the backend failed to even start (e.g. no graphical display available --
+			// see GtkGui.loop()'s initCheck() guard), in which case it resets start_gui to false
+			// but leaves running untouched. Only the first case should end the program; the
+			// second should fall back to the console-only loop above so the user can keep typing
+			// commands (and retry "gui" later).
+			main_gui = null;
+			if (!running) return;
+		}
 
 	}
 
