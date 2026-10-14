@@ -2120,7 +2120,16 @@ class ItemView : TreeView {
 			TreeIter iter = null;
 			foreach (n; 0..n_children) {
 				if (treestore.iterNthChild(iter, parent, n)) {
-					bool visible = treestore.getInt(iter, COLUMN_IS_ITEM) ? item_passes_filter(iter) : visit(iter);
+					// a row can be BOTH an item and a folder (e.g. a Hist2 that also has
+					// gate/projection items nested under it) -- visit() must always recurse so
+					// that such a row's children get their own COLUMN_FILTER_VISIBLE computed
+					// (a plain `? :` here would skip the recursion whenever the row is an item,
+					// stranding its children with a stale value and, since GtkTreeModelFilter
+					// hides a whole subtree when its root row is invisible, making an otherwise
+					// shown child unreachable whenever the row itself doesn't pass the filter).
+					bool self_visible     = treestore.getInt(iter, COLUMN_IS_ITEM) && item_passes_filter(iter);
+					bool children_visible = visit(iter); // always called: a no-op (returns false) when iter has no children
+					bool visible = self_visible || children_visible;
 					treestore.setValue(iter, COLUMN_FILTER_VISIBLE, scoped!Value(visible));
 					if (visible) any_descendant_visible = true;
 				}
