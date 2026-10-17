@@ -3448,9 +3448,13 @@ private:
 				if (window.plot_widget.plot_area is plot_area) {
 					window.update_from_canvas();
 					import gtk.MessageDialog, std.array;
+					// GtkMessageType.OTHER (no icon) deliberately avoids ERROR/WARNING/...: those
+					// are hooked by the desktop's sound theme (via libcanberra-gtk-module) to play
+					// a themed sound on every redraw where a show keeps failing, which besides
+					// being noisy can itself error out (e.g. ALSA dmix already in use elsewhere).
 					auto failed_items_dialog = new MessageDialog(window,
 						              GtkDialogFlags.DESTROY_WITH_PARENT,
-						              GtkMessageType.ERROR,
+						              GtkMessageType.OTHER,
 						              GtkButtonsType.NONE,
 						              "cannot show item(s):\n" ~ plot_area.painter.failed_item_names.join("\n"));
 					failed_items_dialog.show();
