@@ -126,6 +126,19 @@ public:
 			data.right = data.bins.length;
 		}
 	}
+	// constructs a histogram pre-populated with existing bin content -- used by
+	// ui.import_histogram() to snapshot-import a file's data once, as opposed to
+	// FileHistogram, which keeps a live reference to the file and re-reads it.
+	this(double[] bins, double left, double right, string xlabel) {
+		data.bins = bins;
+		backbuffer = new double[bins.length];
+		data.left = left;
+		data.right = right;
+		data.xlabel = xlabel;
+		data.underflow = 0.0;
+		data.overflow = 0.0;
+		data.zero_init = false;
+	}
 	@trusted
 	this(ref JSONValue json) {
 		import std.stdio;
@@ -373,6 +386,20 @@ public:
 		if (left is double.init || right is double.init || bottom is double.init || top is double.init) {
 			throw new Exception("left,right,bottom,top must be specified all together or not at all");
 		}
+	}
+	// constructs a histogram pre-populated with existing bin content -- used by
+	// ui.import_histogram() to snapshot-import a file's data once, as opposed to
+	// FileHistogram, which keeps a live reference to the file and re-reads it.
+	this(double[] bins, ulong nbins_x, ulong nbins_y, double left, double right, string xlabel, double bottom, double top, string ylabel) {
+		data.bins        = bins;
+		data.bins_x      = nbins_x;
+		data.bins_y      = nbins_y;
+		data.xlabel      = xlabel;
+		data.left        = left;
+		data.right       = right;
+		data.ylabel      = ylabel;
+		data.bottom      = bottom;
+		data.top         = top;
 	}
 	@trusted
 	this(ref JSONValue json) {

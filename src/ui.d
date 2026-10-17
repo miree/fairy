@@ -615,6 +615,35 @@ string filexydata(string filename) {
 	return "";
 }
 
+@UI_EXPORT("import histogram data from a file as an independent histogram.Hist1/Hist2 item (a one-time snapshot -- unlike filehistogram, it does not keep tracking the file afterward)",
+	["filename to load the data from"])
+string import_histogram(string filename) {
+	import fairy, histogram;
+	auto hist_data = read_file(filename);
+	switch (hist_data.dim) {
+		case 1:
+			fairy.session.add_item(filename, new Hist1(hist_data.data, hist_data.left, hist_data.right, hist_data.xlabel));
+			break;
+		case 2:
+			fairy.session.add_item(filename, new Hist2(hist_data.data, hist_data.bins_x, hist_data.bins_y,
+			                                            hist_data.left, hist_data.right, hist_data.xlabel,
+			                                            hist_data.bottom, hist_data.top, hist_data.ylabel));
+			break;
+		default:
+			throw new Exception("cannot determine histogram dimension from file: " ~ filename);
+	}
+	return "";
+}
+
+@UI_EXPORT("import x,y[,error] scatter data from a CSV file as an independent xydata.XYData item (a one-time snapshot -- unlike filexydata, it does not keep tracking the file afterward)",
+	["filename to load the data from"])
+string import_xydata(string filename) {
+	import fairy, xydata;
+	auto csv = read_csv(filename);
+	fairy.session.add_item(filename, new XYData(csv.points, csv.xlabel, csv.ylabel));
+	return "";
+}
+
 @UI_EXPORT("add 1D-histogram that refers to a file on disk",
 	["name of histogram",
 	 "number of bins",

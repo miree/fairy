@@ -23,19 +23,21 @@ import serializeJSON;
 
 // one data row: error is double.init if the file didn't give one for this point
 struct XYPoint {
-	double x, y, error = double.init;
+	@SERIALIZE double x;
+	@SERIALIZE double y;
+	@SERIALIZE double error = double.init;
 }
 
 // Reads a CSV file of "x,y" or "x,y,error" rows (error column optional, and may be present
 // on some rows and absent on others). Blank lines and lines starting with "#" are skipped.
 // If the first non-blank, non-comment line doesn't parse as numbers, it is treated as a
 // header (used for axis labels) rather than data.
-struct XYData {
+struct CSVContent {
 	XYPoint[] points;
 	string xlabel;
 	string ylabel;
 }
-XYData read_csv(string filename) {
+CSVContent read_csv(string filename) {
 	import std.file, std.string, std.conv, std.array;
 
 	XYPoint[] points;
@@ -75,7 +77,7 @@ XYData read_csv(string filename) {
 		header_checked = true;
 		points ~= XYPoint(x, y, error);
 	}
-	return XYData(points, xlabel, ylabel);
+	return CSVContent(points, xlabel, ylabel);
 }
 
 class FileXYDataFactory : ItemFactory {
@@ -161,6 +163,66 @@ private:
 		if (need_update) ++item_version;
 		return need_update;
 	}
+}
+
+class XYDataFactory : ItemFactory {
+	override Item create(ref JSONValue json) {
+		return new XYData(json);
+	}
+}
+
+// Owns its x,y[,error] points directly (serialized into the session), unlike FileXYData which
+// only stores a filename and re-reads it. Relates to FileXYData the way histogram.Hist1
+// relates to histogram.FileHistogram.
+class XYData : Visual, FitDataSource, Item, HasProperties {
+	struct Data {
+		@SERIALIZE XYPoint[] points;
+		@SERIALIZE @EDITABLE string xlabel;
+		@SERIALIZE @EDITABLE string ylabel;
+	}
+	Data data;
+	this(XYPoint[] points, string xlabel = "", string ylabel = "") {
+		data.points = points;
+		data.xlabel = xlabel;
+		data.ylabel = ylabel;
+	}
+	this(ref JSONValue json) { data = deserialize!Data(json); }
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
+
+	// Item interface
+	override JSONValue toJSON() { return serialize(data); }
+	override string get_type()  { return "xydata.XYData"; }
+	override void reset() {
+		data.points = [];
+		++item_version;
+	}
+	override ulong getVersion() { return item_version; }
+	override void overrideVersion(ulong new_version) { item_version = new_version; }
+
+	// Visual interface
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) {
+		return new XYDataVisualizer(item_version, data.points, data.xlabel, data.ylabel);
+	}
+
+	// FitDataSource interface
+	override double get_bin_width() {
+		if (data.points.length < 2) return 0;
+		return (data.points[$-1].x - data.points[0].x) / (data.points.length - 1);
+	}
+	override double[3][] get_data(double[2] region) {
+		double left = region[0];
+		double right = region[1];
+		double[3][] result;
+		foreach(p; data.points) {
+			if (p.x >= left && p.x < right) {
+				result ~= [p.x, p.y, (p.error !is double.init && p.error > 0) ? p.error : 1.0];
+			}
+		}
+		return result;
+	}
+
+private:
+	ulong item_version = 0;
 }
 
 import transform;
