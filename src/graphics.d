@@ -256,6 +256,13 @@ struct CanvasPainter {
 	string[] reset_item_names; // this is a temporary list with itemnames from which the itemversion was reset.
 	                         // this list is used to reset the itemversions of the already existing visualizers for that item.
 
+	// itemnames dropped from canvas.itemnames during the last draw_content() because their
+	// visualizer could not be created (missing file, ...). The backend checks this right after
+	// draw_content() returns and, if non-empty, re-syncs its item view (e.g. the gtk3/gtk4
+	// itemview's "shown" checkboxes) so a failed item doesn't appear checked when it isn't
+	// actually displayed -- then clears this list.
+	string[] failed_item_names;
+
 
 	this(CanvasProperties *c, BackendInterface b) {
 		assert(c !is null);
@@ -597,12 +604,14 @@ struct CanvasPainter {
 					// which would segfault the first time anything calls a method on it (a virtual
 					// call through a null interface reference, uncatchable as a D exception).
 					visualizers.remove(itemname);
+					failed_item_names ~= itemname;
 					import std.stdio;
 					writeln("cannot create visualizer for item " ~ itemname);
 				} else {
 					items_with_visualizer ~= itemname;
 				}
 			} catch (Exception e) { // cannot get visualizer
+				failed_item_names ~= itemname;
 				import std.stdio;
 				writeln("cannot create visualizer for item " ~ itemname ~ ": " ~ e.msg);
 			}

@@ -2457,18 +2457,24 @@ class ItemView : TreeView {
 		return count;
 	}
 
+	// Bidirectional: every item row's checkbox is set to whether it is currently in
+	// canvas.itemnames, not just turned on for members (a plain "false"/failed show must also be
+	// able to turn a checkbox back off, e.g. after draw_content() drops an item whose visualizer
+	// could not be created -- see GtkGui's drawFunc). A single depth-first post-order pass is
+	// enough for correctly nested folder checkboxes too: fix_parent_checkboxes(iter) is called for
+	// every row, so by the time a folder's own call runs, all of its children (including nested
+	// folders) have already had their checkbox state finalized.
 	void sync_with_canvas(CanvasProperties* canvas) {
-		import gobject.Value, std.typecons;
-		//auto area = main_window.get_draw_area();
-		foreach (name ; canvas.itemnames) {
-			TreeIter iter = find_iter_for_itemname(name, treestore);
-			treestore.setValue(iter, COLUMN_VISUALIZED, scoped!Value(1));
-			if (iter is null) continue;
-			auto path = treestore.getPath(iter);
-			if (path is null) continue;
-			//expandToPath(path);
-			fix_parent_checkboxes(iter);
-		}
+		import gobject.Value, std.typecons, std.algorithm;
+		bool dummy = false;
+		iterate_children_depth_first(&dummy, treestore, null, canvas.itemnames,
+			(bool* force_active, string full_name, TreeStore tree_store, TreeIter iter, string[] itemnames) {
+				if (tree_store.getInt(iter, COLUMN_IS_ITEM)) {
+					bool shown = itemnames.canFind(full_name);
+					tree_store.setValue(iter, COLUMN_VISUALIZED, scoped!Value(shown ? 1 : 0));
+				}
+				fix_parent_checkboxes(iter);
+			});
 		recompute_filter_visibility(); // COLUMN_VISUALIZED may have changed, which the "shown" filter depends on
 	}
 
@@ -3433,8 +3439,21 @@ private:
 		plot_area.painter.canvas.height = size.height;
 		plot_area.cr = cr;
 		plot_area.painter.draw_content();
+		if (plot_area.painter.failed_item_names.length > 0) {
+			// an item just failed to show (e.g. its backing file is gone) -- draw_content()
+			// already dropped it from canvas.itemnames, so re-sync the itemview's checkboxes to
+			// match, whether the show was requested via a checkbox click or the console "show"
+			// command (both eventually lead to a redraw here).
+			foreach(window; GtkGui.main_windows) {
+				if (window.plot_widget.plot_area is plot_area) {
+					window.update_from_canvas();
+					break;
+				}
+			}
+			plot_area.painter.failed_item_names = [];
+		}
 	}
-	extern(C) 
+	extern(C)
 	static void destroyNotify(void *data) {
 	}
 
