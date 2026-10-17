@@ -1224,9 +1224,9 @@ public:
 			if (max is double.init || pos+binwidth > max) max = pos+binwidth;
 		}
 		if (min !is double.init && max !is double.init) {
-			double width = max-min;
-			min -= 0.1*width;
-			max += 0.1*width;
+			// no margin added here -- margin is applied uniformly in fit_content_x()/
+			// fit_content_y() (see CanvasProperties.margin_percent_x/y), independent of
+			// zoom mode.
 		} else {
 			min = 0;
 			max = _bin_data.length;
@@ -1664,14 +1664,11 @@ public:
 			}
 		}
 		if (x_min !is double.init && x_max !is double.init && y_min !is double.init && y_max !is double.init) {
-			x_max += (right-left)/_bins_x;
+			x_max += (right-left)/_bins_x; // include the full width of the last filled bin
 			y_max += (top-bottom)/_bins_y;
-			double w = x_max-x_min;
-			x_min -= 0.1*w;
-			x_max += 0.1*w;
-			double h = y_max-y_min;
-			y_min -= 0.1*h;
-			y_max += 0.1*h;
+			// no further margin added here -- margin, when enabled, is applied uniformly in
+			// fit_content_x()/fit_content_y() (see CanvasProperties.margin_enabled),
+			// independent of zoom mode.
 		} else {
 			x_min = left;
 			x_max = right;

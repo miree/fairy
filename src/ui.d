@@ -1037,6 +1037,26 @@ void winautozoom(string window_name, string action="toggle") {
 	}
 }
 
+@UI_EXPORT("set the x-direction margin added around item content when autoscaling",
+	["name of the affected window",
+	 "margin size in percent of the content width (e.g. 10 for 10%)"])
+void winmarginx(string window_name, double percent) {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	canvas.margin_percent_x = percent;
+	fairy.redraw_window(window_name);
+}
+
+@UI_EXPORT("set the y-direction margin added around item content when autoscaling",
+	["name of the affected window",
+	 "margin size in percent of the content height (e.g. 10 for 10%)"])
+void winmarginy(string window_name, double percent) {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	canvas.margin_percent_y = percent;
+	fairy.redraw_window(window_name);
+}
+
 @UI_EXPORT("show histogram statistics in the window", 
 	["name of the window",
 	 "\"true\" enables, \"false\" disables, \"toggle\" toggles statistics display for the given window"])

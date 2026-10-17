@@ -171,6 +171,8 @@ struct CanvasProperties {
 	@SERIALIZE bool         autorefresh      = false;
 	@SERIALIZE bool         fastrefresh      = false;
 	@SERIALIZE bool         zoom             = false;
+	@SERIALIZE double       margin_percent_x = 10.0; // percent of the content width/height added on each side
+	@SERIALIZE double       margin_percent_y = 10.0;
 	@SERIALIZE bool         stats            = false;
 	@SERIALIZE bool         filled           = true;
 	@SERIALIZE string[]     itemnames        = [];
@@ -413,9 +415,18 @@ struct CanvasPainter {
 			backend.set_color((rgb>>16)/255.0,((rgb&0xffff)>>8)/255.0,((rgb&0xff)/255.0));
 			backend.set_line_width(2);
 			backend.rectangle(x1,y1, x2,y2-1);
-			backend.fill();	
+			backend.fill();
 
 		}
+	}
+
+	// grows [lo,hi] by percent/100 of its width on each side, in place. Used by both
+	// fit_content_x()/fit_content_y() (overlay display mode) and draw_content()'s grid-mode
+	// autoscale block (rows/columns display mode), which otherwise duplicate this computation.
+	private static void apply_margin(ref double lo, ref double hi, double percent) pure {
+		double m = (hi-lo)*percent/100.0;
+		lo -= m;
+		hi += m;
 	}
 
 	bool fit_content_x() {
@@ -429,6 +440,7 @@ struct CanvasPainter {
 			right=(right is double.init)?lr[1]:max(right,lr[1]);
 		}
 		if (left !is double.init && right !is double.init) {
+			apply_margin(left, right, canvas.margin_percent_x);
 			canvas.transform[0].set_minmax(left,right);
 			canvas.transform[0].scale=1; // eliminate all ongoing transformations in x-direction
 			canvas.transform[0].delta=0; // eliminate all ongoing transformations in x-direction
@@ -457,7 +469,8 @@ struct CanvasPainter {
 				bottom = bottom-0.5;
 				top    = top   +0.5;
 			}
-			canvas.transform[1].set_minmax(bottom,top);		
+			apply_margin(bottom, top, canvas.margin_percent_y);
+			canvas.transform[1].set_minmax(bottom,top);
 			canvas.transform[1].scale=1; // eliminate all ongoing transformations in y-direction
 			canvas.transform[1].delta=0; // eliminate all ongoing transformations in y-direction
 		}
@@ -724,6 +737,7 @@ struct CanvasPainter {
 							if (canvas.autoscale[0] && visualizer.get_leftright(lr,canvas.transform,canvas.zoom)) {
 								left = lr[0];
 								right = lr[1];
+								apply_margin(left, right, canvas.margin_percent_x);
 								canvas.transform[0].set_minmax(left,right);
 							}
 							if (left  is double.init) left = canvas.transform[0].min;
@@ -735,7 +749,8 @@ struct CanvasPainter {
 								if (bottom == top) {
 									bottom = bottom-0.5;
 									top    = top   +0.5;
-								}								
+								}
+								apply_margin(bottom, top, canvas.margin_percent_y);
 								canvas.transform[1].scale=1; // eliminate all ongoing transformations in y-direction
 								canvas.transform[1].delta=0; // eliminate all ongoing transformations in y-direction
 								canvas.transform[1].set_minmax(bottom,top);

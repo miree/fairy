@@ -350,6 +350,7 @@ private:
 		Button open_menu;
 			Menu menu_top;
 				Menu fontsize_submenu; // "canvas fontsize" submenu of menu_top
+				Menu marginsize_submenu; // "margin size" submenu of menu_top
 				version(gtk3) { Popover menu_popover; }
 				version(gtk4) { PopoverMenu menu_popover; }
 		Button open_soundscope;
@@ -367,6 +368,17 @@ private:
 	SimpleAction window_fontsize_20;
 	SimpleAction window_fontsize_25;
 	SimpleAction window_fontsize_30;
+
+	SimpleAction window_marginx_0;
+	SimpleAction window_marginx_10;
+	SimpleAction window_marginx_20;
+	SimpleAction window_marginx_50;
+	SimpleAction window_marginx_100;
+	SimpleAction window_marginy_0;
+	SimpleAction window_marginy_10;
+	SimpleAction window_marginy_20;
+	SimpleAction window_marginy_50;
+	SimpleAction window_marginy_100;
 
 	SimpleAction new_window;
 	SimpleAction save_session;
@@ -451,6 +463,58 @@ public:
 			ui.winfontsize(window_name, 30);
 		});
 		addAction(window_fontsize_30);
+
+		window_marginx_0 = new SimpleAction("window_marginx_0", null);
+		window_marginx_0.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winmarginx(window_name, 0);
+		});
+		addAction(window_marginx_0);
+		window_marginx_10 = new SimpleAction("window_marginx_10", null);
+		window_marginx_10.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winmarginx(window_name, 10);
+		});
+		addAction(window_marginx_10);
+		window_marginx_20 = new SimpleAction("window_marginx_20", null);
+		window_marginx_20.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winmarginx(window_name, 20);
+		});
+		addAction(window_marginx_20);
+		window_marginx_50 = new SimpleAction("window_marginx_50", null);
+		window_marginx_50.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winmarginx(window_name, 50);
+		});
+		addAction(window_marginx_50);
+		window_marginx_100 = new SimpleAction("window_marginx_100", null);
+		window_marginx_100.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winmarginx(window_name, 100);
+		});
+		addAction(window_marginx_100);
+
+		window_marginy_0 = new SimpleAction("window_marginy_0", null);
+		window_marginy_0.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winmarginy(window_name, 0);
+		});
+		addAction(window_marginy_0);
+		window_marginy_10 = new SimpleAction("window_marginy_10", null);
+		window_marginy_10.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winmarginy(window_name, 10);
+		});
+		addAction(window_marginy_10);
+		window_marginy_20 = new SimpleAction("window_marginy_20", null);
+		window_marginy_20.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winmarginy(window_name, 20);
+		});
+		addAction(window_marginy_20);
+		window_marginy_50 = new SimpleAction("window_marginy_50", null);
+		window_marginy_50.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winmarginy(window_name, 50);
+		});
+		addAction(window_marginy_50);
+		window_marginy_100 = new SimpleAction("window_marginy_100", null);
+		window_marginy_100.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winmarginy(window_name, 100);
+		});
+		addAction(window_marginy_100);
 
 		new_window = new SimpleAction("new_window", null);
 		new_window.addOnActivate(delegate(Variant var, SimpleAction action) {
@@ -690,12 +754,25 @@ public:
 		fontsize_submenu.append("25", "win.window_fontsize_25");
 		fontsize_submenu.append("30", "win.window_fontsize_30");
 
+		marginsize_submenu = new Menu;
+		marginsize_submenu.append("x: 0%",   "win.window_marginx_0");
+		marginsize_submenu.append("x: 10%",  "win.window_marginx_10");
+		marginsize_submenu.append("x: 20%",  "win.window_marginx_20");
+		marginsize_submenu.append("x: 50%",  "win.window_marginx_50");
+		marginsize_submenu.append("x: 100%", "win.window_marginx_100");
+		marginsize_submenu.append("y: 0%",   "win.window_marginy_0");
+		marginsize_submenu.append("y: 10%",  "win.window_marginy_10");
+		marginsize_submenu.append("y: 20%",  "win.window_marginy_20");
+		marginsize_submenu.append("y: 50%",  "win.window_marginy_50");
+		marginsize_submenu.append("y: 100%", "win.window_marginy_100");
+
 		menu_top = new Menu;
 		menu_top.append("new window",         "win.new_window");
 		menu_top.append("save session",       "win.save_session");
 		menu_top.append("save session as",    "win.save_session_as");
 		menu_top.append("open session",       "win.open_session");
 		menu_top.appendSubmenu("canvas fontsize", fontsize_submenu);
+		menu_top.appendSubmenu("margin size",     marginsize_submenu);
 		menu_top.append("keyboard shortcuts", "win.show_keyboard_shortcuts");
 		menu_top.append("about fairy",        "win.show_about_window");
 		menu_top.append("quit",               "win.quit");
