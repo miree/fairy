@@ -384,6 +384,8 @@ private:
 	SimpleAction save_session;
 	SimpleAction save_session_as;
 	SimpleAction open_session;
+	SimpleAction open_filehistogram;
+	SimpleAction open_filexydata;
 	SimpleAction show_keyboard_shortcuts;
 	SimpleAction show_about_window;
 	SimpleAction quit_program;
@@ -615,6 +617,56 @@ public:
 		});
 		addAction(open_session);
 
+		open_filehistogram = new SimpleAction("open_filehistogram", null);
+		open_filehistogram.addOnActivate(delegate(Variant var, SimpleAction action) {
+			import gtk.FileChooserDialog, gtk.Dialog;
+			auto dialog = new FileChooserDialog("choose histogram file", /*parent_window=*/this, FileChooserAction.OPEN);
+			dialog.addOnResponse((int response, Dialog dialog) {
+				if (response == ResponseType.OK) {
+					version(gtk3) {
+						auto filename = (cast(FileChooserDialog)dialog).getFilenames().toArray!string[0];
+					}
+					version(gtk4) {
+						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath();
+					}
+					import ui;
+					ui.filehistogram(filename.fixWindowsPaths());
+				}
+				dialog.close();
+			});
+			dialog.show();
+		});
+		addAction(open_filehistogram);
+
+		open_filexydata = new SimpleAction("open_filexydata", null);
+		open_filexydata.addOnActivate(delegate(Variant var, SimpleAction action) {
+			import gtk.FileChooserDialog, gtk.Dialog, gtk.FileFilter;
+			auto dialog = new FileChooserDialog("choose CSV x,y[,error] file", /*parent_window=*/this, FileChooserAction.OPEN);
+			auto csv_filter = new FileFilter;
+			     csv_filter.addPattern("*.csv");
+			     csv_filter.setName("*.csv");
+			dialog.addFilter(csv_filter);
+			auto all_filter = new FileFilter;
+			     all_filter.addPattern("*");
+			     all_filter.setName("all files");
+			dialog.addFilter(all_filter);
+			dialog.addOnResponse((int response, Dialog dialog) {
+				if (response == ResponseType.OK) {
+					version(gtk3) {
+						auto filename = (cast(FileChooserDialog)dialog).getFilenames().toArray!string[0];
+					}
+					version(gtk4) {
+						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath();
+					}
+					import ui;
+					ui.filexydata(filename.fixWindowsPaths());
+				}
+				dialog.close();
+			});
+			dialog.show();
+		});
+		addAction(open_filexydata);
+
 		quit_program = new SimpleAction("quit", null);
 		quit_program.addOnActivate(delegate(Variant var, SimpleAction action) {
 			import ui;
@@ -771,6 +823,8 @@ public:
 		menu_top.append("save session",       "win.save_session");
 		menu_top.append("save session as",    "win.save_session_as");
 		menu_top.append("open session",       "win.open_session");
+		menu_top.append("open histogram file", "win.open_filehistogram");
+		menu_top.append("open CSV data file",  "win.open_filexydata");
 		menu_top.appendSubmenu("canvas fontsize", fontsize_submenu);
 		menu_top.appendSubmenu("margin size",     marginsize_submenu);
 		menu_top.append("keyboard shortcuts", "win.show_keyboard_shortcuts");
