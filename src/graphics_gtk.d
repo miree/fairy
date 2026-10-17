@@ -282,6 +282,16 @@ string fixWindowsPaths(string path) {
 	}
 }
 
+// If path is inside the current working directory, returns it relative to cwd (so it doesn't
+// end up nested under a top-level "/" folder in the item view); otherwise returns it unchanged
+// (chompPrefix is a no-op when the prefix doesn't match, so this naturally falls back to the
+// absolute path for files outside pwd).
+string relative_to_cwd_if_local(string path) {
+	import std.file, std.string;
+	auto cwd = getcwd().fixWindowsPaths();
+	return path.fixWindowsPaths().chompPrefix(cwd~"/");
+}
+
 import gio.SimpleAction;
 import glib.Variant;
 
@@ -630,7 +640,7 @@ public:
 						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath();
 					}
 					import ui;
-					ui.filehistogram(filename.fixWindowsPaths());
+					ui.filehistogram(filename.relative_to_cwd_if_local());
 				}
 				dialog.close();
 			});
@@ -659,7 +669,7 @@ public:
 						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath();
 					}
 					import ui;
-					ui.filexydata(filename.fixWindowsPaths());
+					ui.filexydata(filename.relative_to_cwd_if_local());
 				}
 				dialog.close();
 			});
