@@ -590,7 +590,18 @@ struct CanvasPainter {
 						visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend, visualizers[itemname]);
 					}
 				}
-				items_with_visualizer ~= itemname;
+				if (itemname in visualizers && visualizers[itemname] is null) {
+					// create_visualizer() already reported why (e.g. a missing file) and returned
+					// null instead of throwing -- treat it the same as a thrown exception below:
+					// drop the item for this draw rather than leaving a null Visualizer in the map,
+					// which would segfault the first time anything calls a method on it (a virtual
+					// call through a null interface reference, uncatchable as a D exception).
+					visualizers.remove(itemname);
+					import std.stdio;
+					writeln("cannot create visualizer for item " ~ itemname);
+				} else {
+					items_with_visualizer ~= itemname;
+				}
 			} catch (Exception e) { // cannot get visualizer
 				import std.stdio;
 				writeln("cannot create visualizer for item " ~ itemname ~ ": " ~ e.msg);
