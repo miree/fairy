@@ -3447,6 +3447,13 @@ private:
 			foreach(window; GtkGui.main_windows) {
 				if (window.plot_widget.plot_area is plot_area) {
 					window.update_from_canvas();
+					import gtk.MessageDialog, std.array;
+					auto failed_items_dialog = new MessageDialog(window,
+						              GtkDialogFlags.DESTROY_WITH_PARENT,
+						              GtkMessageType.ERROR,
+						              GtkButtonsType.NONE,
+						              "cannot show item(s):\n" ~ plot_area.painter.failed_item_names.join("\n"));
+					failed_items_dialog.show();
 					break;
 				}
 			}
