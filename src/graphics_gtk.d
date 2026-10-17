@@ -2879,28 +2879,49 @@ class PlotArea :  DrawingArea, BackendInterface {
 	override double get_line_width() {
 		return line_width;
 	}
+	// Cairo's rasterizer uses a fixed-point internal coordinate representation with a much
+	// smaller practical safe range than an IEEE double -- coordinates far outside a sane
+	// pixel range (whether from NaN/infinity-producing numeric corruption upstream, or just
+	// from a legitimate data value whose screen position happens to fall far outside the
+	// current, deliberately narrow, viewport) can produce visual corruption and, on some
+	// backends, worse. Clamp every coordinate at this boundary -- generous enough (+-100k
+	// px) to never visibly affect any real on-screen content, but comfortably inside
+	// Cairo's working range regardless of what produced the extreme value upstream.
+	private static double clampCoord(double v) pure {
+		import std.math : isNaN;
+		enum double limit = 1e5;
+		if (isNaN(v)) return 0;
+		if (v >  limit) return  limit;
+		if (v < -limit) return -limit;
+		return v;
+	}
 	override void vertical_line(double x, double y1, double y2) {
+		x = clampCoord(x); y1 = clampCoord(y1); y2 = clampCoord(y2);
 		cairo_move_to(cr, x, y1);
 		cairo_line_to(cr, x, y2);
 	}
 	override void horizontal_line(double y, double x1, double x2) {
+		y = clampCoord(y); x1 = clampCoord(x1); x2 = clampCoord(x2);
 		cairo_move_to(cr, x1, y);
 		cairo_line_to(cr, x2, y);
 	}
 	override void line(double x1, double y1, double x2, double y2) {
+		x1 = clampCoord(x1); y1 = clampCoord(y1); x2 = clampCoord(x2); y2 = clampCoord(y2);
 		cairo_move_to(cr, x1, y1);
 		cairo_line_to(cr, x2, y2);
 	}
 	override void rectangle(double x1, double y1, double x2, double y2)
 	{
+		x1 = clampCoord(x1); y1 = clampCoord(y1); x2 = clampCoord(x2); y2 = clampCoord(y2);
 		cairo_rectangle(cr, x1,y1, x2-x1, y2-y1);
 	}
 	override void polygon(double[2][] xys) {
 		foreach(i,xy;xys) {
-			if (!i) cairo_move_to(cr, xy[0], xy[1]);
-			else    cairo_line_to(cr, xy[0], xy[1]);
+			double x = clampCoord(xy[0]), y = clampCoord(xy[1]);
+			if (!i) cairo_move_to(cr, x, y);
+			else    cairo_line_to(cr, x, y);
 		}
-		cairo_line_to(cr, xys[0][0], xys[0][1]);
+		cairo_line_to(cr, clampCoord(xys[0][0]), clampCoord(xys[0][1]));
 	}
 	override void fill() {
 		cairo_fill(cr);
@@ -3007,7 +3028,7 @@ class PlotArea :  DrawingArea, BackendInterface {
 		auto strz = cast(char*)str.dup.toStringz;
 		cairo_text_extents_t cte;
 		cairo_text_extents(cr, strz, &cte);
-		cairo_move_to(cr, x, y); 
+		cairo_move_to(cr, clampCoord(x), clampCoord(y));
 		cairo_show_text(cr, strz);
 	}
 

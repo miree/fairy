@@ -91,10 +91,20 @@ public:
 	}
 	void scale_finish() {
 		double w = width;
-		minimum -= delta;
-		maximum  = minimum + w;
+		double new_minimum = minimum - delta;
+		double new_maximum = new_minimum + w;
 		scale = 1;
 		delta = 0;
+		// route through set_minmax() so interactive zooming (unlike the old direct assignment
+		// here) is subject to the same min_width/max_width floor/ceiling as every other way of
+		// changing the viewport. Without this, repeated zoom-in can shrink the width toward 0
+		// (and, via IEEE-754 underflow, eventually to exactly 0), which makes the grid-line
+		// tick-spacing loop in graphics.d's vertical_grid()/horizontal_grid() compute a step of
+		// exactly 0 and loop forever (xpos += 0 never advances) -- a real, user-reachable UI
+		// freeze, not just a cosmetic issue. Repeated zoom-out had the mirror problem: an
+		// unbounded-growth width that could overflow to infinity/NaN once exp()'d back from
+		// logscale in set_linscale().
+		set_minmax(new_minimum, new_maximum);
 	}
 
 	double reduce_canvas(in double x, in int num_segments, in int canvas_width) const pure {
@@ -159,8 +169,16 @@ public:
 		if (logscale) {
 			minimum = std.math.exp(minimum);
 			maximum = std.math.exp(maximum);
-			if (width > max_width) {
-				maximum = minimum + max_width;
+			// exp() overflows to +infinity once its argument exceeds ~709, reachable if
+			// unbounded interactive zoom-out (see scale_finish()) pushed the log-space width
+			// out far enough. If BOTH ends overflow together, width becomes
+			// infinity-infinity = NaN, which a plain "width > max_width" check can't catch
+			// (NaN comparisons are always false in IEEE-754) -- so check isFinite()
+			// explicitly and recover around whichever endpoint is actually still sane.
+			if (!isFinite(minimum) || !isFinite(maximum) || width > max_width) {
+				double anchor = isFinite(minimum) ? minimum : (isFinite(maximum) ? maximum-max_width : min_width);
+				minimum = anchor;
+				maximum = anchor + max_width;
 			}
 			logscale = false;
 			return true;
@@ -281,6 +299,39 @@ unittest {
 
 	lt.set_minmax(10,10);
 	assert(lt.max-lt.min >= lt.min_width);
+
+	// regression test: repeated interactive zooming (scale_one_step(), as used by
+	// mouse-wheel zoom in graphics.d's scroll()) must never collapse the width to 0 (which
+	// used to make vertical_grid()/horizontal_grid()'s tick-spacing loop spin forever,
+	// since xpos += 0 never advances) or let it grow without bound (which used to let
+	// set_linscale() overflow via exp() once switching back from logscale).
+	lt.set_minmax(-1,1);
+	foreach (i; 0..5000) lt.scale_one_step(50, 1, 100, -50, 0.01, false);
+	assert(lt.max - lt.min >= lt.min_width);
+	assert(lt.max - lt.min <= lt.max_width);
+	assert(std.math.isFinite(lt.min) && std.math.isFinite(lt.max));
+
+	lt.set_minmax(-1,1);
+	foreach (i; 0..5000) lt.scale_one_step(50, 1, 100, 50, 0.01, false);
+	assert(lt.max - lt.min >= lt.min_width);
+	assert(lt.max - lt.min <= lt.max_width);
+	assert(std.math.isFinite(lt.min) && std.math.isFinite(lt.max));
+
+	// regression test: set_linscale() must not leave min/max as infinity/NaN even if the
+	// log-space width was pushed out far enough for exp() to overflow.
+	lt.set_minmax(1,2);
+	lt.logscale  = true;
+	lt.minimum   = 800; lt.maximum = 900; // exp(900) overflows to +infinity
+	lt.set_linscale();
+	assert(std.math.isFinite(lt.min) && std.math.isFinite(lt.max));
+	assert(lt.max - lt.min <= lt.max_width);
+
+	lt.set_minmax(1,2);
+	lt.logscale  = true;
+	lt.minimum   = -900; lt.maximum = 900; // exp(-900)->0, exp(900)->+infinity
+	lt.set_linscale();
+	assert(std.math.isFinite(lt.min) && std.math.isFinite(lt.max));
+	assert(lt.max - lt.min <= lt.max_width);
 
 	lt.set_minmax(-10,10);
 	lt.update_coefficients(segment=0,num_segments=2,canvas_width=40);
