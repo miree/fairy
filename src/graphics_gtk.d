@@ -3431,12 +3431,38 @@ private:
 
 }
 
+// Ctrl-w closes a window, Ctrl-q quits the whole application -- MainWindow has its own full
+// keyboard-shortcut handling that already includes this (see handle_keyboard_shortcut()); this
+// is the shared logic for the simpler auxiliary windows below, which previously had no
+// keyboard handling at all.
+import gtk.Window;
+private bool handle_close_quit_key(uint keyval, bool ctrl_pressed, Window window) {
+	if (!ctrl_pressed) return false;
+	if (keyval == 'w') { window.close(); return true; }
+	if (keyval == 'q') { import ui; ui.quit(); return true; }
+	return false;
+}
+
 class KeyboardShortcutWindow : ApplicationWindow
 {
 	import gtk.Box;
 	import gtk.Label;
+	import gtk.EventControllerKey;
+	EventControllerKey close_quit_key_controller;
 	this(Application application) {
 		super(application);
+		version(gtk3) {
+			addOnKeyPress(delegate bool(GdkEventKey* e, Widget w) {
+				return handle_close_quit_key(e.keyval, (e.state & GdkModifierType.CONTROL_MASK) != 0, this);
+			});
+		}
+		version(gtk4) {
+			close_quit_key_controller = new EventControllerKey();
+			close_quit_key_controller.addOnKeyPressed(delegate bool(uint keyval, uint keycode, GdkModifierType mod, EventControllerKey c) {
+				return handle_close_quit_key(keyval, (mod & GdkModifierType.CONTROL_MASK) != 0, this);
+			});
+			this.addController(close_quit_key_controller);
+		}
 
 		auto box = new Box(GtkOrientation.VERTICAL,0);
 		Label label;
@@ -3474,8 +3500,22 @@ class AboutWindow : ApplicationWindow
 {
 	import gtk.Box;
 	import gtk.Label;
+	import gtk.EventControllerKey;
+	EventControllerKey close_quit_key_controller;
 	this(Application application) {
 		super(application);
+		version(gtk3) {
+			addOnKeyPress(delegate bool(GdkEventKey* e, Widget w) {
+				return handle_close_quit_key(e.keyval, (e.state & GdkModifierType.CONTROL_MASK) != 0, this);
+			});
+		}
+		version(gtk4) {
+			close_quit_key_controller = new EventControllerKey();
+			close_quit_key_controller.addOnKeyPressed(delegate bool(uint keyval, uint keycode, GdkModifierType mod, EventControllerKey c) {
+				return handle_close_quit_key(keyval, (mod & GdkModifierType.CONTROL_MASK) != 0, this);
+			});
+			this.addController(close_quit_key_controller);
+		}
 
 		auto box = new Box(GtkOrientation.VERTICAL,0);
 		box.append(new Label(""));
@@ -3601,10 +3641,24 @@ class PropertiesFieldVisitor : FieldVisitor {
 class PropertiesWindow : ApplicationWindow
 {
 	import gtk.Box, gtk.Label, gtk.ScrolledWindow;
+	import gtk.EventControllerKey;
+	EventControllerKey close_quit_key_controller;
 	this(Application application, Item item, string itemname) {
 		super(application);
 		setTitle("properties: " ~ itemname);
 		setDefaultSize(350, 300);
+		version(gtk3) {
+			addOnKeyPress(delegate bool(GdkEventKey* e, Widget w) {
+				return handle_close_quit_key(e.keyval, (e.state & GdkModifierType.CONTROL_MASK) != 0, this);
+			});
+		}
+		version(gtk4) {
+			close_quit_key_controller = new EventControllerKey();
+			close_quit_key_controller.addOnKeyPressed(delegate bool(uint keyval, uint keycode, GdkModifierType mod, EventControllerKey c) {
+				return handle_close_quit_key(keyval, (mod & GdkModifierType.CONTROL_MASK) != 0, this);
+			});
+			this.addController(close_quit_key_controller);
+		}
 
 		auto box = new Box(GtkOrientation.VERTICAL, 4);
 		auto has_properties = cast(HasProperties)item;
@@ -3666,6 +3720,8 @@ class ElderPtWindow : ApplicationWindow
 	Label 		  _rate_label;
 	Timeout       _rate_timeout;
 	Timeout       _status_update_timeout;
+	import gtk.EventControllerKey;
+	EventControllerKey close_quit_key_controller;
 	FileChooserButton _elder_config_file_chooser_button;
 	string _elder_toplevel_config_file;
 
@@ -3690,6 +3746,16 @@ class ElderPtWindow : ApplicationWindow
 		elderpt.state.winopen = true;
 		version(gtk3) {
 			move(elderpt.state.winpos_x, elderpt.state.winpos_y);
+			addOnKeyPress(delegate bool(GdkEventKey* e, Widget w) {
+				return handle_close_quit_key(e.keyval, (e.state & GdkModifierType.CONTROL_MASK) != 0, this);
+			});
+		}
+		version(gtk4) {
+			close_quit_key_controller = new EventControllerKey();
+			close_quit_key_controller.addOnKeyPressed(delegate bool(uint keyval, uint keycode, GdkModifierType mod, EventControllerKey c) {
+				return handle_close_quit_key(keyval, (mod & GdkModifierType.CONTROL_MASK) != 0, this);
+			});
+			this.addController(close_quit_key_controller);
 		}
 
 		auto box = new Box(GtkOrientation.VERTICAL,0);
