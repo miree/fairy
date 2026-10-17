@@ -607,6 +607,14 @@ string filewaveform(string filename) {
 	return "";
 }
 
+@UI_EXPORT("add x,y[,error] scatter data that refers to a CSV file on disk (comma separated, optional third \"error\" column, lines starting with # are comments)",
+	["filename to load the data from"])
+string filexydata(string filename) {
+	import fairy, xydata;
+	fairy.session.add_item(filename, new FileXYData(FileXYData.Data(filename)));
+	return "";
+}
+
 @UI_EXPORT("add 1D-histogram that refers to a file on disk",
 	["name of histogram",
 	 "number of bins",
