@@ -29,6 +29,18 @@ bool isSERIALIZEd(T, alias membername)(in T t) {
 	return false;
 }
 
+// marks a @SERIALIZE field of an Item's Data struct as safe to show in the generic
+// properties window (see item.visitEditableFields()/EditableFieldVisitor in item.d) --
+// deliberately a separate, narrower marker than @SERIALIZE, since not every persisted field is
+// safe to edit in isolation (e.g. a bin count that must stay in sync with a separate data array).
+struct EDITABLE {}
+bool isEDITABLEd(T, alias membername)(in T t) {
+	foreach (attr; __traits(getAttributes, __traits(getMember,t,membername))) {
+		static if (is(attr==EDITABLE)) return true;
+	}
+	return false;
+}
+
 
 auto serialize(T)(in T data) {
 	JSONValue json;

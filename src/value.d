@@ -31,14 +31,15 @@ class ValueFactory : ItemFactory {
 
 import graphics;
 
-class Value : Visual, Item
+class Value : Visual, Item, HasProperties
 {
 	struct Data {
-		@SERIALIZE int dimension; // 0=x, 1=y, 2=z;
-		@SERIALIZE double value;
-		@SERIALIZE string text;
+		@SERIALIZE @EDITABLE int dimension; // 0=x, 1=y, 2=z;
+		@SERIALIZE @EDITABLE double value;
+		@SERIALIZE @EDITABLE string text;
 	}
 	Data data;
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
 	double delta = 0;
 	ulong item_version = 0;
 	this(double v, int dim, string t) {

@@ -37,25 +37,26 @@ class FunctionFactory : ItemFactory {
 import graphics;
 import interactive;
 
-class Function : Visual, Item
+class Function : Visual, Item, HasProperties
 {
 	import expression;
 public:
 	struct Data{
-		@SERIALIZE string   definition;
-		@SERIALIZE string   handles;
-		@SERIALIZE string   hist1dname;
-		@SERIALIZE string   gate1dname;
+		@SERIALIZE @EDITABLE string   definition;
+		@SERIALIZE @EDITABLE string   handles;
+		@SERIALIZE @EDITABLE string   hist1dname;
+		@SERIALIZE @EDITABLE string   gate1dname;
 		@SERIALIZE string[] results;       // result expressions defined by the user
 		@SERIALIZE double[] result_values; // numerical value of the result expression after the fit
 		@SERIALIZE double[] result_errors; // numerial error of the result expression after the fit
-		@SERIALIZE bool     dragupdate;
-		@SERIALIZE bool     loglikelihood; // if true performs log likelihood fit instead of chisquare fit
+		@SERIALIZE @EDITABLE bool     dragupdate;
+		@SERIALIZE @EDITABLE bool     loglikelihood; // if true performs log likelihood fit instead of chisquare fit
 		@SERIALIZE double[] parameters;
 		@SERIALIZE double[] fitresult;
 		@SERIALIZE double[][] covar; // covariance matrix of fit result
 		@SERIALIZE double   result_red_chi_sqr;
 	}
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
 
 	struct HandleTree {
 		long[2] param_idx; // for x and y coordinates ther is an index into the parameter array where the value of can be found

@@ -94,19 +94,20 @@ bool get_stats_hist1(const(double[]) bins, double h_left, double h_right, double
 
 import graphics;
 
-class Hist1 : Visual, Hist1Export, FitDataSource, Item
+class Hist1 : Visual, Hist1Export, FitDataSource, Item, HasProperties
 {
 public:
 	struct Data{
 		@SERIALIZE double[] bins;
 		@SERIALIZE string bins_base64;
-		@SERIALIZE double left;
-		@SERIALIZE double right;
-		@SERIALIZE string xlabel;
+		@SERIALIZE @EDITABLE double left;
+		@SERIALIZE @EDITABLE double right;
+		@SERIALIZE @EDITABLE string xlabel;
 		@SERIALIZE double overflow;
 		@SERIALIZE double underflow;
 		@SERIALIZE bool   zero_init; // if true, histogram is initialized with 0 insteas of NaN
 	}
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
 	this(ulong length, double left, double right, string xlabel, bool zero = false) { 
 		data.bins = new double[length];
 		backbuffer = new double[length];
@@ -325,7 +326,7 @@ void export_hist2_to_file(double[] bins, ulong xbins, ulong ybins, string filena
 }	
 
 
-class Hist2 : Visual, Item, Hist2Export, Hist2ProjectionSource, FitDataSource
+class Hist2 : Visual, Item, Hist2Export, Hist2ProjectionSource, FitDataSource, HasProperties
 {
 public:
 	struct Data{
@@ -334,12 +335,12 @@ public:
 		@SERIALIZE string bins_base64;
 		@SERIALIZE ulong  bins_x;
 		@SERIALIZE ulong  bins_y;
-		@SERIALIZE string xlabel;
-		@SERIALIZE double left;
-		@SERIALIZE double right;
-		@SERIALIZE string ylabel;
-		@SERIALIZE double bottom;
-		@SERIALIZE double top;
+		@SERIALIZE @EDITABLE string xlabel;
+		@SERIALIZE @EDITABLE double left;
+		@SERIALIZE @EDITABLE double right;
+		@SERIALIZE @EDITABLE string ylabel;
+		@SERIALIZE @EDITABLE double bottom;
+		@SERIALIZE @EDITABLE double top;
 		@SERIALIZE double overflow;
 		@SERIALIZE double underflow;
 		@SERIALIZE double[9] quadrants;  // number of counts in the nine quadrants
@@ -350,6 +351,7 @@ public:
 		                                 // counts[1] are above the histogram
 		                                 // counts[5] are right outside
 	}
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
 	this(ulong nbins_x, ulong nbins_y, double left, double right, string xlabel, double bottom, double top, string ylabel, double initial = double.init) {
 		data.initial     = initial;
 		data.bins        = new double[cast(uint)nbins_x*cast(uint)nbins_y];
@@ -621,15 +623,16 @@ class FileHistogramFactory : ItemFactory {
 }
 
 import graphics, functions;
-class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item {
+class FileHistogram : Visual, Hist2ProjectionSource, FitDataSource, Item, HasProperties {
 	struct Data {
-		@SERIALIZE string filename;
+		@SERIALIZE @EDITABLE string filename;
 	}
 	Data data;
 	string xlabel = "";
 	string ylabel = "";
 	this(Data d)             { data = d; }
 	this(ref JSONValue json) { data = deserialize!Data(json); }
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
 	// Item Interface
 	override JSONValue toJSON()  { return serialize(data); }
 	override string get_type()  { 
@@ -770,16 +773,17 @@ class Hist2ProjectionFactory : ItemFactory {
 }
 
 import graphics, functions;
-class Hist2Projection : Visual, Hist1Export, FitDataSource, Item {
+class Hist2Projection : Visual, Hist1Export, FitDataSource, Item, HasProperties {
 	import gate;
 	struct Data {
-		@SERIALIZE string hist2name;
-		@SERIALIZE string gate1name;
+		@SERIALIZE @EDITABLE string hist2name;
+		@SERIALIZE @EDITABLE string gate1name;
 	}
 	Data data;
 	string xlabel = "";
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
 
-	this(string hist2name, string gate1name) { 
+	this(string hist2name, string gate1name) {
 		data.hist2name = hist2name;
 		data.gate1name = gate1name;
 		item_version = 0;

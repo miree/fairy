@@ -1197,6 +1197,17 @@ class ItemView : TreeView {
 		Clipboard.getDefault(Display.getDefault()).setText(result, cast(int)result.length);
 	}
 
+	// opens a properties window (one per selected item) for all selected items that have one
+	void open_properties_for_selected() {
+		import fairy, std.algorithm;
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			if (fullname is null) continue;
+			if (!session.items.byKey.canFind(fullname)) continue;
+			new PropertiesWindow(main_window.getApplication(), session.items[fullname].item, fullname);
+		}
+	}
+
 	void create_fitter_cauchy(bool dragupdate = true, bool loglikelihood = false) {
 		foreach(selected_iter; getSelectedIters()) {
 			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
@@ -2047,6 +2058,7 @@ class ItemView : TreeView {
 			popup_menu.append( create_marker );
 			popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
 			popup_menu.append( new MenuItem( (m) => copy_selected_to_clipboard(), "copy to clipboard", "copy fullname of all selected items to the clipboard" ));
+			popup_menu.append( new MenuItem( (m) => open_properties_for_selected(), "properties", "open a properties window for each selected item" ));
 			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
 			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "hist2d project x", "interactively project 2d histogram along x axis" ));
 			//popup_menu.append( new MenuItem( (m) => create_fitter(), "hist1d gaussfit", "interactively fit a gaussion function to histogram data" ));
@@ -3483,9 +3495,136 @@ class AboutWindow : ApplicationWindow
 		box.append(new Label(""));
 		add(box);
 		showAll();
-	}	
+	}
 }
 
+
+// generic properties editor -- builds its widgets purely from the selected item's Data struct
+// via item.d's @SERIALIZE+@EDITABLE introspection (see item.d's FieldVisitor/HasProperties/
+// visitEditableFields for how a Data struct opts a field in). Not a SingleWindow!T: several of
+// these can be open at once, one per inspected item.
+import item;
+class PropertiesFieldVisitor : FieldVisitor {
+	import gtk.Box, gtk.Label, gtk.SpinButton, gtk.CheckButton, gtk.Entry;
+	Box container;
+	Item item;
+	int count = 0;
+	this(Box c, Item it) { container = c; item = it; }
+
+	// called after any field edit -- bumps the item's version (without touching its data, so
+	// visualizers that cache by version pick up the change) and redraws. We don't know which
+	// window(s), if any, currently show this item, so just redraw all of them; this only runs
+	// on an explicit user edit in the properties window, not on every frame, so it's cheap
+	// enough to not special-case.
+	void commit() {
+		import graphics; // for Visual
+		auto visual = cast(Visual)item;
+		if (visual !is null) visual.overrideVersion(visual.getVersion()+1);
+		import fairy;
+		fairy.redraw_windows();
+	}
+	private Box add_row(string name) {
+		auto row = new Box(GtkOrientation.HORIZONTAL, 4);
+		auto label = new Label(name);
+		label.setWidthChars(14);
+		label.setXalign(0);
+		row.append(label);
+		container.append(row);
+		return row;
+	}
+	// GtkSpinButton (and the GtkAdjustment backing it) doesn't cope well with a range anywhere
+	// near +-double.max/long.max/ulong.max -- observed as the widget rendering as a solid black
+	// rectangle instead of the usual entry+arrows. A bound this generous is already far outside
+	// any value a Data struct field in this project actually holds, while staying comfortably
+	// inside GtkAdjustment's own working range.
+	private enum double SPIN_RANGE = 1e15;
+	override void field(string name, ref int value) {
+		++count;
+		auto row = add_row(name);
+		auto spin = new SpinButton(cast(double)int.min, cast(double)int.max, 1);
+		spin.setValue(value);
+		auto ptr = &value;
+		spin.addOnValueChanged((SpinButton sb) { *ptr = sb.getValueAsInt(); commit(); });
+		row.append(spin);
+	}
+	override void field(string name, ref long value) {
+		++count;
+		auto row = add_row(name);
+		auto spin = new SpinButton(-SPIN_RANGE, SPIN_RANGE, 1);
+		spin.setValue(cast(double)value);
+		auto ptr = &value;
+		spin.addOnValueChanged((SpinButton sb) { *ptr = cast(long)sb.getValue(); commit(); });
+		row.append(spin);
+	}
+	override void field(string name, ref ulong value) {
+		++count;
+		auto row = add_row(name);
+		auto spin = new SpinButton(0.0, SPIN_RANGE, 1);
+		spin.setValue(cast(double)value);
+		auto ptr = &value;
+		spin.addOnValueChanged((SpinButton sb) { *ptr = cast(ulong)sb.getValue(); commit(); });
+		row.append(spin);
+	}
+	override void field(string name, ref double value) {
+		++count;
+		auto row = add_row(name);
+		auto spin = new SpinButton(-SPIN_RANGE, SPIN_RANGE, 1);
+		spin.setDigits(6);
+		spin.setValue(value);
+		auto ptr = &value;
+		spin.addOnValueChanged((SpinButton sb) { *ptr = sb.getValue(); commit(); });
+		row.append(spin);
+	}
+	override void field(string name, ref bool value) {
+		++count;
+		auto row = add_row(name);
+		auto check = new CheckButton("");
+		check.setActive(value);
+		auto ptr = &value;
+		import gtk.ToggleButton;
+		check.addOnToggled((ToggleButton tb) { *ptr = tb.getActive(); commit(); });
+		row.append(check);
+	}
+	override void field(string name, ref string value) {
+		++count;
+		auto row = add_row(name);
+		auto entry = new Entry();
+		entry.setText(value);
+		entry.setHexpand(true);
+		auto ptr = &value;
+		// commit on Enter, not on every keystroke, to avoid redrawing mid-typing
+		entry.addOnActivate((Entry e) { *ptr = e.getText(); commit(); });
+		row.append(entry);
+	}
+}
+
+class PropertiesWindow : ApplicationWindow
+{
+	import gtk.Box, gtk.Label, gtk.ScrolledWindow;
+	this(Application application, Item item, string itemname) {
+		super(application);
+		setTitle("properties: " ~ itemname);
+		setDefaultSize(350, 300);
+
+		auto box = new Box(GtkOrientation.VERTICAL, 4);
+		auto has_properties = cast(HasProperties)item;
+		if (has_properties !is null) {
+			auto visitor = new PropertiesFieldVisitor(box, item);
+			has_properties.visitEditableFields(visitor);
+			if (visitor.count == 0) has_properties = null; // fall through to the "none" label below
+		}
+		if (has_properties is null) {
+			box.append(new Label("(this item has no editable properties)"));
+		}
+
+		auto scrolled = new ScrolledWindow();
+		scrolled.setPropagateNaturalWidth(true);
+		scrolled.setPropagateNaturalHeight(true);
+		scrolled.setChild(box);
+		add(scrolled);
+		showAll();
+	}
+}
 
 
 version(elderpt) {

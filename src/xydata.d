@@ -85,15 +85,16 @@ class FileXYDataFactory : ItemFactory {
 }
 
 import graphics, functions;
-class FileXYData : Visual, FitDataSource, Item {
+class FileXYData : Visual, FitDataSource, Item, HasProperties {
 	struct Data {
-		@SERIALIZE string filename;
+		@SERIALIZE @EDITABLE string filename;
 	}
 	Data data;
 	string xlabel = "";
 	string ylabel = "";
 	this(Data d)             { data = d; }
 	this(ref JSONValue json) { data = deserialize!Data(json); }
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
 
 	// Item interface
 	override JSONValue toJSON() { return serialize(data); }

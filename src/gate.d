@@ -43,15 +43,16 @@ class Gate1DFactory : ItemFactory {
 import graphics;
 import interactive;
 
-class Gate1D : Visual, Item
+class Gate1D : Visual, Item, HasProperties
 {
 public:
 	struct Data{
-		@SERIALIZE double min;
-		@SERIALIZE double max;
-		@SERIALIZE int direction; // 0 -> x-direction, 1 -> y-direction
-	}	
+		@SERIALIZE @EDITABLE double min;
+		@SERIALIZE @EDITABLE double max;
+		@SERIALIZE @EDITABLE int direction; // 0 -> x-direction, 1 -> y-direction
+	}
 	Data data;
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
 	double min_delta  = 0; // relevant for user interaction 
 	double max_delta = 0; // relevant for user interaction
 
@@ -522,18 +523,19 @@ class Gate2DFactory : ItemFactory {
 import graphics;
 import interactive;
 
-class Gate2D : Visual, Item
+class Gate2D : Visual, Item, HasProperties
 {
 public:
 	struct Data{
-		@SERIALIZE double xmin;
-		@SERIALIZE double xmax;
-		@SERIALIZE double ymin;
-		@SERIALIZE double ymax;
-	}	
+		@SERIALIZE @EDITABLE double xmin;
+		@SERIALIZE @EDITABLE double xmax;
+		@SERIALIZE @EDITABLE double ymin;
+		@SERIALIZE @EDITABLE double ymax;
+	}
 	Data data;
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
 
-	double xmin_delta = 0; // relevant for user interaction 
+	double xmin_delta = 0; // relevant for user interaction
 	double xmax_delta = 0; // relevant for user interaction
 	double ymin_delta = 0; // relevant for user interaction 
 	double ymax_delta = 0; // relevant for user interaction

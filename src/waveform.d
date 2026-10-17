@@ -171,13 +171,14 @@ class FileWaveformFactory : ItemFactory {
 
 
 import graphics, functions;
-class FileWaveform : Visual, Item {
+class FileWaveform : Visual, Item, HasProperties {
 	struct Data {
-		@SERIALIZE string filename;
+		@SERIALIZE @EDITABLE string filename;
 	}
 	Data data;
 	this(Data d)             { data = d; }
 	this(ref JSONValue json) { data = deserialize!Data(json); }
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
 	// Item Interface
 	override JSONValue toJSON()  { return serialize(data); }
 	override string get_type()  { 
