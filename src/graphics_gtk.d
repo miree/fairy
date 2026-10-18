@@ -434,6 +434,22 @@ public:
 		plot_widget.sync_with_canvas(canvas);
 	}
 
+	// Shows one dialog listing every message in errors (one per line), or does nothing if there
+	// are none. Used by the file-picker handlers below so that e.g. a name collision on one of
+	// several selected files (session_save's "item already exists" exception) is reported
+	// without aborting the rest of the batch or letting the exception escape into GTK's C
+	// callback dispatch, where it previously crashed the app instead of being caught.
+	void show_errors(string[] errors) {
+		if (errors.length == 0) return;
+		import gtk.MessageDialog, std.array;
+		auto error_dialog = new MessageDialog(this,
+			              GtkDialogFlags.DESTROY_WITH_PARENT,
+			              GtkMessageType.OTHER, // not ERROR/WARNING: avoids the sound-theme hook, see failed_item_names handling in drawFunc
+			              GtkButtonsType.NONE,
+			              errors.join("\n"));
+		error_dialog.show();
+	}
+
 	this(string window_name, CanvasProperties *canvas_properties, Application application) {
 		canvas = canvas_properties;
 		super(application);
@@ -644,9 +660,15 @@ public:
 						auto filenames = [(cast(FileChooserDialog)dialog).getFile().getPath()];
 					}
 					import ui;
+					string[] errors;
 					foreach(filename; filenames) {
-						ui.filehistogram(filename.relative_to_cwd_if_local());
+						try {
+							ui.filehistogram(filename.relative_to_cwd_if_local());
+						} catch (Exception e) {
+							errors ~= filename ~ ": " ~ e.msg;
+						}
 					}
+					show_errors(errors);
 				}
 				dialog.close();
 			});
@@ -677,9 +699,15 @@ public:
 						auto filenames = [(cast(FileChooserDialog)dialog).getFile().getPath()];
 					}
 					import ui;
+					string[] errors;
 					foreach(filename; filenames) {
-						ui.filexydata(filename.relative_to_cwd_if_local());
+						try {
+							ui.filexydata(filename.relative_to_cwd_if_local());
+						} catch (Exception e) {
+							errors ~= filename ~ ": " ~ e.msg;
+						}
 					}
+					show_errors(errors);
 				}
 				dialog.close();
 			});
@@ -702,9 +730,15 @@ public:
 						auto filenames = [(cast(FileChooserDialog)dialog).getFile().getPath()];
 					}
 					import ui;
+					string[] errors;
 					foreach(filename; filenames) {
-						ui.import_histogram(filename.relative_to_cwd_if_local());
+						try {
+							ui.import_histogram(filename.relative_to_cwd_if_local());
+						} catch (Exception e) {
+							errors ~= filename ~ ": " ~ e.msg;
+						}
 					}
+					show_errors(errors);
 				}
 				dialog.close();
 			});
@@ -735,9 +769,15 @@ public:
 						auto filenames = [(cast(FileChooserDialog)dialog).getFile().getPath()];
 					}
 					import ui;
+					string[] errors;
 					foreach(filename; filenames) {
-						ui.import_xydata(filename.relative_to_cwd_if_local());
+						try {
+							ui.import_xydata(filename.relative_to_cwd_if_local());
+						} catch (Exception e) {
+							errors ~= filename ~ ": " ~ e.msg;
+						}
 					}
+					show_errors(errors);
 				}
 				dialog.close();
 			});
