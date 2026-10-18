@@ -632,17 +632,21 @@ public:
 		open_filehistogram = new SimpleAction("open_filehistogram", null);
 		open_filehistogram.addOnActivate(delegate(Variant var, SimpleAction action) {
 			import gtk.FileChooserDialog, gtk.Dialog;
-			auto dialog = new FileChooserDialog("choose histogram file", /*parent_window=*/this, FileChooserAction.OPEN);
+			auto dialog = new FileChooserDialog("choose histogram file(s)", /*parent_window=*/this, FileChooserAction.OPEN);
+			dialog.setSelectMultiple(true);
 			dialog.addOnResponse((int response, Dialog dialog) {
 				if (response == ResponseType.OK) {
 					version(gtk3) {
-						auto filename = (cast(FileChooserDialog)dialog).getFilenames().toArray!string[0];
+						auto filenames = (cast(FileChooserDialog)dialog).getFilenames().toArray!string;
 					}
 					version(gtk4) {
-						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath();
+						// multi-select would need a gio.File class binding that isn't available here
+						auto filenames = [(cast(FileChooserDialog)dialog).getFile().getPath()];
 					}
 					import ui;
-					ui.filehistogram(filename.relative_to_cwd_if_local());
+					foreach(filename; filenames) {
+						ui.filehistogram(filename.relative_to_cwd_if_local());
+					}
 				}
 				dialog.close();
 			});
@@ -653,7 +657,7 @@ public:
 		open_filexydata = new SimpleAction("open_filexydata", null);
 		open_filexydata.addOnActivate(delegate(Variant var, SimpleAction action) {
 			import gtk.FileChooserDialog, gtk.Dialog, gtk.FileFilter;
-			auto dialog = new FileChooserDialog("choose CSV x,y[,error] file", /*parent_window=*/this, FileChooserAction.OPEN);
+			auto dialog = new FileChooserDialog("choose CSV x,y[,error] file(s)", /*parent_window=*/this, FileChooserAction.OPEN);
 			auto csv_filter = new FileFilter;
 			     csv_filter.addPattern("*.csv");
 			     csv_filter.setName("*.csv");
@@ -662,16 +666,20 @@ public:
 			     all_filter.addPattern("*");
 			     all_filter.setName("all files");
 			dialog.addFilter(all_filter);
+			dialog.setSelectMultiple(true);
 			dialog.addOnResponse((int response, Dialog dialog) {
 				if (response == ResponseType.OK) {
 					version(gtk3) {
-						auto filename = (cast(FileChooserDialog)dialog).getFilenames().toArray!string[0];
+						auto filenames = (cast(FileChooserDialog)dialog).getFilenames().toArray!string;
 					}
 					version(gtk4) {
-						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath();
+						// multi-select would need a gio.File class binding that isn't available here
+						auto filenames = [(cast(FileChooserDialog)dialog).getFile().getPath()];
 					}
 					import ui;
-					ui.filexydata(filename.relative_to_cwd_if_local());
+					foreach(filename; filenames) {
+						ui.filexydata(filename.relative_to_cwd_if_local());
+					}
 				}
 				dialog.close();
 			});
@@ -682,17 +690,21 @@ public:
 		open_import_histogram = new SimpleAction("open_import_histogram", null);
 		open_import_histogram.addOnActivate(delegate(Variant var, SimpleAction action) {
 			import gtk.FileChooserDialog, gtk.Dialog;
-			auto dialog = new FileChooserDialog("choose histogram file to import", /*parent_window=*/this, FileChooserAction.OPEN);
+			auto dialog = new FileChooserDialog("choose histogram file(s) to import", /*parent_window=*/this, FileChooserAction.OPEN);
+			dialog.setSelectMultiple(true);
 			dialog.addOnResponse((int response, Dialog dialog) {
 				if (response == ResponseType.OK) {
 					version(gtk3) {
-						auto filename = (cast(FileChooserDialog)dialog).getFilenames().toArray!string[0];
+						auto filenames = (cast(FileChooserDialog)dialog).getFilenames().toArray!string;
 					}
 					version(gtk4) {
-						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath();
+						// multi-select would need a gio.File class binding that isn't available here
+						auto filenames = [(cast(FileChooserDialog)dialog).getFile().getPath()];
 					}
 					import ui;
-					ui.import_histogram(filename.relative_to_cwd_if_local());
+					foreach(filename; filenames) {
+						ui.import_histogram(filename.relative_to_cwd_if_local());
+					}
 				}
 				dialog.close();
 			});
@@ -703,7 +715,7 @@ public:
 		open_import_xydata = new SimpleAction("open_import_xydata", null);
 		open_import_xydata.addOnActivate(delegate(Variant var, SimpleAction action) {
 			import gtk.FileChooserDialog, gtk.Dialog, gtk.FileFilter;
-			auto dialog = new FileChooserDialog("choose CSV x,y[,error] file to import", /*parent_window=*/this, FileChooserAction.OPEN);
+			auto dialog = new FileChooserDialog("choose CSV x,y[,error] file(s) to import", /*parent_window=*/this, FileChooserAction.OPEN);
 			auto csv_filter = new FileFilter;
 			     csv_filter.addPattern("*.csv");
 			     csv_filter.setName("*.csv");
@@ -712,16 +724,20 @@ public:
 			     all_filter.addPattern("*");
 			     all_filter.setName("all files");
 			dialog.addFilter(all_filter);
+			dialog.setSelectMultiple(true);
 			dialog.addOnResponse((int response, Dialog dialog) {
 				if (response == ResponseType.OK) {
 					version(gtk3) {
-						auto filename = (cast(FileChooserDialog)dialog).getFilenames().toArray!string[0];
+						auto filenames = (cast(FileChooserDialog)dialog).getFilenames().toArray!string;
 					}
 					version(gtk4) {
-						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath();
+						// multi-select would need a gio.File class binding that isn't available here
+						auto filenames = [(cast(FileChooserDialog)dialog).getFile().getPath()];
 					}
 					import ui;
-					ui.import_xydata(filename.relative_to_cwd_if_local());
+					foreach(filename; filenames) {
+						ui.import_xydata(filename.relative_to_cwd_if_local());
+					}
 				}
 				dialog.close();
 			});
