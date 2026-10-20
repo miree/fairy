@@ -522,10 +522,14 @@ public:
 					pc1[dim] = t[dim].world2canvas(points[l[1]][dim] + deltas[l[1]][dim]);
 				}
 			}
-			d.set_color(0,0,0);
-			d.set_line_width(1);
-			if (move_indices.canFind(l[0])) {
+			if (move_indices.canFind(l[0])) { // moved links
 				d.set_line_width(4);
+				d.set_color(0,0,0);
+			} else {  // all other links 
+				d.set_line_width(4);
+				d.set_color(0,0,0,0.3);
+			} 
+			if (move_indices.length) {
 				d.line(pc0[0],pc0[1], pc1[0],pc1[1]);
 				//d.horizontal_line(pc1[1],pc0[0],pc1[0]);
 				//d.vertical_line(pc0[0],pc0[1],pc1[1]);
