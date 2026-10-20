@@ -1078,6 +1078,16 @@ void winautozoom(string window_name, string action="toggle") {
 	}
 }
 
+@UI_EXPORT("a margin will be added to the boundaries of items", 
+	["name of the window",
+	 "\"true\" enables, \"false\" disables, \"toggle\" toggles margin setting for the given window"])
+void winmargin(string window_name, string action="toggle") {
+	import fairy, graphics;
+	auto canvas = fairy.session.get_canvas(window_name);
+	if (toggle_action(action, canvas.margin)) {
+		update_window_gui(window_name,true);
+	}
+}
 @UI_EXPORT("set the x-direction margin added around item content when autoscaling",
 	["name of the affected window",
 	 "margin size in percent of the content width (e.g. 10 for 10%)"])

@@ -171,6 +171,7 @@ struct CanvasProperties {
 	@SERIALIZE bool         autorefresh      = false;
 	@SERIALIZE bool         fastrefresh      = false;
 	@SERIALIZE bool         zoom             = false;
+	@SERIALIZE bool         margin           = true;
 	@SERIALIZE double       margin_percent_x = 10.0; // percent of the content width/height added on each side
 	@SERIALIZE double       margin_percent_y = 10.0;
 	@SERIALIZE bool         stats            = false;
@@ -447,7 +448,7 @@ struct CanvasPainter {
 			right=(right is double.init)?lr[1]:max(right,lr[1]);
 		}
 		if (left !is double.init && right !is double.init) {
-			apply_margin(left, right, canvas.margin_percent_x);
+			if (canvas.margin) apply_margin(left, right, canvas.margin_percent_x);
 			canvas.transform[0].set_minmax(left,right);
 			canvas.transform[0].scale=1; // eliminate all ongoing transformations in x-direction
 			canvas.transform[0].delta=0; // eliminate all ongoing transformations in x-direction
@@ -476,7 +477,7 @@ struct CanvasPainter {
 				bottom = bottom-0.5;
 				top    = top   +0.5;
 			}
-			apply_margin(bottom, top, canvas.margin_percent_y);
+			if (canvas.margin) apply_margin(bottom, top, canvas.margin_percent_y);
 			canvas.transform[1].set_minmax(bottom,top);
 			canvas.transform[1].scale=1; // eliminate all ongoing transformations in y-direction
 			canvas.transform[1].delta=0; // eliminate all ongoing transformations in y-direction
@@ -757,7 +758,7 @@ struct CanvasPainter {
 							if (canvas.autoscale[0] && visualizer.get_leftright(lr,canvas.transform,canvas.zoom)) {
 								left = lr[0];
 								right = lr[1];
-								apply_margin(left, right, canvas.margin_percent_x);
+								if (canvas.margin) apply_margin(left, right, canvas.margin_percent_x);
 								canvas.transform[0].set_minmax(left,right);
 							}
 							if (left  is double.init) left = canvas.transform[0].min;
@@ -770,7 +771,7 @@ struct CanvasPainter {
 									bottom = bottom-0.5;
 									top    = top   +0.5;
 								}
-								apply_margin(bottom, top, canvas.margin_percent_y);
+								if (canvas.margin) apply_margin(bottom, top, canvas.margin_percent_y);
 								canvas.transform[1].scale=1; // eliminate all ongoing transformations in y-direction
 								canvas.transform[1].delta=0; // eliminate all ongoing transformations in y-direction
 								canvas.transform[1].set_minmax(bottom,top);

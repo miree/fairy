@@ -2677,7 +2677,7 @@ class PlotWidget : Box {
 	Label       grid_label;
 	CheckButton check_grid_x, check_grid_y, check_grid_top;
 	CheckButton check_label_x, check_label_y;
-	CheckButton check_zoom, check_stats;
+	CheckButton check_zoom, check_margin, check_stats;
 	CheckButton check_filled;
 	Label       nums_label;
 	CheckButton check_nums_x, check_nums_y, check_nums_top;
@@ -2722,6 +2722,7 @@ class PlotWidget : Box {
 		check_label_x.setActive(canvas.axislabel[0]);
 		check_label_y.setActive(canvas.axislabel[1]);
 		check_zoom.setActive(canvas.zoom);
+		check_margin.setActive(canvas.margin);
 		check_stats.setActive(canvas.stats);
 		check_filled.setActive(canvas.filled);
 		check_colorbar.setActive(canvas.color_bar);
@@ -2833,6 +2834,9 @@ class PlotWidget : Box {
 		check_zoom    = new CheckButton("zm");
 		check_zoom.setActive(canvas.zoom);
 		check_zoom.addOnToggled( (button) => ui.winautozoom(name, button.getActive()?"true":"false"));
+		check_margin    = new CheckButton("mg");
+		check_margin.setActive(canvas.margin);
+		check_margin.addOnToggled( (button) => ui.winmargin(name, button.getActive()?"true":"false"));
 		check_stats   = new CheckButton("st");
 		check_stats.setActive(canvas.stats);
 		check_stats.addOnToggled( (button) => ui.winshowstats(name, button.getActive()?"true":"false"));
@@ -2941,6 +2945,7 @@ class PlotWidget : Box {
 		controls.append(fit_log_checks_z);
 		zoom_box = new Box(GtkOrientation.VERTICAL, 0);
 		zoom_box.append(check_zoom);
+		zoom_box.append(check_margin);
 		controls.append(zoom_box);
 
 		controls.append(new Separator(GtkOrientation.VERTICAL));
