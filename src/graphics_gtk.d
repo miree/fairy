@@ -361,6 +361,8 @@ private:
 			Menu menu_top;
 				Menu fontsize_submenu; // "canvas fontsize" submenu of menu_top
 				Menu marginsize_submenu; // "margin size" submenu of menu_top
+				Menu color_submenu; // "1D histogram color" submenu of menu_top
+				Menu palette_submenu; // "2D histogram palette" submenu of menu_top
 				version(gtk3) { Popover menu_popover; }
 				version(gtk4) { PopoverMenu menu_popover; }
 		Button open_soundscope;
@@ -389,6 +391,18 @@ private:
 	SimpleAction window_marginy_20;
 	SimpleAction window_marginy_50;
 	SimpleAction window_marginy_100;
+
+	SimpleAction window_color_blue;
+	SimpleAction window_color_red;
+	SimpleAction window_color_green;
+	SimpleAction window_color_purple;
+	SimpleAction window_color_yellow;
+	SimpleAction window_color_black;
+
+	SimpleAction window_palette_viridis;
+	SimpleAction window_palette_grayscale;
+	SimpleAction window_palette_bluish;
+	SimpleAction window_palette_rainbow;
 
 	SimpleAction new_window;
 	SimpleAction save_session;
@@ -545,6 +559,58 @@ public:
 			ui.winmarginy(window_name, 100);
 		});
 		addAction(window_marginy_100);
+
+		window_color_blue = new SimpleAction("window_color_blue", null);
+		window_color_blue.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.wincolor(window_name, "blue");
+		});
+		addAction(window_color_blue);
+		window_color_red = new SimpleAction("window_color_red", null);
+		window_color_red.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.wincolor(window_name, "red");
+		});
+		addAction(window_color_red);
+		window_color_green = new SimpleAction("window_color_green", null);
+		window_color_green.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.wincolor(window_name, "green");
+		});
+		addAction(window_color_green);
+		window_color_purple = new SimpleAction("window_color_purple", null);
+		window_color_purple.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.wincolor(window_name, "purple");
+		});
+		addAction(window_color_purple);
+		window_color_yellow = new SimpleAction("window_color_yellow", null);
+		window_color_yellow.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.wincolor(window_name, "yellow");
+		});
+		addAction(window_color_yellow);
+		window_color_black = new SimpleAction("window_color_black", null);
+		window_color_black.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.wincolor(window_name, "black");
+		});
+		addAction(window_color_black);
+
+		window_palette_viridis = new SimpleAction("window_palette_viridis", null);
+		window_palette_viridis.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winpalette(window_name, "viridis");
+		});
+		addAction(window_palette_viridis);
+		window_palette_grayscale = new SimpleAction("window_palette_grayscale", null);
+		window_palette_grayscale.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winpalette(window_name, "grayscale");
+		});
+		addAction(window_palette_grayscale);
+		window_palette_bluish = new SimpleAction("window_palette_bluish", null);
+		window_palette_bluish.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winpalette(window_name, "bluish");
+		});
+		addAction(window_palette_bluish);
+		window_palette_rainbow = new SimpleAction("window_palette_rainbow", null);
+		window_palette_rainbow.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winpalette(window_name, "rainbow");
+		});
+		addAction(window_palette_rainbow);
 
 		new_window = new SimpleAction("new_window", null);
 		new_window.addOnActivate(delegate(Variant var, SimpleAction action) {
@@ -936,6 +1002,20 @@ public:
 		marginsize_submenu.append("y: 50%",  "win.window_marginy_50");
 		marginsize_submenu.append("y: 100%", "win.window_marginy_100");
 
+		color_submenu = new Menu;
+		color_submenu.append("blue",   "win.window_color_blue");
+		color_submenu.append("red",    "win.window_color_red");
+		color_submenu.append("green",  "win.window_color_green");
+		color_submenu.append("purple", "win.window_color_purple");
+		color_submenu.append("yellow", "win.window_color_yellow");
+		color_submenu.append("black",  "win.window_color_black");
+
+		palette_submenu = new Menu;
+		palette_submenu.append("viridis",   "win.window_palette_viridis");
+		palette_submenu.append("grayscale", "win.window_palette_grayscale");
+		palette_submenu.append("bluish",    "win.window_palette_bluish");
+		palette_submenu.append("rainbow",   "win.window_palette_rainbow");
+
 		menu_top = new Menu;
 		menu_top.append("new window",         "win.new_window");
 		menu_top.append("save session",       "win.save_session");
@@ -947,6 +1027,8 @@ public:
 		menu_top.append("import xydata",       "win.open_import_xydata");
 		menu_top.appendSubmenu("canvas fontsize", fontsize_submenu);
 		menu_top.appendSubmenu("margin size",     marginsize_submenu);
+		menu_top.appendSubmenu("1D histogram color",   color_submenu);
+		menu_top.appendSubmenu("2D histogram palette", palette_submenu);
 		menu_top.append("keyboard shortcuts", "win.show_keyboard_shortcuts");
 		menu_top.append("about fairy",        "win.show_about_window");
 		menu_top.append("quit",               "win.quit");

@@ -1275,6 +1275,15 @@ public:
 		return get_stats_hist1(_bin_data, _left, _right, left, right, mean, stddev, counts);
 	}
 
+	// called by draw_content() (see graphics.d) with the displaying window's selected color
+	// before each draw() -- note this is set per-window, not per-item: the same histogram shown
+	// in two windows gets its own Hist1Visualizer instance per window (see CanvasPainter.
+	// visualizers), so there is no cross-window interference from storing it here.
+	import color : LineColor;
+	void set_line_color(LineColor c) {
+		_line_color = c;
+	}
+
 	//override string getLabelX() {
 	//	return _xlabel;
 	//}
@@ -1305,13 +1314,14 @@ public:
 			//	d.fill();
 			//}
 			double line_width = 2.0;
-			//d.set_color(0.2,0.8,1.0);
+			import color;
+			uint line_rgb = color.line_color(_line_color);
 			if (modified) { // hist1 visualiser modifies by filling the area under the histogram
-				d.set_color(0x2a/255.0, 0x78/255.0, 0x8e/255.0);
+				uint fill_rgb = color.brighten(line_rgb);
+				d.set_color(((fill_rgb>>16)&0xff)/255.0, ((fill_rgb>>8)&0xff)/255.0, (fill_rgb&0xff)/255.0);
 				drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
 			}
-			//d.set_color(0.0,0.0,1.0);
-			d.set_color(0x44/255.0, 0x01/255.0, 0x54/255.0);
+			d.set_color(((line_rgb>>16)&0xff)/255.0, ((line_rgb>>8)&0xff)/255.0, (line_rgb&0xff)/255.0);
 			drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, false);
 		} catch(Exception e) {
 			import std.stdio;
@@ -1489,6 +1499,8 @@ private: // state
 
 	string _xlabel;
 	string _ylabel;
+	import color : LineColor;
+	LineColor _line_color = LineColor.blue;
 }
 
 import transform;
@@ -1678,6 +1690,7 @@ public:
 			old_hist2.bitmap_handle = 0;
 			bitmap_handle_log = old_hist2.bitmap_handle_log;
 			old_hist2.bitmap_handle_log = 0;
+			_palette = old_hist2._palette; // carry over the window's palette choice across a data update
 		} else {
 			bitmap_handle          = d.create_bitmap(cast(int)_bins_x*2, cast(int)_bins_y*2);
 			bitmap_handle_log      = d.create_bitmap(cast(int)_bins_x*2, cast(int)_bins_y*2);
@@ -1722,6 +1735,20 @@ public:
 	~this() {
 		if (bitmap_handle)     backend.destroy_bitmap(bitmap_handle);
 		if (bitmap_handle_log) backend.destroy_bitmap(bitmap_handle_log);
+	}
+
+	// called by draw_content() (see graphics.d) with the displaying window's selected palette
+	// before each draw() -- note this is set per-window, not per-item, same as Hist1Visualizer.
+	// set_line_color(). A no-op when the palette hasn't actually changed, since regenerating the
+	// whole cached bitmap is comparatively expensive and would otherwise happen on every redraw.
+	void set_palette(Palette p) {
+		if (p == _palette) return;
+		_palette = p;
+		uint[] bitmap_data     = backend.access_bitmap_data(bitmap_handle);
+		uint[] bitmap_data_log = backend.access_bitmap_data(bitmap_handle_log);
+		generate_rgb_data(_bin_data, _bins_x, _bins_y, _zmin, _zmax, _bins_x*2, bitmap_data, bitmap_data_log);
+		backend.access_bitmap_done(bitmap_handle);
+		backend.access_bitmap_done(bitmap_handle_log);
 	}
 
 	double gen_color(in double height, in Transform[3] t) const {
@@ -1778,9 +1805,9 @@ public:
 				auto rgb_data_idx = (y)*stride + x;
 				if (bin !is double.init) {// && bin>0) {
 					import color;
-					color.get_rgb((bin-zmin)/(zmax-zmin), rgb_data[cast(uint)rgb_data_idx]);				
+					color.get_rgb((bin-zmin)/(zmax-zmin), _palette, rgb_data[cast(uint)rgb_data_idx]);
 					if (bin > 0) {
-						color.get_rgb((log(bin)-zmin)/(zmax-zmin), log_rgb_data[cast(uint)rgb_data_idx]);
+						color.get_rgb((log(bin)-zmin)/(zmax-zmin), _palette, log_rgb_data[cast(uint)rgb_data_idx]);
 					} else {
 						log_rgb_data[cast(uint)rgb_data_idx] = 0x00000000;
 					}
@@ -2240,6 +2267,9 @@ private:
 	ubyte[] _log_rgb_data;
 
 	BackendInterface backend;
+
+	import color : Palette;
+	Palette _palette = Palette.viridis;
 
 	//import cairo.Pattern, gdk.Cairo;
 	//Pattern _image_surface_pattern;

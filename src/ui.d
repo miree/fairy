@@ -1130,6 +1130,26 @@ void windrawfilled(string window_name, string action="toggle") {
 	}
 }
 
+@UI_EXPORT("set the line/fill color of 1D histograms shown in the given window (the fill color is always a brighter version of the line color)",
+	["name of the affected window",
+	 "color name: blue, red, green, purple, yellow, or black"])
+void wincolor(string window_name, string color_name) {
+	import fairy, graphics, color;
+	auto canvas = fairy.session.get_canvas(window_name);
+	canvas.color = line_color_from_name(color_name);
+	fairy.redraw_window(window_name);
+}
+
+@UI_EXPORT("set the color palette of 2D histograms shown in the given window",
+	["name of the affected window",
+	 "palette name: viridis, grayscale, bluish, or rainbow"])
+void winpalette(string window_name, string palette_name) {
+	import fairy, graphics, color;
+	auto canvas = fairy.session.get_canvas(window_name);
+	canvas.palette = palette_from_name(palette_name);
+	fairy.redraw_window(window_name);
+}
+
 
 
 @UI_EXPORT("enable/disable logscale for given axis",

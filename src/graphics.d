@@ -148,6 +148,7 @@ private:
 
 enum DisplayMode { overlay, rows, columns }
 import serializeJSON;
+import color : LineColor, Palette;
 
 
 import transform;
@@ -184,8 +185,11 @@ struct CanvasProperties {
 	@SERIALIZE string       filter_entry; // filter string for item selection
 	@SERIALIZE bool         filter_active; // filter feature is active
 	@SERIALIZE bool         filter_regex;  // if true, filter string is a regexp
-	@SERIALIZE bool         filter_shown;  // filter not with filter string, but filter the shown items  
+	@SERIALIZE bool         filter_shown;  // filter not with filter string, but filter the shown items
 	@SERIALIZE bool         filter_case_sensitive; // if true, filter string is case sensitive
+
+	@SERIALIZE LineColor    color            = LineColor.blue;  // line/fill color of 1D histograms shown in this window
+	@SERIALIZE Palette      palette          = Palette.viridis; // color palette of 2D histograms shown in this window
 
 	bool fit_content = false;
 	bool refresh     = false;
@@ -418,7 +422,7 @@ struct CanvasPainter {
 			uint rgb;
 			double c = 1.0*i/N;
 			import color;
-			color.get_rgb(c,rgb);
+			color.get_rgb(c,canvas.palette,rgb);
 			rgb &= 0x00ffffff;
 			backend.set_color((rgb>>16)/255.0,((rgb&0xffff)>>8)/255.0,((rgb&0xff)/255.0));
 			backend.set_line_width(2);
@@ -674,6 +678,9 @@ struct CanvasPainter {
 					if (canvas.dim == 0 && idx == 0) {
 						canvas.dim = cast(int)visualizers[itemname].getDim;
 					}
+					import histogram;
+					if (auto hist1_vis = cast(Hist1Visualizer)visualizers[itemname]) hist1_vis.set_line_color(canvas.color);
+					if (auto hist2_vis = cast(Hist2Visualizer)visualizers[itemname]) hist2_vis.set_palette(canvas.palette);
 					visualizers[itemname].draw(backend, canvas.transform, canvas.filled);
 					string xlabel = visualizers[itemname].getXlabel();
 					string ylabel = visualizers[itemname].getYlabel();
@@ -811,11 +818,13 @@ struct CanvasPainter {
 							//if ((itemname in visualizers) is null) { // try to get the visualizer
 							//	visualizers[itemname] = fairy.session.get_visual_item(itemname).create_visualizer(backend);
 							//}
+							import histogram;
+							if (auto hist1_vis = cast(Hist1Visualizer)visualizers[itemname]) hist1_vis.set_line_color(canvas.color);
+							if (auto hist2_vis = cast(Hist2Visualizer)visualizers[itemname]) hist2_vis.set_palette(canvas.palette);
 							visualizers[itemname].draw(backend, canvas.transform, canvas.filled);
 							xlabel = visualizers[itemname].getXlabel();
 							ylabel = visualizers[itemname].getYlabel();
 
-							import histogram;
 							auto hstats = cast(Hist1Stats)visualizers[itemname];
 							if (hstats !is null && canvas.transform[0].min !is double.init && canvas.transform[0].max !is double.init) {
 								stats_available = hstats.get_stats(mu, sigma, counts, canvas.transform[0].min, canvas.transform[0].max);

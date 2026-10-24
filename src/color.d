@@ -34,62 +34,72 @@ uint mix(uint a, uint b, float d) {
 	return 0xff000000 | (R<<16) | (G<<8) | (B<<0);
 }
 
-static void get_rgb(double c, out uint rgb) {
-	// grayscale
-	//if (c>1.0) c = 1.0;
-	//if (c<0.0) c = 0.0;
-	//uint i = cast(uint)(255*c);
-	//rgb = 0xff000000 | (i<<16) | (i<<8) | (i<<0);
+//////////////////////////////////////////////////////////////////////////
+// 2D-histogram color palettes: one function per palette (rather than one
+// function with a runtime branch on which palette is selected), dispatched
+// through a function pointer table below -- this keeps the hot per-bin call
+// in Hist2Visualizer.generate_rgb_data() to a single indirect call instead
+// of a branch/switch evaluated for every single bin.
+//////////////////////////////////////////////////////////////////////////
 
-	// bluish color
-	//rgb = 0xff000000;
-	//if (c>1.0) c = 1.0;
-	//if (c<0.0) c = 0.0;
-	//c *= 3;
-	//if (c < 1.0) { // back to blue
-	//	rgb |= cast(uint)(0xff*c);
-	//	return;
-	//}
-	//rgb = 0xff0000ff;
-	//if (c < 2.0)  { // blue to lightblue
-	//	c -= 1.0; 
-	//	rgb |=  (cast(uint)(0x0000ff00*c) & 0x0000ff00) ; 
-	//	return;
-	//}
-	//rgb = 0xff00ffff; // lightblue to white
-	//c -= 2.0;
-	//rgb |= cast(uint)(0xff*c)<<16;
-	//return;
+void get_rgb_grayscale(double c, out uint rgb) {
+	if (c>1.0) c = 1.0;
+	if (c<0.0) c = 0.0;
+	uint i = cast(uint)(255*c);
+	rgb = 0xff000000 | (i<<16) | (i<<8) | (i<<0);
+}
 
+void get_rgb_bluish(double c, out uint rgb) {
+	rgb = 0xff000000;
+	if (c>1.0) c = 1.0;
+	if (c<0.0) c = 0.0;
+	c *= 3;
+	if (c < 1.0) { // black to blue
+		rgb |= cast(uint)(0xff*c);
+		return;
+	}
+	rgb = 0xff0000ff;
+	if (c < 2.0)  { // blue to lightblue
+		c -= 1.0;
+		rgb |=  (cast(uint)(0x0000ff00*c) & 0x0000ff00) ;
+		return;
+	}
+	rgb = 0xff00ffff; // lightblue to white
+	c -= 2.0;
+	rgb |= cast(uint)(0xff*c)<<16;
+}
+
+void get_rgb_rainbow(double c, out uint rgb) {
 	// rainbow color blue green yellow red
-	//rgb = 0xff000000;
-	//if (c>1.0) c = 1.0;
-	//if (c<0.0) c = 0.0;
-	//c *= 7;
+	rgb = 0xff000000;
+	if (c>1.0) c = 1.0;
+	if (c<0.0) c = 0.0;
+	c *= 7;
 
-	//if (c < 3.0) { // blue to green
-	//	c /= 3;
-	//	rgb |= (cast(uint)(0xff*(1.0-c)) | (cast(uint)(0xff*c)<<8));
-	//	return;
-	//}
-	//if (c < 4.0)  { // green to yellow
-	//	c -= 3.0; 
-	//	if (c>1.0) c = 1.0;
-	//	if (c<0.0) c = 0.0;
-	//	rgb |= (0xff00 | (cast(uint)(0xff*c)<<16));
-	//	return;
-	//}
-	//if (c < 7.0)  { // yellow to red
-	//	c -= 4.0;
-	//	c /= 3; 
-	//	if (c>1.0) c = 1.0;
-	//	if (c<0.0) c = 0.0;
-	//	rgb |= (cast(uint)(0xff*(1.0-c))<<8 | 0xff0000);
-	//	return;
-	//}
-	//rgb |= 0xff0000;
+	if (c < 3.0) { // blue to green
+		c /= 3;
+		rgb |= (cast(uint)(0xff*(1.0-c)) | (cast(uint)(0xff*c)<<8));
+		return;
+	}
+	if (c < 4.0)  { // green to yellow
+		c -= 3.0;
+		if (c>1.0) c = 1.0;
+		if (c<0.0) c = 0.0;
+		rgb |= (0xff00 | (cast(uint)(0xff*c)<<16));
+		return;
+	}
+	if (c < 7.0)  { // yellow to red
+		c -= 4.0;
+		c /= 3;
+		if (c>1.0) c = 1.0;
+		if (c<0.0) c = 0.0;
+		rgb |= (cast(uint)(0xff*(1.0-c))<<8 | 0xff0000);
+		return;
+	}
+	rgb |= 0xff0000;
+}
 
-	// vidris
+void get_rgb_viridis(double c, out uint rgb) {
 	if (c>1.0) c = 1.0;
 	if (c<0.0) c = 0.0;
 	c *= 5;
@@ -107,11 +117,60 @@ static void get_rgb(double c, out uint rgb) {
 	if (ca > 5) ca = 5;
 	if (cb > 5) cb = 5;
 	rgb = mix(supports[ca],supports[cb],delta);
-	//uint c1 = supports[ci];
-	//uint c2 = ci<5?supports[ci+1]:supports[ci];
+}
 
+enum Palette { viridis, grayscale, bluish, rainbow }
 
+alias PaletteFunc = void function(double, out uint) @safe;
 
+immutable PaletteFunc[4] palette_functions = [
+	&get_rgb_viridis,
+	&get_rgb_grayscale,
+	&get_rgb_bluish,
+	&get_rgb_rainbow,
+];
+immutable string[4] palette_names = ["viridis", "grayscale", "bluish", "rainbow"];
 
+// maps c (expected in [0,1]) to an rgb color using the given 2D-histogram palette
+void get_rgb(double c, Palette palette, out uint rgb) {
+	palette_functions[palette](c, rgb);
+}
 
+Palette palette_from_name(string name) {
+	foreach(i, n; palette_names) if (n == name) return cast(Palette)i;
+	import std.array : join;
+	throw new Exception("unknown color palette \"" ~ name ~ "\" (available: " ~ palette_names[].join(", ") ~ ")");
+}
+
+//////////////////////////////////////////////////////////////////////////
+// 1D-histogram line colors: a small, fixed, user-selectable set. The fill
+// color used underneath a filled 1D-histogram is always derived from the
+// selected line color (see brighten() below), not separately selectable.
+//////////////////////////////////////////////////////////////////////////
+
+enum LineColor { blue, red, green, purple, yellow, black }
+
+immutable uint[6] line_colors = [
+	0xff1f77b4, // blue
+	0xffd62728, // red
+	0xff2ca02c, // green
+	0xff9467bd, // purple
+	0xffbcbd22, // yellow
+	0xff000000, // black
+];
+immutable string[6] line_color_names = ["blue", "red", "green", "purple", "yellow", "black"];
+
+uint line_color(LineColor c) {
+	return line_colors[c];
+}
+
+// a brighter version of rgb, used as the fill color underneath a line color's filled histogram
+uint brighten(uint rgb, double amount = 0.5) {
+	return mix(rgb, 0xffffffff, cast(float)amount);
+}
+
+LineColor line_color_from_name(string name) {
+	foreach(i, n; line_color_names) if (n == name) return cast(LineColor)i;
+	import std.array : join;
+	throw new Exception("unknown line color \"" ~ name ~ "\" (available: " ~ line_color_names[].join(", ") ~ ")");
 }
