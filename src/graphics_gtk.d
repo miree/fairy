@@ -2121,69 +2121,97 @@ class ItemView : TreeView {
 		void nothing() {}
 		version(gtk3) {
 
-			create_marker_submenu = new Menu;
-			create_marker_submenu.append(new MenuItem( delegate (MenuItem m) {
-					foreach(selected_iter; getSelectedIters()) {
-						auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
-						string markername;
-						for (int i = 0; i < 100; ++i) {
-							import std.conv;
-							markername = fullname~"/marker"~i.to!string;
-							import fairy, std.algorithm;
-							if (!session.items.byKey.canFind(markername)) break;
-						}
-						auto left  = main_window.canvas.transform[0].min; 
-						auto right = main_window.canvas.transform[0].max;
-						import ui;					
-						ui.value(markername, 0.5*(left+right), 'x', markername);
-						break;
-					}
+			// Rebuilds popup_menu from scratch based on the current selection, so that entries
+			// only applicable to specific item types (fitting needs a FitDataSource, projection
+			// needs a ready Hist2ProjectionSource) or to a single selected row (the marker, which
+			// only ever acts on the first selected row anyway, see below) aren't shown at all when
+			// they wouldn't do anything useful. Called right before each popup, after the
+			// selection has been fixed up to match the row that was right-clicked -- see
+			// addOnButtonPress below.
+			void rebuild_popup_menu() {
+				import std.algorithm, fairy, histogram, functions;
+				auto selected = getSelectedIters();
+				bool any_fit_source = false;
+				bool any_projection_source = false;
+				foreach(selected_iter; selected) {
+					auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+					if (fullname is null) continue;
+					auto item_ptr = fullname in session.items;
+					if (item_ptr is null) continue;
+					if (cast(FitDataSource)item_ptr.item !is null) any_fit_source = true;
+					auto proj = cast(Hist2ProjectionSource)item_ptr.item;
+					if (proj !is null && proj.projection_data_ready()) any_projection_source = true;
 				}
-				, "x-marker", "create a marker that can be moved on the x-axis" ));
-			create_marker = new MenuItem( (m)=>nothing, "add marker", "marker options");
-			create_marker.setSubmenu(create_marker_submenu);
+				bool single_selected = (selected.length == 1);
+
+				create_marker_submenu = new Menu;
+				create_marker_submenu.append(new MenuItem( delegate (MenuItem m) {
+						foreach(selected_iter; getSelectedIters()) {
+							auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+							string markername;
+							for (int i = 0; i < 100; ++i) {
+								import std.conv;
+								markername = fullname~"/marker"~i.to!string;
+								import fairy, std.algorithm;
+								if (!session.items.byKey.canFind(markername)) break;
+							}
+							auto left  = main_window.canvas.transform[0].min;
+							auto right = main_window.canvas.transform[0].max;
+							import ui;
+							ui.value(markername, 0.5*(left+right), 'x', markername);
+							break;
+						}
+					}
+					, "x-marker", "create a marker that can be moved on the x-axis" ));
+				create_marker = new MenuItem( (m)=>nothing, "add marker", "marker options");
+				create_marker.setSubmenu(create_marker_submenu);
 
 
-			chi2_fitting_submenu = new Menu;
-			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_cauchy(true,false), "cauchy linear-bg", "interactively fit a cuchy function to histogram data" ));
-			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,false), "gauss linear-bg", "interactively fit a gaussian function to histogram data" ));
-			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_two_gaussians(true,false), "two gaussians linear-bg", "interactively fit two gaussian functions to histogram data" ));
-			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_parabolic(true,false), "gauss quadratic-bg", "interactively fit a gaussian function to histogram data" ));
-			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,false), "gaussian-folded exponential linear-bg", "interactively fit a gaussion folded exponential function to histogram data" ));
-			chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_with_tail(true,false), "gauss with exponential tail linear-bg", "interactively fit a gaussion function with eponential tail to histogram data" ));
-			chi2_fitting = new MenuItem( (m)=>nothing, "chi^2 fit", "fitting options");
-			chi2_fitting.setSubmenu(chi2_fitting_submenu);
+				chi2_fitting_submenu = new Menu;
+				chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_cauchy(true,false), "cauchy linear-bg", "interactively fit a cuchy function to histogram data" ));
+				chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,false), "gauss linear-bg", "interactively fit a gaussian function to histogram data" ));
+				chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_two_gaussians(true,false), "two gaussians linear-bg", "interactively fit two gaussian functions to histogram data" ));
+				chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_parabolic(true,false), "gauss quadratic-bg", "interactively fit a gaussian function to histogram data" ));
+				chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,false), "gaussian-folded exponential linear-bg", "interactively fit a gaussion folded exponential function to histogram data" ));
+				chi2_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_with_tail(true,false), "gauss with exponential tail linear-bg", "interactively fit a gaussion function with eponential tail to histogram data" ));
+				chi2_fitting = new MenuItem( (m)=>nothing, "chi^2 fit", "fitting options");
+				chi2_fitting.setSubmenu(chi2_fitting_submenu);
 
-			loglh_fitting_submenu = new Menu;
-			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_cauchy(true,true), "cauchy linear-bg", "interactively fit a cauchy function to histogram data" ));
-			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,true), "gauss linear-bg", "interactively fit a gaussian function to histogram data" ));
-			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_two_gaussians(true,true), "tow gaussians linear-bg", "interactively fit two gaussian functions to histogram data" ));
-			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_parabolic(true,true), "gauss quadratic-bg", "interactively fit a gaussian function to histogram data" ));
-			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,true), "gaussian-folded exponential linear-bg", "interactively fit a gaussion folded exponential function to histogram data" ));
-			loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,true), "gauss with exponential tail linear-bg", "interactively fit a gaussion with exponential tail to histogram data" ));
-			loglh_fitting = new MenuItem( (m)=>nothing, "log-L fit", "fitting options");
-			loglh_fitting.setSubmenu(loglh_fitting_submenu);
+				loglh_fitting_submenu = new Menu;
+				loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_cauchy(true,true), "cauchy linear-bg", "interactively fit a cauchy function to histogram data" ));
+				loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss(true,true), "gauss linear-bg", "interactively fit a gaussian function to histogram data" ));
+				loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_two_gaussians(true,true), "tow gaussians linear-bg", "interactively fit two gaussian functions to histogram data" ));
+				loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gauss_parabolic(true,true), "gauss quadratic-bg", "interactively fit a gaussian function to histogram data" ));
+				loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,true), "gaussian-folded exponential linear-bg", "interactively fit a gaussion folded exponential function to histogram data" ));
+				loglh_fitting_submenu.append( new MenuItem( (m) => create_fitter_gaussian_folded_exponential(true,true), "gauss with exponential tail linear-bg", "interactively fit a gaussion with exponential tail to histogram data" ));
+				loglh_fitting = new MenuItem( (m)=>nothing, "log-L fit", "fitting options");
+				loglh_fitting.setSubmenu(loglh_fitting_submenu);
 
-			popup_menu = new Menu;
-			popup_menu.append( create_marker );
-			popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
-			popup_menu.append( new MenuItem( (m) => copy_selected_to_clipboard(), "copy to clipboard", "copy fullname of all selected items to the clipboard" ));
-			popup_menu.append( new MenuItem( (m) => open_properties_for_selected(), "properties", "open a properties window for each selected item" ));
-			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
-			popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "hist2d project x", "interactively project 2d histogram along x axis" ));
-			//popup_menu.append( new MenuItem( (m) => create_fitter(), "hist1d gaussfit", "interactively fit a gaussion function to histogram data" ));
-			popup_menu.append( chi2_fitting );
-			popup_menu.append( loglh_fitting );
-			popup_menu.append( new MenuItem( (m) => show_all_recursive(),  "show recursive", "show selected items and their children"));
-			popup_menu.append( new MenuItem( (m) => hide_all_recursive(),  "hide recursive", "hide selected items and their children"));
-			popup_menu.append( new MenuItem( (m) => reset_all_recursive(), "reset recursive", "reset selected items and their children"));
+				popup_menu = new Menu;
+				if (single_selected) popup_menu.append( create_marker );
+				popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
+				popup_menu.append( new MenuItem( (m) => copy_selected_to_clipboard(), "copy to clipboard", "copy fullname of all selected items to the clipboard" ));
+				popup_menu.append( new MenuItem( (m) => open_properties_for_selected(), "properties", "open a properties window for each selected item" ));
+				if (single_selected && any_projection_source) {
+					popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
+					popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "hist2d project x", "interactively project 2d histogram along x axis" ));
+				}
+				if (any_fit_source) {
+					popup_menu.append( chi2_fitting );
+					popup_menu.append( loglh_fitting );
+				}
+				popup_menu.append( new MenuItem( (m) => show_all_recursive(),  "show recursive", "show selected items and their children"));
+				popup_menu.append( new MenuItem( (m) => hide_all_recursive(),  "hide recursive", "hide selected items and their children"));
+				popup_menu.append( new MenuItem( (m) => reset_all_recursive(), "reset recursive", "reset selected items and their children"));
 				popup_menu.append( new MenuItem( (m) => show_all_selected(),   "show", "show selected items"));
-			popup_menu.append( new MenuItem( (m) => show_selected_in_new_window(), "show in new window", "create a new window showing only the selected items"));
-			popup_menu.append( new MenuItem( (m) => hide_all_selected(),   "hide", "hide only selected items"));
-			popup_menu.append( new MenuItem( (m) => reset_all_selected(),  "reset", "reset selected items and"));
-			popup_menu.append( new MenuItem( (m) {return;},  "       ", "sepration so that it becomes more unlikely to accidentally click on remove when aiming for clicking on reset"));
-			popup_menu.append( new MenuItem( (m) {return;},  "       ", "sepration so that it becomes more unlikely to accidentally click on remove when aiming for clicking on reset"));
-			popup_menu.append( new MenuItem( (m) => remove_all_selected(), "remove", "remove selected items"));
+				popup_menu.append( new MenuItem( (m) => show_selected_in_new_window(), "show in new window", "create a new window showing only the selected items"));
+				popup_menu.append( new MenuItem( (m) => hide_all_selected(),   "hide", "hide only selected items"));
+				popup_menu.append( new MenuItem( (m) => reset_all_selected(),  "reset", "reset selected items and"));
+				popup_menu.append( new MenuItem( (m) {return;},  "       ", "sepration so that it becomes more unlikely to accidentally click on remove when aiming for clicking on reset"));
+				popup_menu.append( new MenuItem( (m) {return;},  "       ", "sepration so that it becomes more unlikely to accidentally click on remove when aiming for clicking on reset"));
+				popup_menu.append( new MenuItem( (m) => remove_all_selected(), "remove", "remove selected items"));
+			}
+
 			addOnButtonPress(
 				delegate bool(GdkEventButton* e, Widget w) {
 					if (e.button == 3)	{
@@ -2204,6 +2232,7 @@ class ItemView : TreeView {
 								selection.selectPath(path);
 							}
 						}
+						rebuild_popup_menu();
 						popup_menu.popup(e.button, e.time);
 						popup_menu.showAll();
 						return true;
