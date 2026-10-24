@@ -1533,14 +1533,18 @@ void drawMixedHistogram(T, MinMax)(BackendInterface d, Transform[3] t, double mi
 	xhist += bin_width;
 	x2 = t[0].world2canvas(t[0].log(xhist));
 	if (y1 !is double.init) {
-		if (filled) { d.rectangle(x1,y0,x2+1,y1); d.fill();}
-		else 		{ d.horizontal_line(y1, x1, x2); d.stroke();}
+		if (filled) { d.rectangle(x1,y0,x2+1,y1); }
+		else 		{ d.horizontal_line(y1, x1, x2); }
 	}
 	import std.stdio;
 	//int color =1;
 	//d.set_color(color,0,0);
 	long mipmap_idx = idx_start;
 	long mipmap_level = 0;
+	// Whether we ever switch into mipmap rendering below -- if so, the filled rectangles
+	// accumulated up to that point are flushed there (see the "need to switch to mipmap" branch);
+	// otherwise they are flushed once at the end instead, see the bottom of this function.
+	bool switched_to_mipmap = false;
 	outer: foreach(bin_idx, bin; bins[idx_start+1..$])
 	{
 		//import std.stdio; writeln("outer");
@@ -1558,10 +1562,15 @@ void drawMixedHistogram(T, MinMax)(BackendInterface d, Transform[3] t, double mi
 		mipmap_idx += 1;
 		x2 = t[0].world2canvas(t[0].log(xhist));
 		if (y2 !is double.init) {
-			if (filled) { d.rectangle(x1,y0,x2+1,y2); d.fill(); }
-			else        { d.horizontal_line(y2, x1, x2); d.stroke(); }
+			if (filled) { d.rectangle(x1,y0,x2+1,y2); }
+			else        { d.horizontal_line(y2, x1, x2); }
 		}
-		if (x2-x1 < d.get_line_width) { // need to switch to mipmap 
+		if (x2-x1 < d.get_line_width) { // need to switch to mipmap
+			// flush the filled rectangles accumulated so far (one fill() instead of one per bin)
+			// before any stroke() below -- stroke()ing them instead of filling would be wrong,
+			// and leaving them pending would mix them into the mipmap's stroked line geometry.
+			if (filled) d.fill();
+			switched_to_mipmap = true;
 			mipmap_level  = 0;
 
 			for (;;) {
@@ -1607,7 +1616,9 @@ void drawMixedHistogram(T, MinMax)(BackendInterface d, Transform[3] t, double mi
 		if (t[0].log(xhist) > t[0].max) break;
 	}
 
-
+	// mipmap was never reached (the whole visible range stayed in full-bin mode) -- flush the
+	// filled rectangles accumulated above in one call, same as the "switch to mipmap" branch does.
+	if (filled && !switched_to_mipmap) d.fill();
 	d.stroke();
 
 }

@@ -259,9 +259,13 @@ private:
 	long clip_x1, clip_x2, clip_y1, clip_y2;
 	Mode output_mode;
 
-	bool draw_rectangle;
-	double rect_x1,  rect_x2,  rect_y1,  rect_y2;
-	long   rect_x1i, rect_x2i, rect_y1i, rect_y2i;
+	// rectangle() is expected to support several pending rectangles accumulated before a single
+	// fill()/stroke() call (see histogram.d's drawMixedHistogram(), which batches many bins'
+	// rectangles into one fill() to avoid a per-bin flush) -- so each one's color/transparency is
+	// captured at rectangle()-call time, not fill()-time, in case a caller ever changes the color
+	// between rectangle() calls of the same batch.
+	struct PendingRect { long x1i, y1i, x2i, y2i; double x1, y1, x2, y2; ubyte color; bool transparent; }
+	PendingRect[] pending_rects;
 	ubyte color_setting = 0;
 	bool transparent = false;
 public:
@@ -415,46 +419,42 @@ public:
 		}
 	}
 	override void rectangle(double x1, double y1, double x2, double y2) {
-		rect_x1  = x1;
-		rect_y1  = y1;
-		rect_x2  = x2;
-		rect_y2  = y2;
-		rect_x1i = cast(long)rect_x1;
-		rect_y1i = cast(long)rect_y1;
-		rect_x2i = cast(long)rect_x2;
-		rect_y2i = cast(long)rect_y2;
-		if (rect_x1i > rect_x2i) swap(rect_x1i, rect_x2i);
-		if (rect_x2i <  clip_x1) return;
-		if (rect_x1i >= clip_x2) return;
-		rect_x1i = max(rect_x1i  , clip_x1);
-		rect_x2i = min(rect_x2i+1, clip_x2);
+		long x1i = cast(long)x1;
+		long y1i = cast(long)y1;
+		long x2i = cast(long)x2;
+		long y2i = cast(long)y2;
+		if (x1i > x2i) swap(x1i, x2i);
+		if (x2i <  clip_x1) return;
+		if (x1i >= clip_x2) return;
+		x1i = max(x1i  , clip_x1);
+		x2i = min(x2i+1, clip_x2);
 
-		if (rect_y1i > rect_y2i) swap(rect_y1i, rect_y2i);
-		if (rect_y2i <  clip_y1) return;
-		if (rect_y1i >= clip_y2) return;
-		rect_y1i = max(rect_y1i  , clip_y1);
-		rect_y2i = min(rect_y2i+1, clip_y2);
+		if (y1i > y2i) swap(y1i, y2i);
+		if (y2i <  clip_y1) return;
+		if (y1i >= clip_y2) return;
+		y1i = max(y1i  , clip_y1);
+		y2i = min(y2i+1, clip_y2);
 
-		draw_rectangle = true;
+		pending_rects ~= PendingRect(x1i, y1i, x2i, y2i, x1, y1, x2, y2, color_setting, transparent);
 	}
 	override void polygon(double[2][] points) {
 		// not implemented
 	}
 	override void fill() {
-		if (transparent) return;
-		if (draw_rectangle) {
-			foreach(y; rect_y1i..rect_y2i) bitmap[cast(uint)y][cast(uint)rect_x1i..cast(uint)rect_x2i] = color_setting;
-			draw_rectangle = false;
+		foreach(rect; pending_rects) {
+			if (rect.transparent) continue;
+			foreach(y; rect.y1i..rect.y2i) bitmap[cast(uint)y][cast(uint)rect.x1i..cast(uint)rect.x2i] = rect.color;
 		}
+		pending_rects.length = 0;
 	}
 	override void stroke() {
-		if (draw_rectangle) {
-			horizontal_line(rect_y1, rect_x1, rect_x2);
-			horizontal_line(rect_y2, rect_x1, rect_x2);
-			vertical_line(rect_x1, rect_y1, rect_y2);
-			vertical_line(rect_x2, rect_y1, rect_y2);
-			draw_rectangle = false;
+		foreach(rect; pending_rects) {
+			horizontal_line(rect.y1, rect.x1, rect.x2);
+			horizontal_line(rect.y2, rect.x1, rect.x2);
+			vertical_line(rect.x1, rect.y1, rect.y2);
+			vertical_line(rect.x2, rect.y1, rect.y2);
 		}
+		pending_rects.length = 0;
 	}
 
 	struct UserBitmap {
