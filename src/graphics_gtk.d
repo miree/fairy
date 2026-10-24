@@ -398,6 +398,7 @@ private:
 	SimpleAction window_color_purple;
 	SimpleAction window_color_yellow;
 	SimpleAction window_color_black;
+	SimpleAction window_color_teal;
 
 	SimpleAction window_palette_viridis;
 	SimpleAction window_palette_grayscale;
@@ -590,6 +591,11 @@ public:
 			ui.wincolor(window_name, "black");
 		});
 		addAction(window_color_black);
+		window_color_teal = new SimpleAction("window_color_teal", null);
+		window_color_teal.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.wincolor(window_name, "teal");
+		});
+		addAction(window_color_teal);
 
 		window_palette_viridis = new SimpleAction("window_palette_viridis", null);
 		window_palette_viridis.addOnActivate(delegate(Variant var, SimpleAction action) {
@@ -1009,6 +1015,7 @@ public:
 		color_submenu.append("purple", "win.window_color_purple");
 		color_submenu.append("yellow", "win.window_color_yellow");
 		color_submenu.append("black",  "win.window_color_black");
+		color_submenu.append("teal", "win.window_color_teal");
 
 		palette_submenu = new Menu;
 		palette_submenu.append("viridis",   "win.window_palette_viridis");

@@ -1317,7 +1317,7 @@ public:
 			import color;
 			uint line_rgb = color.line_color(_line_color);
 			if (modified) { // hist1 visualiser modifies by filling the area under the histogram
-				uint fill_rgb = color.brighten(line_rgb);
+				uint fill_rgb = color.fill_color(_line_color);
 				d.set_color(((fill_rgb>>16)&0xff)/255.0, ((fill_rgb>>8)&0xff)/255.0, (fill_rgb&0xff)/255.0);
 				drawMixedHistogram(d,t, _left,_right, _bin_data, _mipmap_data, line_width, true);
 			}

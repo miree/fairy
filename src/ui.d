@@ -1130,9 +1130,9 @@ void windrawfilled(string window_name, string action="toggle") {
 	}
 }
 
-@UI_EXPORT("set the line/fill color of 1D histograms shown in the given window (the fill color is always a brighter version of the line color)",
+@UI_EXPORT("set the line/fill color of 1D histograms shown in the given window (the fill color is a brighter version of the line color, except \"teal\" which restores the original fixed line+fill pair)",
 	["name of the affected window",
-	 "color name: blue, red, green, purple, yellow, or black"])
+	 "color name: blue, red, green, purple, yellow, black, or teal"])
 void wincolor(string window_name, string color_name) {
 	import fairy, graphics, color;
 	auto canvas = fairy.session.get_canvas(window_name);

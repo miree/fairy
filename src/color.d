@@ -144,29 +144,40 @@ Palette palette_from_name(string name) {
 
 //////////////////////////////////////////////////////////////////////////
 // 1D-histogram line colors: a small, fixed, user-selectable set. The fill
-// color used underneath a filled 1D-histogram is always derived from the
-// selected line color (see brighten() below), not separately selectable.
+// color used underneath a filled 1D-histogram is normally derived from the
+// selected line color (see brighten() below), not separately selectable --
+// except "teal", which restores the original hardcoded line+fill pair this
+// feature replaced (a purple line with an unrelated teal fill, not a
+// brightened version of its own line color), for anyone who wants that
+// exact look back.
 //////////////////////////////////////////////////////////////////////////
 
-enum LineColor { blue, red, green, purple, yellow, black }
+enum LineColor { blue, red, green, purple, yellow, black, teal }
 
-immutable uint[6] line_colors = [
+immutable uint[7] line_colors = [
 	0xff1f77b4, // blue
 	0xffd62728, // red
 	0xff2ca02c, // green
 	0xff9467bd, // purple
 	0xffbcbd22, // yellow
 	0xff000000, // black
+	0xff440154, // teal (the original hardcoded line color)
 ];
-immutable string[6] line_color_names = ["blue", "red", "green", "purple", "yellow", "black"];
+immutable string[7] line_color_names = ["blue", "red", "green", "purple", "yellow", "black", "teal"];
 
 uint line_color(LineColor c) {
 	return line_colors[c];
 }
 
-// a brighter version of rgb, used as the fill color underneath a line color's filled histogram
+// a brighter version of rgb, used as the default fill color underneath a line color's filled histogram
 uint brighten(uint rgb, double amount = 0.5) {
 	return mix(rgb, 0xffffffff, cast(float)amount);
+}
+
+// the fill color used underneath a filled 1D histogram for the given line color
+uint fill_color(LineColor c) {
+	if (c == LineColor.teal) return 0xff2a788e; // the original hardcoded fill color
+	return brighten(line_color(c));
 }
 
 LineColor line_color_from_name(string name) {
