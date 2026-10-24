@@ -3791,7 +3791,6 @@ class PropertiesWindow : ApplicationWindow
 	this(Application application, Item item, string itemname) {
 		super(application);
 		setTitle("properties: " ~ itemname);
-		setDefaultSize(350, 300);
 		version(gtk3) {
 			addOnKeyPress(delegate bool(GdkEventKey* e, Widget w) {
 				return handle_close_quit_key(e.keyval, (e.state & GdkModifierType.CONTROL_MASK) != 0, this);
