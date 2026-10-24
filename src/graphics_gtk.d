@@ -1009,13 +1009,13 @@ public:
 		marginsize_submenu.append("y: 100%", "win.window_marginy_100");
 
 		color_submenu = new Menu;
+		color_submenu.append("teal",   "win.window_color_teal");
 		color_submenu.append("blue",   "win.window_color_blue");
 		color_submenu.append("red",    "win.window_color_red");
 		color_submenu.append("green",  "win.window_color_green");
 		color_submenu.append("purple", "win.window_color_purple");
 		color_submenu.append("yellow", "win.window_color_yellow");
 		color_submenu.append("black",  "win.window_color_black");
-		color_submenu.append("teal", "win.window_color_teal");
 
 		palette_submenu = new Menu;
 		palette_submenu.append("viridis",   "win.window_palette_viridis");

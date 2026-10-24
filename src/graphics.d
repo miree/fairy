@@ -188,7 +188,7 @@ struct CanvasProperties {
 	@SERIALIZE bool         filter_shown;  // filter not with filter string, but filter the shown items
 	@SERIALIZE bool         filter_case_sensitive; // if true, filter string is case sensitive
 
-	@SERIALIZE LineColor    color            = LineColor.blue;  // line/fill color of 1D histograms shown in this window
+	@SERIALIZE LineColor    color            = LineColor.teal;  // line/fill color of 1D histograms shown in this window
 	@SERIALIZE Palette      palette          = Palette.viridis; // color palette of 2D histograms shown in this window
 
 	bool fit_content = false;
