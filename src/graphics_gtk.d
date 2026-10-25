@@ -404,6 +404,7 @@ private:
 	SimpleAction window_palette_grayscale;
 	SimpleAction window_palette_bluish;
 	SimpleAction window_palette_rainbow;
+	SimpleAction window_palette_hot;
 
 	SimpleAction new_window;
 	SimpleAction save_session;
@@ -617,6 +618,11 @@ public:
 			ui.winpalette(window_name, "rainbow");
 		});
 		addAction(window_palette_rainbow);
+		window_palette_hot = new SimpleAction("window_palette_hot", null);
+		window_palette_hot.addOnActivate(delegate(Variant var, SimpleAction action) {
+			ui.winpalette(window_name, "hot");
+		});
+		addAction(window_palette_hot);
 
 		new_window = new SimpleAction("new_window", null);
 		new_window.addOnActivate(delegate(Variant var, SimpleAction action) {
@@ -1022,6 +1028,7 @@ public:
 		palette_submenu.append("grayscale", "win.window_palette_grayscale");
 		palette_submenu.append("bluish",    "win.window_palette_bluish");
 		palette_submenu.append("rainbow",   "win.window_palette_rainbow");
+		palette_submenu.append("hot",       "win.window_palette_hot");
 
 		menu_top = new Menu;
 		menu_top.append("new window",         "win.new_window");

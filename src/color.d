@@ -119,17 +119,36 @@ void get_rgb_viridis(double c, out uint rgb) {
 	rgb = mix(supports[ca],supports[cb],delta);
 }
 
-enum Palette { viridis, grayscale, bluish, rainbow }
+void get_rgb_hot(double c, out uint rgb) {
+	if (c>1.0) c = 1.0;
+	if (c<0.0) c = 0.0;
+	c *= 2;
+	import std.math;
+	uint ca = cast(uint)floor(c);
+	uint cb = ca+1;
+	float delta = c-ca;
+	uint[3] supports = [ 0xff000000,
+	                     0xffff0000,
+	                     0xffffff00 ];
+
+	if (ca > 2) ca = 2;
+	if (cb > 2) cb = 2;
+	rgb = mix(supports[ca],supports[cb],delta);
+}
+
+
+enum Palette { viridis, grayscale, bluish, rainbow, hot }
 
 alias PaletteFunc = void function(double, out uint) @safe;
 
-immutable PaletteFunc[4] palette_functions = [
+immutable PaletteFunc[5] palette_functions = [
 	&get_rgb_viridis,
 	&get_rgb_grayscale,
 	&get_rgb_bluish,
 	&get_rgb_rainbow,
+	&get_rgb_hot,
 ];
-immutable string[4] palette_names = ["viridis", "grayscale", "bluish", "rainbow"];
+immutable string[5] palette_names = ["viridis", "grayscale", "bluish", "rainbow", "hot"];
 
 // maps c (expected in [0,1]) to an rgb color using the given 2D-histogram palette
 void get_rgb(double c, Palette palette, out uint rgb) {
