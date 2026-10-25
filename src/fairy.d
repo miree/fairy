@@ -28,9 +28,11 @@ static this() {
 	import interactive_demo;
 	import interactive;
 	import xydata;
+	import mfile;
 	add_item_factory("waveform.Waveform",                   new WaveformFactory);
 	add_item_factory("histogram.FileWaveform",              new FileWaveformFactory);
 	add_item_factory("histogram.FileHistogram",             new FileHistogramFactory);
+	add_item_factory("mfile.FileMfileLC",                   new FileMfileLCFactory);
 	add_item_factory("xydata.FileXYData",                   new FileXYDataFactory);
 	add_item_factory("xydata.XYData",                       new XYDataFactory);
 	add_item_factory("histogram.Hist1",                     new Hist1Factory);

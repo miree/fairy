@@ -411,6 +411,7 @@ private:
 	SimpleAction save_session_as;
 	SimpleAction open_session;
 	SimpleAction open_filehistogram;
+	SimpleAction open_filemfile;
 	SimpleAction open_filexydata;
 	SimpleAction open_import_histogram;
 	SimpleAction open_import_xydata;
@@ -754,6 +755,37 @@ public:
 		});
 		addAction(open_filehistogram);
 
+		open_filemfile = new SimpleAction("open_filemfile", null);
+		open_filemfile.addOnActivate(delegate(Variant var, SimpleAction action) {
+			import gtk.FileChooserDialog, gtk.Dialog;
+			auto dialog = new FileChooserDialog("choose mfile LC matrix file(s)", /*parent_window=*/this, FileChooserAction.OPEN);
+			dialog.setSelectMultiple(true);
+			dialog.addOnResponse((int response, Dialog dialog) {
+				if (response == ResponseType.OK) {
+					version(gtk3) {
+						auto filenames = (cast(FileChooserDialog)dialog).getFilenames().toArray!string;
+					}
+					version(gtk4) {
+						// multi-select would need a gio.File class binding that isn't available here
+						auto filenames = [(cast(FileChooserDialog)dialog).getFile().getPath()];
+					}
+					import ui;
+					string[] errors;
+					foreach(filename; filenames) {
+						try {
+							ui.filemfile(filename.relative_to_cwd_if_local());
+						} catch (Exception e) {
+							errors ~= filename ~ ": " ~ e.msg;
+						}
+					}
+					show_errors(errors);
+				}
+				dialog.close();
+			});
+			dialog.show();
+		});
+		addAction(open_filemfile);
+
 		open_filexydata = new SimpleAction("open_filexydata", null);
 		open_filexydata.addOnActivate(delegate(Variant var, SimpleAction action) {
 			import gtk.FileChooserDialog, gtk.Dialog, gtk.FileFilter;
@@ -1036,6 +1068,7 @@ public:
 		menu_top.append("save session as",    "win.save_session_as");
 		menu_top.append("open session",       "win.open_session");
 		menu_top.append("open histogram file", "win.open_filehistogram");
+		menu_top.append("open mfile LC histogram", "win.open_filemfile");
 		menu_top.append("open CSV data file",  "win.open_filexydata");
 		menu_top.append("import histogram",    "win.open_import_histogram");
 		menu_top.append("import xydata",       "win.open_import_xydata");

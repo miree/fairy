@@ -603,6 +603,14 @@ string filehistogram(string filename) {
 	return "";
 }
 
+@UI_EXPORT("add a 1D/2D histogram that refers to an mfile \"LC\" (line compressed) matrix file on disk",
+	["filename to load the data from"])
+string filemfile(string filename) {
+	import fairy, mfile;
+	fairy.session.add_item(filename, new FileMfileLC(FileMfileLC.Data(filename)));
+	return "";
+}
+
 @UI_EXPORT("add waveform that refers to a file on disk",
 	["filename to load the data from"])
 string filewaveform(string filename) {
