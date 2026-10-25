@@ -28,6 +28,10 @@ class MiniGuiGL : Gui {
 	override void add_window(string name, ref CanvasProperties canvas) {
 		new MainWindow(name,&canvas);
 	}
+	override void update_session() {
+		// import fairy;
+		// foreach(window_name, ref window; GtkGui.main_windows) window.header_bar.setTitle("fairy - " ~ fairy.session.name ~ " - " ~ window_name);
+	}
 	override void close_window(string name) {
 		auto window = MainWindow.main_windows[name];
 		MainWindow.main_windows.remove(name);
