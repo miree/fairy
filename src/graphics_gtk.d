@@ -1447,6 +1447,48 @@ class ItemView : TreeView {
 		}
 	}
 
+	// opens a "save as" dialog for the (single, see rebuild_popup_menu()'s any_exportable gating)
+	// selected item that is a Hist1Export or Hist2Export, then runs ui.hist1export()/hist2export()
+	// on the chosen filename.
+	void export_selected() {
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			if (fullname is null) continue;
+			import fairy, histogram;
+			auto item_ptr = fullname in session.items;
+			if (item_ptr is null) continue;
+			auto h1 = cast(Hist1Export)item_ptr.item;
+			auto h2 = cast(Hist2Export)item_ptr.item;
+			if (h1 is null && h2 is null) continue;
+
+			import gtk.FileChooserDialog, gtk.Dialog;
+			auto dialog = new FileChooserDialog("export " ~ fullname, /*parent_window=*/main_window, FileChooserAction.SAVE);
+			dialog.setCreateFolders(true);
+			import std.algorithm, std.array;
+			dialog.setCurrentName(fullname.split('/').back ~ ".dat");
+			dialog.addOnResponse((int response, Dialog dialog) {
+				if (response == ResponseType.OK) {
+					version(gtk3) {
+						auto filename = (cast(FileChooserDialog)dialog).getFilenames().toArray!string[0];
+					}
+					version(gtk4) {
+						auto filename = (cast(FileChooserDialog)dialog).getFile().getPath();
+					}
+					import ui;
+					try {
+						if (h1 !is null) ui.hist1export(fullname, filename.relative_to_cwd_if_local());
+						else             ui.hist2export(fullname, filename.relative_to_cwd_if_local());
+					} catch (Exception e) {
+						main_window.show_errors([fullname ~ ": " ~ e.msg]);
+					}
+				}
+				dialog.close();
+			});
+			dialog.show();
+			break;
+		}
+	}
+
 	void create_fitter_cauchy(bool dragupdate = true, bool loglikelihood = false) {
 		foreach(selected_iter; getSelectedIters()) {
 			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
@@ -2262,6 +2304,7 @@ class ItemView : TreeView {
 				auto selected = getSelectedIters();
 				bool any_fit_source = false;
 				bool any_projection_source = false;
+				bool any_exportable = false;
 				foreach(selected_iter; selected) {
 					auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
 					if (fullname is null) continue;
@@ -2270,6 +2313,7 @@ class ItemView : TreeView {
 					if (cast(FitDataSource)item_ptr.item !is null) any_fit_source = true;
 					auto proj = cast(Hist2ProjectionSource)item_ptr.item;
 					if (proj !is null && proj.projection_data_ready()) any_projection_source = true;
+					if (cast(Hist1Export)item_ptr.item !is null || cast(Hist2Export)item_ptr.item !is null) any_exportable = true;
 				}
 				bool single_selected = (selected.length == 1);
 
@@ -2321,6 +2365,9 @@ class ItemView : TreeView {
 				popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
 				popup_menu.append( new MenuItem( (m) => copy_selected_to_clipboard(), "copy to clipboard", "copy fullname of all selected items to the clipboard" ));
 				popup_menu.append( new MenuItem( (m) => open_properties_for_selected(), "properties", "open a properties window for each selected item" ));
+				if (single_selected && any_exportable) {
+					popup_menu.append( new MenuItem( (m) => export_selected(), "export", "export the selected 1D/2D histogram to a text file" ));
+				}
 				if (single_selected && any_projection_source) {
 					popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
 					popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "hist2d project x", "interactively project 2d histogram along x axis" ));
