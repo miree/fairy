@@ -755,6 +755,16 @@ string hist2projector_bg(string name, string sourcename, string peak_gatename, s
 	return "";
 }
 
+@UI_EXPORT("subtract a fitted Function from any 1D fittable source (Hist1, Hist2Projection, Hist2ProjectionBg, FileHistogram, ...), bin by bin (e.g. to remove a fitted background, leaving an odd-shaped peak behind). Error bars are, for now, simply whatever the source itself reports (sqrt(bincontent) for a plain histogram).",
+	["name of the resulting item",
+	 "name of the source item (anything implementing FitDataSource)",
+	 "name of the Function to subtract"])
+string hist1minusfunc(string name, string hist1name, string functionname) {
+	import fairy, histogram;
+	fairy.session.add_item(name, new Hist1MinusFunction(hist1name, functionname));
+	return "";
+}
+
 @UI_EXPORT("add set of points as interactive demo",
 	["name of point set",
 	 "number of points"])

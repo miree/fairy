@@ -378,6 +378,11 @@ public:
 				data.fitresult[i+1] = rpar*all_params[i+1];
 			}
 		}
+		// bump item_version so getVersion() reliably signals "the fit result changed" to anyone
+		// depending on it (e.g. Hist1MinusFunction in histogram.d) -- fitresult itself doesn't
+		// otherwise cause a version bump anywhere else (unlike data.parameters, which is only
+		// ever touched directly by interactive dragging, not by a fit).
+		++item_version;
 
 		// calculate the resulting qantities as function of parameters
 		foreach(index, ref result_expr; result_exprs) {
@@ -583,6 +588,11 @@ public:
 				data.fitresult[i+1] = rpar*all_params[i+1];
 			}
 		}
+		// bump item_version so getVersion() reliably signals "the fit result changed" to anyone
+		// depending on it (e.g. Hist1MinusFunction in histogram.d) -- fitresult itself doesn't
+		// otherwise cause a version bump anywhere else (unlike data.parameters, which is only
+		// ever touched directly by interactive dragging, not by a fit).
+		++item_version;
 
 		// calculate the resulting qantities as function of parameters
 		foreach(index, ref result_expr; result_exprs) {
@@ -745,6 +755,19 @@ public:
 
 	void set_dragupdate(bool dragupdate) {
 		data.dragupdate = dragupdate;
+	}
+
+	// Evaluates the function at the given x using the best-fit parameters (data.fitresult) --
+	// the same curve FunctionVisualizer.draw() renders as the solid "fit result" line, as
+	// opposed to data.parameters (the pre-fit/handle-driven state shown as the fainter preview
+	// curve). If this function doesn't depend on x (no "x" parameter), x is ignored. Used by
+	// Hist1MinusFunction (histogram.d) to subtract the fitted function from a histogram.
+	double evaluate(double x) const {
+		auto x_idx_ptr = "x" in expr.param_index_lookup;
+		if (x_idx_ptr is null) return expr.e.eval(data.fitresult);
+		auto local_fitresult = data.fitresult.dup;
+		local_fitresult[*x_idx_ptr] = x;
+		return expr.e.eval(local_fitresult);
 	}
 
 private:

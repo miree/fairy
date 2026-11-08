@@ -316,6 +316,187 @@ private:
 }
 
 
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Hist1MinusFunction: the difference of a Hist1 and a fitted Function, evaluated at each bin --
+// e.g. a histogram with the fit to its background (on either side of an odd-shaped peak, say)
+// subtracted off, leaving just the peak. Error bars are (for now) simply sqrt(bincontent) of the
+// source histogram -- not yet accounting for the fitted function's own (correlated, since all
+// its evaluated points share the same fit parameters) error contribution.
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+class Hist1MinusFunctionFactory : ItemFactory {
+	override Item create(ref JSONValue json) {
+		return new Hist1MinusFunction(json);
+	}
+}
+
+import functions;
+class Hist1MinusFunction : Visual, Hist1Export, FitDataSource, Item, HasProperties {
+	struct Data {
+		// field name kept for session-file compatibility with the first version of this item,
+		// which only accepted a concrete Hist1 -- any FitDataSource is accepted now (Hist1,
+		// Hist2Projection, Hist2ProjectionBg, FileHistogram, ...).
+		@SERIALIZE @EDITABLE string hist1name;
+		@SERIALIZE @EDITABLE string functionname;
+	}
+	Data data;
+	string xlabel = ""; // FitDataSource carries no axis label, so this stays empty for now
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
+
+	this(string hist1name, string functionname) {
+		data.hist1name = hist1name;
+		data.functionname = functionname;
+	}
+	this(ref JSONValue json) {
+		data = deserialize!Data(json);
+	}
+
+	void export_to_file(string filename, int rebin) {
+		do_subtract();
+		export_hist1_to_file(bins, left, right, filename, rebin);
+	}
+
+	// Item interface
+	override JSONValue toJSON() { return serialize(data); }
+	override string get_type()  { return "histogram.Hist1MinusFunction"; }
+	override void reset() {}
+	override ulong getVersion() {
+		import fairy, std.stdio;
+		auto h1_ptr = data.hist1name in session.items;
+		auto fn_ptr = data.functionname in session.items;
+		if (h1_ptr is null || fn_ptr is null) {
+			writeln("Hist1MinusFunction: source or function is missing");
+			return item_version;
+		}
+		auto test_source_item = cast(Visual)h1_ptr.item;
+		auto test_source      = cast(FitDataSource)h1_ptr.item;
+		auto test_func        = cast(Function)fn_ptr.item;
+		if (test_source_item is null || test_source is null || test_func is null) return item_version;
+		source_item = test_source_item;
+		source      = test_source;
+		func        = test_func;
+
+		if (source_version == -1 || source_item.getVersion() > source_version ||
+		    func_version   == -1 || func.getVersion()        > func_version) {
+			source_version = source_item.getVersion();
+			func_version   = func.getVersion();
+			++item_version;
+			dirty = true;
+		}
+		return item_version;
+	}
+	override void overrideVersion(ulong new_version) {
+		item_version = new_version;
+	}
+
+	// Visual interface
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) {
+		if (old !is null && !dirty) return old;
+		try {
+			do_subtract();
+		} catch (Exception e) {
+			import std.stdio;
+			writeln("cannot create visualizer for ", data.hist1name, " minus ", data.functionname, ": ", e.msg);
+			dirty = false;
+			return null;
+		}
+		dirty = false;
+		return new Hist1ErrorBarVisualizer(null, item_version, bins, bin_errors, xlabel, left, right);
+	}
+
+	// FitDataSource interface
+	override double get_bin_width() {
+		return (right-left)/bins.length;
+	}
+	override double[3][] get_data(double[2] region) {
+		do_subtract();
+		double bin_width = (right-left)/bins.length;
+		double[3][] result;
+		foreach(idx, y; bins) {
+			double x = left+idx*(right-left)/bins.length;
+			x += bin_width/2;
+			if (x >= region[0] && x < region[1]) {
+				double err = (bin_errors[idx] > 1.0) ? bin_errors[idx] : 1.0;
+				double[3] dp = [x, y, err];
+				result ~= dp;
+			}
+		}
+		return result;
+	}
+
+	// Rebuilds bins/bin_errors over the source's full range by asking it (via the generic
+	// FitDataSource interface, not any concrete type) for every point it has, then reconstructing
+	// a dense bin grid from get_bin_width() and the min/max x actually returned -- this is what
+	// lets this item work on anything implementing FitDataSource (Hist1, Hist2Projection,
+	// Hist2ProjectionBg, FileHistogram, ...), not just a concrete Hist1. A position the source
+	// didn't return a point for (e.g. Hist1.get_data() skips bins with a value of exactly 0)
+	// stays double.init -- the same "no data here" convention Hist1Visualizer already draws as a
+	// gap, rather than silently treating "not returned" as "zero".
+	//
+	// Error bars are, for now, simply whatever the source's own get_data() already reports as
+	// each point's error (sqrt(bincontent) for a plain Hist1/Hist2Projection) -- the function's
+	// own (correlated, since every evaluated point shares the same fit parameters) error
+	// contribution isn't accounted for yet.
+	void do_subtract() {
+		import fairy, std.math, std.algorithm;
+		auto h1_ptr = data.hist1name in session.items;
+		if (h1_ptr is null) throw new Exception("Hist1MinusFunction fails: no item (source) with name " ~ data.hist1name);
+		auto fn_ptr = data.functionname in session.items;
+		if (fn_ptr is null) throw new Exception("Hist1MinusFunction fails: no item (function) with name " ~ data.functionname);
+
+		source_item = cast(Visual)h1_ptr.item;
+		source      = cast(FitDataSource)h1_ptr.item;
+		func        = cast(Function)fn_ptr.item;
+		if (source_item is null || source is null) throw new Exception("Hist1MinusFunction fails: " ~ data.hist1name ~ " is not a fittable (FitDataSource) item");
+		if (func is null) throw new Exception("Hist1MinusFunction fails: " ~ data.functionname ~ " is not a Function");
+
+		double bin_width = source.get_bin_width();
+		if (bin_width is double.init || bin_width <= 0) throw new Exception("Hist1MinusFunction fails: " ~ data.hist1name ~ " has no usable bin width");
+
+		auto points = source.get_data([-double.max, double.max]);
+		if (points.length == 0) {
+			bins.length = 0;
+			bin_errors.length = 0;
+			left = 0; right = 0;
+			return;
+		}
+
+		double min_x = points[0][0], max_x = points[0][0];
+		foreach(p; points) {
+			min_x = min(min_x, p[0]);
+			max_x = max(max_x, p[0]);
+		}
+		left  = min_x - bin_width/2;
+		right = max_x + bin_width/2;
+		ulong n = max(1, cast(long)round((right-left)/bin_width));
+
+		bins.length = n;
+		bin_errors.length = n;
+		bins[]       = double.init;
+		bin_errors[] = double.init;
+		foreach(p; points) {
+			double x = p[0], y = p[1], err = p[2];
+			long idx = cast(long)round((x-left)/bin_width - 0.5);
+			if (idx < 0 || idx >= cast(long)n) continue;
+			bins[cast(ulong)idx]       = y - func.evaluate(x);
+			bin_errors[cast(ulong)idx] = err;
+		}
+	}
+
+private:
+	ulong item_version = 0;
+	long source_version = -1;
+	long func_version = -1;
+
+	bool dirty = true;
+	double[] bins;
+	double[] bin_errors;
+	double left, right;
+
+	Visual source_item;
+	FitDataSource source;
+	Function func;
+}
 
 
 class Hist2Factory : ItemFactory {
