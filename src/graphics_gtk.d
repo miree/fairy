@@ -1412,6 +1412,9 @@ class ItemView : TreeView {
 		Menu create_marker_submenu;
 		MenuItem create_marker;  // submenu is attached to this item
 
+		Menu projection_submenu;
+		MenuItem projection_menu;  // submenu is attached to this item
+
 	}
 	version(gtk4) {
 		import gtk.PopoverMenu, gtk.Popover;
@@ -2013,6 +2016,10 @@ class ItemView : TreeView {
 						right = exp(right);
 					}
 					double width = right-left;
+					// a visible gap between the peak and each background region, so their default
+					// placement doesn't look like one contiguous region -- a quarter of the
+					// peak's own width reads clearly without pushing the backgrounds too far out.
+					double gap = width/4;
 					char gate_direction = (xy=='x')?'y':'x';
 
 					import cmdline;
@@ -2026,13 +2033,13 @@ class ItemView : TreeView {
 					string command = "gate1d "~peak_gatename~" "~left.to!string~" "~right.to!string~" "~gate_direction~" false\n";
 					if (n_backgrounds == 1) {
 						auto bgname = fullname ~ "/"~xy~"_bg_gate";
-						command ~= "gate1d "~bgname~" "~right.to!string~" "~(right+width).to!string~" "~gate_direction~" true\n";
+						command ~= "gate1d "~bgname~" "~(right+gap).to!string~" "~(right+gap+width).to!string~" "~gate_direction~" true\n";
 						bg_gatenames = [bgname];
 					} else {
 						auto bgname1 = fullname ~ "/"~xy~"_bg_gate1";
 						auto bgname2 = fullname ~ "/"~xy~"_bg_gate2";
-						command ~= "gate1d "~bgname1~" "~(left-width).to!string~" "~left.to!string~" "~gate_direction~" true\n";
-						command ~= "gate1d "~bgname2~" "~right.to!string~" "~(right+width).to!string~" "~gate_direction~" true\n";
+						command ~= "gate1d "~bgname1~" "~(left-gap-width).to!string~" "~(left-gap).to!string~" "~gate_direction~" true\n";
+						command ~= "gate1d "~bgname2~" "~(right+gap).to!string~" "~(right+gap+width).to!string~" "~gate_direction~" true\n";
 						bg_gatenames = [bgname1, bgname2];
 					}
 					string bg_array = "[\""~std.array.join(bg_gatenames, "\",\"")~"\"]";
@@ -2438,6 +2445,16 @@ class ItemView : TreeView {
 				loglh_fitting = new MenuItem( (m)=>nothing, "log-L fit", "fitting options");
 				loglh_fitting.setSubmenu(loglh_fitting_submenu);
 
+				projection_submenu = new Menu;
+				projection_submenu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "project y", "interactively project 2d histogram along y axis" ));
+				projection_submenu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "project x", "interactively project 2d histogram along x axis" ));
+				projection_submenu.append( new MenuItem( (m) => hist2d_projection_bg_xy('y',1), "project y w/ 1 background", "project along y axis, subtracting one background region" ));
+				projection_submenu.append( new MenuItem( (m) => hist2d_projection_bg_xy('y',2), "project y w/ 2 backgrounds", "project along y axis, subtracting two background regions" ));
+				projection_submenu.append( new MenuItem( (m) => hist2d_projection_bg_xy('x',1), "project x w/ 1 background", "project along x axis, subtracting one background region" ));
+				projection_submenu.append( new MenuItem( (m) => hist2d_projection_bg_xy('x',2), "project x w/ 2 backgrounds", "project along x axis, subtracting two background regions" ));
+				projection_menu = new MenuItem( (m)=>nothing, "projection", "project the selected 2d histogram onto 1d, with or without background subtraction");
+				projection_menu.setSubmenu(projection_submenu);
+
 				popup_menu = new Menu;
 				if (single_selected) popup_menu.append( create_marker );
 				popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
@@ -2447,12 +2464,7 @@ class ItemView : TreeView {
 					popup_menu.append( new MenuItem( (m) => export_selected(), "export", "export the selected 1D/2D histogram to a text file" ));
 				}
 				if (single_selected && any_projection_source) {
-					popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
-					popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "hist2d project x", "interactively project 2d histogram along x axis" ));
-					popup_menu.append( new MenuItem( (m) => hist2d_projection_bg_xy('y',1), "hist2d project y w/ 1 background", "project along y axis, subtracting one background region" ));
-					popup_menu.append( new MenuItem( (m) => hist2d_projection_bg_xy('y',2), "hist2d project y w/ 2 backgrounds", "project along y axis, subtracting two background regions" ));
-					popup_menu.append( new MenuItem( (m) => hist2d_projection_bg_xy('x',1), "hist2d project x w/ 1 background", "project along x axis, subtracting one background region" ));
-					popup_menu.append( new MenuItem( (m) => hist2d_projection_bg_xy('x',2), "hist2d project x w/ 2 backgrounds", "project along x axis, subtracting two background regions" ));
+					popup_menu.append( projection_menu );
 				}
 				if (any_fit_source) {
 					popup_menu.append( chi2_fitting );
