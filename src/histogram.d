@@ -704,12 +704,12 @@ class Hist1Integral : Visual, Item, HasProperties {
 			auto r = gate_bin_range(bmin, bmax, left, right, n);
 			if (r.lo <= r.hi) bg_ranges ~= r;
 		}
-		auto bg_final = subtract_bin_range(merge_bin_ranges(bg_ranges), peak_range);
+		// auto bg_final = subtract_bin_range(merge_bin_ranges(bg_ranges), peak_range);
 
 		// fit the function to the background region(s) only, converting the (post-merge,
 		// post-overlap-subtraction) bin ranges back into world-coordinate regions
 		double[2][] fit_regions;
-		foreach(r; bg_final) fit_regions ~= [left + r.lo*bin_width, left + (r.hi+1)*bin_width];
+		foreach(r; bg_ranges) fit_regions ~= [left + r.lo*bin_width, left + (r.hi+1)*bin_width];
 		if (fit_regions.length > 0) {
 			if (func.use_loglikelihood) func.fit_loglikelihood(source, fit_regions, false, true, false, 250);
 			else                         func.fit(source, fit_regions, false, true, false, 250);
@@ -743,7 +743,7 @@ class Hist1Integral : Visual, Item, HasProperties {
 	// ever runs).
 	string format_result() const {
 		import std.format;
-		return format("integral = %g +- %g", data.integral, data.integral_error);
+		return format("integral = %g +- %g [%0.3g%%]", data.integral, data.integral_error, 100.0*data.integral_error/data.integral);
 	}
 
 private:
@@ -787,11 +787,19 @@ public:
 			string text = integ.format_result();
 
 			double cx = t[0].world2canvas(t[0].log(center_x));
-			double cy = t[1].world2canvas(t[1].max);
+			double cy = t[1].world2canvas(0.5*(t[1].max+t[1].min));
 			double width, height;
 			d.text_extent(text, width, height);
+			double x_text = cx-width/2;
+			double y_text = cy+height*1.2;
+			d.set_color(0.9,0.9,0.9);
+			d.text(x_text-1, y_text-1, text);
+			d.text(x_text-1, y_text+1, text);
+			d.text(x_text+1, y_text-1, text);
+			d.text(x_text+1, y_text+1, text);
+			d.stroke();
 			d.set_color(0,0,0);
-			d.text(cx-width/2, cy+height*1.2, text);
+			d.text(x_text, y_text, text);
 			d.stroke();
 		} catch (Exception e) {
 			import std.stdio;
