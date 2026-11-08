@@ -546,7 +546,7 @@ class Hist1IntegralFactory : ItemFactory {
 }
 
 import gate;
-class Hist1Integral : Item, HasProperties {
+class Hist1Integral : Visual, Item, HasProperties {
 	struct Data {
 		@SERIALIZE @EDITABLE string sourcename;
 		@SERIALIZE @EDITABLE string functionname;
@@ -575,6 +575,21 @@ class Hist1Integral : Item, HasProperties {
 	override JSONValue toJSON() { return serialize(data); }
 	override string get_type()  { return "histogram.Hist1Integral"; }
 	override void reset() {}
+
+	// Visual interface -- draws nothing itself beyond text (see Hist1IntegralVisualizer below);
+	// getVersion() is what keeps the displayed result live as the source/function/gates change.
+	override ulong getVersion() {
+		update();
+		return item_version;
+	}
+	override void overrideVersion(ulong new_version) {
+		item_version = new_version;
+	}
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) {
+		if (old !is null && !dirty) return old;
+		dirty = false;
+		return new Hist1IntegralVisualizer(old, item_version, this);
+	}
 
 	// Recomputes (fit + integral) only if the source, function, or any gate actually changed
 	// since the last call -- a GSL fit is far more expensive than the prefix-sum math the other
@@ -633,6 +648,7 @@ class Hist1Integral : Item, HasProperties {
 		source_version = test_source_item.getVersion();
 		func_version   = test_func.getVersion();
 		++item_version;
+		dirty = true;
 	}
 
 	// recomputes unconditionally -- update() is the normal entry point; this is for export/
@@ -653,6 +669,7 @@ class Hist1Integral : Item, HasProperties {
 		if (source_item is null || source is null) throw new Exception("Hist1Integral fails: " ~ data.sourcename ~ " is not a fittable (FitDataSource) item");
 		if (func is null) throw new Exception("Hist1Integral fails: " ~ data.functionname ~ " is not a Function");
 		if (peak_gate is null) throw new Exception("Hist1Integral fails: " ~ data.peak_gatename ~ " is not a Gate1D");
+		this.peak_gate = peak_gate; // kept around for Hist1IntegralVisualizer to read the peak's current position
 
 		Gate1D[] bg_gates;
 		bg_gates.length = data.bg_gatenames.length;
@@ -717,6 +734,14 @@ class Hist1Integral : Item, HasProperties {
 	// returns a short human-readable summary, recomputing first if anything changed
 	string value_string() {
 		update();
+		return format_result();
+	}
+
+	// formats the already-computed result without recomputing anything -- const, so it's safe
+	// to call from Hist1IntegralVisualizer.draw() (which, like every other Visualizer's draw(),
+	// must not mutate the item: getVersion() is what keeps the result up to date before draw()
+	// ever runs).
+	string format_result() const {
 		import std.format;
 		return format("integral = %g +- %g", data.integral, data.integral_error);
 	}
@@ -725,9 +750,57 @@ private:
 	ulong item_version = 0;
 	long source_version = -1;
 	long func_version = -1;
+	bool dirty = true;
 
 	double peak_min_cached = double.init, peak_max_cached = double.init;
 	double[] bg_min_cached, bg_max_cached;
+
+	Gate1D peak_gate;
+}
+
+// Draws Hist1Integral's result as text centered horizontally on the peak gate's current
+// position, near the top of the canvas's currently visible y-range (deliberately not placed at
+// the data's own height, to avoid any dependency on the source's value range or autoscaling).
+// Pure annotation -- dim=0 and get_leftright()/get_bottomtop_in_leftright() both return false,
+// so this never influences autoscaling, same as a Gate1D's own visualizer.
+class Hist1IntegralVisualizer : Visualizer {
+public:
+	this(Visualizer old, ulong itemversion, Hist1Integral integ) {
+		ulong dim;
+		super(itemversion, dim=0);
+		this.integ = integ;
+	}
+
+	override string getXlabel() { return ""; }
+	override string getYlabel() { return ""; }
+	override double getValue(double x, double y) { return double.init; }
+	override bool get_leftright(out double[2] lr, in Transform[3] t, bool zoom = false) { return false; }
+	override bool get_bottomtop_in_leftright(out double[2] bt, in double[2] lr, in Transform[3] t, bool zoom = false) { return false; }
+
+	import graphics, transform;
+	@trusted override void draw(BackendInterface d, in Transform[3] t, bool modified) const {
+		if (integ.peak_gate is null) return;
+		try {
+			double peak_min = integ.peak_gate.data.min + integ.peak_gate.min_delta;
+			double peak_max = integ.peak_gate.data.max + integ.peak_gate.max_delta;
+			double center_x = 0.5*(peak_min+peak_max);
+			string text = integ.format_result();
+
+			double cx = t[0].world2canvas(t[0].log(center_x));
+			double cy = t[1].world2canvas(t[1].max);
+			double width, height;
+			d.text_extent(text, width, height);
+			d.set_color(0,0,0);
+			d.text(cx-width/2, cy+height*1.2, text);
+			d.stroke();
+		} catch (Exception e) {
+			import std.stdio;
+			writeln("there was an Exception: ", e.file, ":", e.line, " -> ", e.msg, "\r");
+		}
+	}
+
+private:
+	Hist1Integral integ;
 }
 
 

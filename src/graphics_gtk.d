@@ -1415,6 +1415,9 @@ class ItemView : TreeView {
 		Menu projection_submenu;
 		MenuItem projection_menu;  // submenu is attached to this item
 
+		Menu integrate_submenu;
+		MenuItem integrate_menu;  // submenu is attached to this item
+
 	}
 	version(gtk4) {
 		import gtk.PopoverMenu, gtk.Popover;
@@ -2067,8 +2070,92 @@ class ItemView : TreeView {
 		}
 	}
 
+	// Creates a peak gate + 2 background gates (positioned exactly like hist2d_projection_bg_xy()
+	// with n_backgrounds==2, but always along x since this works on a 1D FitDataSource, not a 2D
+	// histogram -- there's only one axis), a background-fit Function of the given shape (no
+	// handles, start parameters 1/0/0 for the constant/linear/quadratic coefficients), and a
+	// Hist1Integral tying them together, then shows all of it in the *current* window (unlike
+	// hist2d_projection_bg_xy(), there's no separately-shaped projection result needing its own
+	// window -- this is just an overlay on the already-displayed source, same as the existing
+	// chi^2/log-L fit menu entries).
+	void integrate_bg_xy(string functype) {
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			import std.conv, std.algorithm, std.array;
+			import fairy, ui;
+			if (session.items.byKey.canFind(fullname)) {
+				import histogram, gate, functions;
+				auto source = cast(FitDataSource)session.items[fullname].item;
+				if (source !is null) {
+					string fitname;
+					for (int i = 0;;++i) {
+						fitname = "_integral_" ~ functype ~ "_";
+						fitname ~= i.to!string;
+						if (!(fullname~fitname~"/peak" in session.items)) break;
+					}
+					auto peak_gatename = fullname ~ fitname ~ "/peak";
+					auto bgname1       = fullname ~ fitname ~ "/bg1";
+					auto bgname2       = fullname ~ fitname ~ "/bg2";
+					auto funcname      = fullname ~ fitname ~ "/function";
+					auto integname     = fullname ~ fitname ~ "/integral";
+
+					auto left  = main_window.canvas.transform[0].min;
+					auto right = main_window.canvas.transform[0].max;
+					auto w = right-left;
+					left += 3*w/8;
+					right -= 3*w/8;
+					if (main_window.canvas.transform[0].logscale) {
+						import std.math;
+						left = exp(left);
+						right = exp(right);
+					}
+					double width = right-left;
+					double gap = width/4;
+
+					string function_definition, parameter_definition;
+					if (functype == "constant") {
+						// "+0*x" (not a bare "a") so "x" is still a registered parameter --
+						// Function.fit() looks up its index unconditionally, and would throw if
+						// "x" never appeared in the expression at all. The literal 0 coefficient
+						// (not a fit parameter) keeps the function genuinely constant.
+						function_definition = "a+0*x";
+						parameter_definition = "[\"a=1\"]";
+					} else if (functype == "linear") {
+						function_definition = "a+b*x";
+						parameter_definition = "[\"a=1\",\"b=0\"]";
+					} else { // quadratic
+						function_definition = "a+b*x+c*x*x";
+						parameter_definition = "[\"a=1\",\"b=0\",\"c=0\"]";
+					}
+
+					import cmdline;
+					string command =
+						"gate1d "~peak_gatename~" "~left.to!string~" "~right.to!string~" x false\n"~
+						"gate1d "~bgname1~" "~(left-gap-width).to!string~" "~(left-gap).to!string~" x true\n"~
+						"gate1d "~bgname2~" "~(right+gap).to!string~" "~(right+gap+width).to!string~" x true\n"~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~"\n"~
+						"hist1integral "~integname~" "~fullname~" "~funcname~" "~peak_gatename~" [\""~bgname1~"\",\""~bgname2~"\"]\n"~
+						"show      "~peak_gatename~" "~main_window.name ~ "\n" ~
+						"show      "~bgname1~" "~main_window.name ~ "\n" ~
+						"show      "~bgname2~" "~main_window.name ~ "\n" ~
+						"show      "~funcname~" "~main_window.name ~ "\n" ~
+						"show      "~integname~" "~main_window.name;
+					thisTid.send(cmdline.Command(command, thisTid));
+				} else {
+					import gtk.MessageDialog;
+					auto cannot_integrate = new MessageDialog(main_window,
+						              GtkDialogFlags.DESTROY_WITH_PARENT,
+						              GtkMessageType.ERROR,
+						              GtkButtonsType.NONE,
+						              "no fit data source possible");
+					cannot_integrate.show();
+				}
+			}
+		}
+	}
+
 	void remove_all_selected() {
-		string[] names; 
+		string[] names;
 		foreach(selected_iter; getSelectedIters()) {
 			names ~= treestore.getString(selected_iter, COLUMN_FULLNAME);
 		}
@@ -2455,6 +2542,13 @@ class ItemView : TreeView {
 				projection_menu = new MenuItem( (m)=>nothing, "projection", "project the selected 2d histogram onto 1d, with or without background subtraction");
 				projection_menu.setSubmenu(projection_submenu);
 
+				integrate_submenu = new Menu;
+				integrate_submenu.append( new MenuItem( (m) => integrate_bg_xy("constant"),  "constant-bg",  "fit a constant background around a peak region and integrate it" ));
+				integrate_submenu.append( new MenuItem( (m) => integrate_bg_xy("linear"),    "linear-bg",    "fit a linear background around a peak region and integrate it" ));
+				integrate_submenu.append( new MenuItem( (m) => integrate_bg_xy("quadratic"), "quadratic-bg", "fit a quadratic background around a peak region and integrate it" ));
+				integrate_menu = new MenuItem( (m)=>nothing, "integrate", "fit a background and integrate a peak region of the selected item");
+				integrate_menu.setSubmenu(integrate_submenu);
+
 				popup_menu = new Menu;
 				if (single_selected) popup_menu.append( create_marker );
 				popup_menu.append( new MenuItem( (m) => expand_all_selected(), "expand recursive", "recursively expand all child items" ));
@@ -2465,6 +2559,9 @@ class ItemView : TreeView {
 				}
 				if (single_selected && any_projection_source) {
 					popup_menu.append( projection_menu );
+				}
+				if (single_selected && any_fit_source) {
+					popup_menu.append( integrate_menu );
 				}
 				if (any_fit_source) {
 					popup_menu.append( chi2_fitting );
