@@ -2023,16 +2023,16 @@ class ItemView : TreeView {
 					}
 
 					string[] bg_gatenames;
-					string command = "gate1d "~peak_gatename~" "~left.to!string~" "~right.to!string~" "~gate_direction~"\n";
+					string command = "gate1d "~peak_gatename~" "~left.to!string~" "~right.to!string~" "~gate_direction~" false\n";
 					if (n_backgrounds == 1) {
 						auto bgname = fullname ~ "/"~xy~"_bg_gate";
-						command ~= "gate1d "~bgname~" "~right.to!string~" "~(right+width).to!string~" "~gate_direction~"\n";
+						command ~= "gate1d "~bgname~" "~right.to!string~" "~(right+width).to!string~" "~gate_direction~" true\n";
 						bg_gatenames = [bgname];
 					} else {
 						auto bgname1 = fullname ~ "/"~xy~"_bg_gate1";
 						auto bgname2 = fullname ~ "/"~xy~"_bg_gate2";
-						command ~= "gate1d "~bgname1~" "~(left-width).to!string~" "~left.to!string~" "~gate_direction~"\n";
-						command ~= "gate1d "~bgname2~" "~right.to!string~" "~(right+width).to!string~" "~gate_direction~"\n";
+						command ~= "gate1d "~bgname1~" "~(left-width).to!string~" "~left.to!string~" "~gate_direction~" true\n";
+						command ~= "gate1d "~bgname2~" "~right.to!string~" "~(right+width).to!string~" "~gate_direction~" true\n";
 						bg_gatenames = [bgname1, bgname2];
 					}
 					string bg_array = "[\""~std.array.join(bg_gatenames, "\",\"")~"\"]";

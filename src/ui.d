@@ -358,17 +358,18 @@ string dragupdate(string functname, bool dragupdate = true) {
 
 @UI_EXPORT("create a 1D gate",
 	["itemname",
-	 "left limit", 
+	 "left limit",
 	 "right limit",
-	 "x|y"])
+	 "x|y",
+	 "marks this gate as a background region for hist2projector_bg (drawn in orange instead of green; not editable afterward via the properties window)"])
 @trusted
-string gate1d(string name, double  min, double max, char direction = 'x') {
+string gate1d(string name, double  min, double max, char direction = 'x', bool background = false) {
 	import fairy, gate;
 	if (direction != 'x' && direction != 'y') {
 		throw new Exception("direction must be x or y");
 	}
 	int dir = (direction=='x')?0:1;
-	fairy.session.add_item(name, new Gate1D(min,max,dir));
+	fairy.session.add_item(name, new Gate1D(min,max,dir,background));
 	return "";
 }
 

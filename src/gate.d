@@ -27,6 +27,14 @@ void set_gate_color_level(BackendInterface d, int level) {
 	if (level) 	d.set_color(0.9,0.9,0.9); // background color
 	else        d.set_color(0,0.7,0);
 }
+// Gate1D-specific overload: draws orange instead of green for a gate whose Data.background flag
+// is set (see hist2d_projection_bg_xy()'s auto-created background gates in graphics_gtk.d), so a
+// background-subtracted projection's peak and background regions are visually distinguishable on
+// the canvas. Gate2D/PolyGate have no such flag and keep using the plain overload above.
+void set_gate_color_level(BackendInterface d, int level, bool background) {
+	if (level) 	d.set_color(0.9,0.9,0.9); // background color (halo), same for every gate
+	else        d.set_color(background ? 1.0 : 0.0, background ? 0.6 : 0.7, 0.0);
+}
 void set_selected_color_level(BackendInterface d, int level) {
 	if (level) 	d.set_color(0.9,0.9,0.9); // background color
 	else        d.set_color(1,0,0);
@@ -50,18 +58,25 @@ public:
 		@SERIALIZE @EDITABLE double min;
 		@SERIALIZE @EDITABLE double max;
 		@SERIALIZE @EDITABLE int direction; // 0 -> x-direction, 1 -> y-direction
+		@SERIALIZE          bool background; // true for an auto-created background region (see
+		                                      // hist2d_projection_bg_xy() in graphics_gtk.d) --
+		                                      // deliberately not @EDITABLE: it's set once at
+		                                      // creation (ui.gate1d()'s optional last argument),
+		                                      // not meant to be flipped later via the generic
+		                                      // properties window.
 	}
 	Data data;
 	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
-	double min_delta  = 0; // relevant for user interaction 
+	double min_delta  = 0; // relevant for user interaction
 	double max_delta = 0; // relevant for user interaction
 
 	ulong item_version = 0;
 
-	this(double min, double max, int direction = 0) {
+	this(double min, double max, int direction = 0, bool background = false) {
 		data.min = min;
 		data.max = max;
 		data.direction = direction;
+		data.background = background;
 	}
 	this(ref JSONValue json) {
 		import std.stdio;
@@ -125,14 +140,14 @@ public:
 		for (int level = 1; level >= 0; --level) {
 			d.set_line_width(2+2*level);
 			if ((highlight_handle != -1) && (highlight_handle & 0x1)) d.set_line_width(4+2*level);
-			d.set_gate_color_level(level); 
+			d.set_gate_color_level(level, gate.data.background);
 			if ((selected_handle != -1) && (selected_handle  & 0x1)) d.set_selected_color_level(level);
 			d.horizontal_line(y1, left, right);
 			d.stroke();
 
 			d.set_line_width(2+2*level);
 			if ((highlight_handle != -1) && (highlight_handle & 0x2)) d.set_line_width(4+2*level);
-			d.set_gate_color_level(level); 
+			d.set_gate_color_level(level, gate.data.background);
 			if ((selected_handle != -1) && (selected_handle  & 0x2)) d.set_selected_color_level(level);
 			d.horizontal_line(y2, left, right);
 			d.stroke();
@@ -168,14 +183,14 @@ public:
 		for (int level = 1; level >= 0; --level) {
 			d.set_line_width(2+2*level);
 			if ((highlight_handle != -1) && (highlight_handle & 0x1)) d.set_line_width(4+2*level);
-			d.set_gate_color_level(level); 
+			d.set_gate_color_level(level, gate.data.background);
 			if ((selected_handle != -1) && (selected_handle  & 0x1)) d.set_selected_color_level(level);
 			d.vertical_line(x1, bottom, top);
 			d.stroke();
 
 			d.set_line_width(2+2*level);
 			if ((highlight_handle != -1) && (highlight_handle & 0x2)) d.set_line_width(4+2*level);
-			d.set_gate_color_level(level); 
+			d.set_gate_color_level(level, gate.data.background);
 			if ((selected_handle != -1) && (selected_handle  & 0x2)) d.set_selected_color_level(level);
 			d.vertical_line(x2, bottom, top);
 			d.stroke();
