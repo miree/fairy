@@ -3158,7 +3158,7 @@ class PlotWidget : Box {
 					ui.winpoll(name, button.getActive()?"true":"false");
 				}
 			);
-		check_fastrefresh = new CheckButton("fast");
+		check_fastrefresh = new CheckButton("auto");
 		check_fastrefresh.setActive(canvas.fastrefresh);
 		check_fastrefresh.addOnToggled(
 				delegate void(CheckOrToggleButton button) {
@@ -3312,8 +3312,8 @@ class PlotWidget : Box {
 		// add all controls into the Box Widget
 		///////////////////////////////////////////////
 		box_refresh = new Box(GtkOrientation.VERTICAL, 0);
-		box_refresh.append(check_autorefresh);
 		box_refresh.append(check_fastrefresh);
+		box_refresh.append(check_autorefresh);
 		controls.append(box_refresh);
 		controls.append(button_refresh);
 		controls.append(button_fit);
