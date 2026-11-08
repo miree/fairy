@@ -743,6 +743,17 @@ string hist2projector(string name, string sourcename, string gatename) {
 	return "";
 }
 
+@UI_EXPORT("add projection from 2D-histogram to 1D-histogram using a peak 1D-gate, subtracting one or more background 1D-gates (same direction as the peak gate) scaled to the peak's width. Per-bin error bars are tracked with Poisson error propagation and exposed to fitting.",
+	["name of projector",
+	 "name of 2D source histogram",
+	 "name of the 1D-gate marking the peak region",
+	 "names of one or more 1D-gates marking background regions, e.g. [\"bg1\",\"bg2\"]"])
+string hist2projector_bg(string name, string sourcename, string peak_gatename, string[] bg_gatenames) {
+	import fairy, histogram;
+	fairy.session.add_item(name, new Hist2ProjectionBg(sourcename, peak_gatename, bg_gatenames));
+	return "";
+}
+
 @UI_EXPORT("add set of points as interactive demo",
 	["name of point set",
 	 "number of points"])

@@ -1982,6 +1982,84 @@ class ItemView : TreeView {
 		}
 	}
 
+	// Like hist2d_projection_xy(), but also auto-creates n_backgrounds (1 or 2) same-width 1D
+	// gates adjacent to the peak gate along the same axis -- one on the "far" side (right of the
+	// peak for an x-direction/"project y" gate, above it for a y-direction/"project x" gate), or
+	// one on each side for n_backgrounds==2 -- and creates a Hist2ProjectionBg instead of a plain
+	// Hist2Projection. Gates placed this way may end up partially or fully outside the
+	// histogram's range (e.g. if the peak sits near an edge); Hist2ProjectionBg already handles
+	// that gracefully (clamped, or dropped if left with no valid bins), so no extra care is
+	// needed here.
+	void hist2d_projection_bg_xy(char xy, int n_backgrounds) {
+		foreach(selected_iter; getSelectedIters()) {
+			auto fullname = treestore.getString(selected_iter, COLUMN_FULLNAME);
+			import std.conv, std.algorithm, std.array;
+			import fairy, ui;
+			if (session.items.byKey.canFind(fullname)) {
+				import histogram, gate;
+				auto source = cast(Hist2ProjectionSource)session.items[fullname].item;
+				if (source !is null && source.projection_data_ready()) {
+					auto peak_gatename = fullname ~ "/"~xy~"_peak_gate";
+					auto projname = fullname ~ "/"~xy~"_projection_bg";
+					int dim = (xy=='x')?1:0;
+					auto left  = main_window.canvas.transform[dim].min;
+					auto right = main_window.canvas.transform[dim].max;
+					auto w = right-left;
+					left += 3*w/8;
+					right -= 3*w/8;
+					if (main_window.canvas.transform[dim].logscale) {
+						import std.math;
+						left = exp(left);
+						right = exp(right);
+					}
+					double width = right-left;
+					char gate_direction = (xy=='x')?'y':'x';
+
+					import cmdline;
+					string windowname;
+					foreach(n; 0..100) {
+						windowname = "projection"~n.to!string;
+						if ((windowname in GtkGui.main_windows) is null) break;
+					}
+
+					string[] bg_gatenames;
+					string command = "gate1d "~peak_gatename~" "~left.to!string~" "~right.to!string~" "~gate_direction~"\n";
+					if (n_backgrounds == 1) {
+						auto bgname = fullname ~ "/"~xy~"_bg_gate";
+						command ~= "gate1d "~bgname~" "~right.to!string~" "~(right+width).to!string~" "~gate_direction~"\n";
+						bg_gatenames = [bgname];
+					} else {
+						auto bgname1 = fullname ~ "/"~xy~"_bg_gate1";
+						auto bgname2 = fullname ~ "/"~xy~"_bg_gate2";
+						command ~= "gate1d "~bgname1~" "~(left-width).to!string~" "~left.to!string~" "~gate_direction~"\n";
+						command ~= "gate1d "~bgname2~" "~right.to!string~" "~(right+width).to!string~" "~gate_direction~"\n";
+						bg_gatenames = [bgname1, bgname2];
+					}
+					string bg_array = "[\""~std.array.join(bg_gatenames, "\",\"")~"\"]";
+					string command2 =
+						"hist2projector_bg "~projname~" "~fullname~" "~peak_gatename~" "~bg_array~"\n"~
+						"win       "~windowname~"\n"~
+						"show      "~projname~" "~windowname~"\n"~
+						"winfastpoll "~windowname~"\n"~
+						"autoscale "~windowname~" y"~"\n"~
+						"winfit    "~windowname~"\n"~
+						"colorbar  "~windowname~"\n"~
+						"show      "~peak_gatename~" "~main_window.name;
+					foreach(bgname; bg_gatenames) command2 ~= "\nshow      "~bgname~" "~main_window.name;
+					thisTid.send(cmdline.Command(command~command2, thisTid));
+				} else {
+					import gtk.MessageDialog;
+					auto cannot_project = new MessageDialog(main_window,
+						              GtkDialogFlags.DESTROY_WITH_PARENT,
+						              GtkMessageType.ERROR,
+						              GtkButtonsType.NONE,
+						              "no 2d projection possible");
+					cannot_project.show();
+				}
+			}
+		}
+	}
+
 	void remove_all_selected() {
 		string[] names; 
 		foreach(selected_iter; getSelectedIters()) {
@@ -2371,6 +2449,10 @@ class ItemView : TreeView {
 				if (single_selected && any_projection_source) {
 					popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('y'), "hist2d project y", "interactively project 2d histogram along y axis" ));
 					popup_menu.append( new MenuItem( (m) => hist2d_projection_xy('x'), "hist2d project x", "interactively project 2d histogram along x axis" ));
+					popup_menu.append( new MenuItem( (m) => hist2d_projection_bg_xy('y',1), "hist2d project y w/ 1 background", "project along y axis, subtracting one background region" ));
+					popup_menu.append( new MenuItem( (m) => hist2d_projection_bg_xy('y',2), "hist2d project y w/ 2 backgrounds", "project along y axis, subtracting two background regions" ));
+					popup_menu.append( new MenuItem( (m) => hist2d_projection_bg_xy('x',1), "hist2d project x w/ 1 background", "project along x axis, subtracting one background region" ));
+					popup_menu.append( new MenuItem( (m) => hist2d_projection_bg_xy('x',2), "hist2d project x w/ 2 backgrounds", "project along x axis, subtracting two background regions" ));
 				}
 				if (any_fit_source) {
 					popup_menu.append( chi2_fitting );

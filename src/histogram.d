@@ -1034,6 +1034,350 @@ private:
 }
 
 
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Hist2ProjectionBg: like Hist2Projection, but sums a peak region and subtracts one or more
+// background regions (scaled to the peak's width) from it, with explicitly tracked per-bin
+// error bars (independent Poisson error propagation: e_bin = sqrt(var_peak + c^2*var_bg), where
+// c = peak_width/background_width is the same scale factor applied to the background sum).
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+// An inclusive integer bin-index range along the projection axis; lo>hi means empty/invalid.
+private struct ProjBinRange { long lo = 0, hi = -1; }
+
+// Converts a 1D region [gmin,gmax] (already gate.data.min+min_delta / gate.data.max+max_delta,
+// i.e. in world units along one axis of a 2D histogram) into an inclusive integer bin-index
+// range, using the exact same floor(idx-0.5)/width-derived rounding Hist2Projection.do_project()
+// already uses for its single gate, so a peak/background region placed at a given canvas
+// position always rounds to the same bins a plain (non-background-subtracted) projection would.
+// Returns an empty range (lo>hi) if invalid, degenerate, or fully outside [0,axis_bins).
+private ProjBinRange gate_bin_range(double gmin, double gmax, double axis_bottom, double axis_top, ulong axis_bins) {
+	import std.math, std.algorithm;
+	if (axis_bins == 0 || axis_top <= axis_bottom) return ProjBinRange(0,-1);
+	if (gmin > gmax) swap(gmin,gmax);
+	double bin_width = (axis_top-axis_bottom)/axis_bins;
+	long n_bins = cast(long)floor((gmax-gmin)/bin_width);
+	long lo_excl = cast(long)floor(axis_bins*(gmin-axis_bottom)/(axis_top-axis_bottom)-0.5);
+	long hi_incl = lo_excl + n_bins;
+	if (lo_excl >= cast(long)axis_bins) lo_excl = cast(long)axis_bins-1;
+	if (hi_incl >= cast(long)axis_bins) hi_incl = cast(long)axis_bins-1;
+	if (lo_excl >= hi_incl || hi_incl < 0) return ProjBinRange(0,-1);
+	long lo = lo_excl+1;
+	if (lo < 0) lo = 0;
+	return ProjBinRange(lo, hi_incl);
+}
+
+// Merges a set of inclusive bin ranges into their union, as the minimal set of disjoint,
+// non-adjacent ranges (adjacent ranges, e.g. [0,3] and [4,7], are merged into one, so touching
+// background regions are not double-counted).
+private ProjBinRange[] merge_bin_ranges(ProjBinRange[] ranges) {
+	import std.algorithm, std.array;
+	auto valid = ranges.filter!(r => r.lo <= r.hi).array;
+	if (valid.length == 0) return [];
+	valid.sort!((a,b) => a.lo < b.lo);
+	ProjBinRange[] merged;
+	foreach (r; valid) {
+		if (merged.length == 0 || r.lo > merged[$-1].hi+1) {
+			merged ~= r;
+		} else if (r.hi > merged[$-1].hi) {
+			merged[$-1].hi = r.hi;
+		}
+	}
+	return merged;
+}
+
+// Removes every bin covered by p from each range in ranges (splitting a range into up to two
+// pieces if p falls in the middle of it) -- implements the rule that on peak/background overlap
+// the peak wins and the background's effective width shrinks accordingly.
+private ProjBinRange[] subtract_bin_range(ProjBinRange[] ranges, ProjBinRange p) {
+	if (p.lo > p.hi) return ranges;
+	ProjBinRange[] result;
+	foreach (r; ranges) {
+		if (r.hi < p.lo || r.lo > p.hi) { result ~= r; continue; }
+		if (r.lo < p.lo) result ~= ProjBinRange(r.lo, p.lo-1);
+		if (r.hi > p.hi) result ~= ProjBinRange(p.hi+1, r.hi);
+	}
+	return result;
+}
+
+// Sums integral[] (a cumulative sum along the projection axis, see rebuild_integral_from() below)
+// over the inclusive bin range r, for the output column/row `col`. integral[] is always laid out
+// as a flat bins_x*bins_y array (idx = x+y*bins_x), the same convention Hist2Projection already
+// uses, regardless of which axis is actually the projection axis.
+private double projection_range_sum(const double[] integral, ulong bins_x, int direction, ulong col, ProjBinRange r) {
+	if (r.lo > r.hi) return 0.0;
+	ulong hi_idx = (direction==1) ? (col + cast(ulong)r.hi*bins_x) : (cast(ulong)r.hi + col*bins_x);
+	double total = integral[hi_idx];
+	if (r.lo > 0) {
+		ulong lo_idx = (direction==1) ? (col + cast(ulong)(r.lo-1)*bins_x) : (cast(ulong)(r.lo-1) + col*bins_x);
+		total -= integral[lo_idx];
+	}
+	return total;
+}
+
+class Hist2ProjectionBgFactory : ItemFactory {
+	override Item create(ref JSONValue json) {
+		return new Hist2ProjectionBg(json);
+	}
+}
+
+class Hist2ProjectionBg : Visual, Hist1Export, FitDataSource, Item, HasProperties {
+	import gate;
+	struct Data {
+		@SERIALIZE @EDITABLE string hist2name;
+		@SERIALIZE @EDITABLE string peak_gatename;
+		@SERIALIZE         string[] bg_gatenames; // not @EDITABLE: array fields aren't supported by the generic properties editor
+	}
+	Data data;
+	string xlabel = "";
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
+
+	this(string hist2name, string peak_gatename, string[] bg_gatenames) {
+		data.hist2name = hist2name;
+		data.peak_gatename = peak_gatename;
+		data.bg_gatenames = bg_gatenames.dup;
+		item_version = 0;
+	}
+	this(ref JSONValue json) {
+		data = deserialize!Data(json);
+		item_version = 0;
+	}
+
+	void export_to_file(string filename, int rebin) {
+		do_project();
+		export_hist1_to_file(bins, left, right, filename, rebin);
+	}
+
+	// Item interface
+	override JSONValue toJSON()  { return serialize(data); }
+	override string get_type()  { return "histogram.Hist2ProjectionBg"; }
+	override void reset() {}
+	override ulong getVersion() {
+		import fairy, std.stdio;
+		auto hist2_ptr = data.hist2name in session.items;
+		auto peak_ptr  = data.peak_gatename in session.items;
+		if (hist2_ptr is null || peak_ptr is null) {
+			writeln("Hist2ProjectionBg: source or peak gate is missing");
+			return item_version;
+		}
+		auto test_source_item = cast(Visual)hist2_ptr.item;
+		auto test_source      = cast(Hist2ProjectionSource)hist2_ptr.item;
+		auto test_peak        = cast(Gate1D)peak_ptr.item;
+		if (test_source_item !is null && test_source !is null && test_source_item !is source_item) {
+			source_item    = test_source_item;
+			source         = test_source;
+			source_version = -1;
+		}
+		if (test_peak !is null) peak_gate = test_peak;
+		if (source is null || peak_gate is null) return item_version;
+
+		bg_gates.length = data.bg_gatenames.length;
+		foreach(i, name; data.bg_gatenames) {
+			auto ptr = name in session.items;
+			bg_gates[i] = (ptr !is null) ? cast(Gate1D)ptr.item : null;
+		}
+
+		if (source_version == -1 || source_item.getVersion() > source_version || cached_direction != peak_gate.data.direction) {
+			auto srcdata = source.get_projection_data();
+			rebuild_integral_from(srcdata, peak_gate.data.direction);
+			cached_direction = peak_gate.data.direction;
+			source_version   = source_item.getVersion();
+			++item_version;
+			dirty = true;
+		}
+
+		double new_peak_min = peak_gate.data.min + peak_gate.min_delta;
+		double new_peak_max = peak_gate.data.max + peak_gate.max_delta;
+		bool gates_changed = (new_peak_min !is peak_min_cached) || (new_peak_max !is peak_max_cached);
+		if (bg_min_cached.length != bg_gates.length) {
+			bg_min_cached.length = bg_gates.length;
+			bg_max_cached.length = bg_gates.length;
+			gates_changed = true;
+		}
+		foreach(i, g; bg_gates) {
+			double bmin = (g !is null) ? g.data.min+g.min_delta : double.init;
+			double bmax = (g !is null) ? g.data.max+g.max_delta : double.init;
+			if (bmin !is bg_min_cached[i] || bmax !is bg_max_cached[i]) gates_changed = true;
+			bg_min_cached[i] = bmin;
+			bg_max_cached[i] = bmax;
+		}
+		if (gates_changed) {
+			peak_min_cached = new_peak_min;
+			peak_max_cached = new_peak_max;
+			++item_version;
+			dirty = true;
+		}
+		return item_version;
+	}
+	override void overrideVersion(ulong new_version) {
+		item_version = new_version;
+	}
+
+	// Visual interface
+	override Visualizer create_visualizer(BackendInterface backend, Visualizer old = null) {
+		if (old !is null && !dirty) return old;
+		try {
+			do_project();
+		} catch (Exception e) {
+			import std.stdio;
+			writeln("cannot create visualizer for ", data.hist2name, " background-subtracted projection: ", e.msg);
+			dirty = false;
+			return null;
+		}
+		dirty = false;
+		return new Hist1ErrorBarVisualizer(null, item_version, bins, bin_errors, xlabel, left, right);
+	}
+
+	// FitDataSource interface
+	override double get_bin_width() {
+		return (right-left)/bins.length;
+	}
+	override double[3][] get_data(double[2] region) {
+		do_project();
+		double bin_width = (right-left)/bins.length;
+		double[3][] result;
+		foreach(idx, y; bins) {
+			double x = left+idx*(right-left)/bins.length;
+			x += bin_width/2;
+			if (x >= region[0] && x < region[1]) {
+				// floored at 1 only for the fitter, which divides by this value -- the real,
+				// possibly-smaller propagated error is still what's stored/drawn/exported.
+				double err = (bin_errors[idx] > 1.0) ? bin_errors[idx] : 1.0;
+				double[3] dp = [x, y, err];
+				result ~= dp;
+			}
+		}
+		return result;
+	}
+
+	void do_project() {
+		import fairy, std.algorithm, std.math;
+		auto hist2_ptr = data.hist2name in session.items;
+		if (hist2_ptr is null) throw new Exception("Hist2ProjectionBg fails: no item (source histogram) with name " ~ data.hist2name);
+		auto peak_ptr = data.peak_gatename in session.items;
+		if (peak_ptr is null) throw new Exception("Hist2ProjectionBg fails: no item (peak gate) with name " ~ data.peak_gatename);
+
+		source_item = cast(Visual)hist2_ptr.item;
+		source      = cast(Hist2ProjectionSource)hist2_ptr.item;
+		peak_gate   = cast(Gate1D)peak_ptr.item;
+		if (source is null) throw new Exception("Hist2ProjectionBg fails: " ~ data.hist2name ~ " is not a Hist2");
+		if (peak_gate is null) throw new Exception("Hist2ProjectionBg fails: " ~ data.peak_gatename ~ " is not a Gate1D");
+
+		bg_gates.length = data.bg_gatenames.length;
+		foreach(i, name; data.bg_gatenames) {
+			auto ptr = name in session.items;
+			auto g = (ptr !is null) ? cast(Gate1D)ptr.item : null;
+			if (g !is null && g.data.direction != peak_gate.data.direction) {
+				throw new Exception("Hist2ProjectionBg fails: background gate \"" ~ name ~ "\" has a different direction than the peak gate \"" ~ data.peak_gatename ~ "\"");
+			}
+			bg_gates[i] = g;
+		}
+
+		auto srcdata = source.get_projection_data();
+		int direction = peak_gate.data.direction;
+		ulong bins_x = srcdata.bins_x;
+		ulong region_bins = (direction==1) ? srcdata.bins_y : srcdata.bins_x;
+		ulong out_bins     = (direction==1) ? srcdata.bins_x : srcdata.bins_y;
+		double axis_bottom = (direction==1) ? srcdata.bottom : srcdata.left;
+		double axis_top    = (direction==1) ? srcdata.top    : srcdata.right;
+
+		if (integral_bindata.length != srcdata.bins.length || cached_direction != direction) {
+			rebuild_integral_from(srcdata, direction);
+			cached_direction = direction;
+		}
+
+		if (direction==1) { xlabel = source.getXlabel(); left = srcdata.left;   right = srcdata.right; }
+		else              { xlabel = source.getYlabel(); left = srcdata.bottom; right = srcdata.top; }
+
+		double peak_min = peak_gate.data.min + peak_gate.min_delta;
+		double peak_max = peak_gate.data.max + peak_gate.max_delta;
+		ProjBinRange peak_range = gate_bin_range(peak_min, peak_max, axis_bottom, axis_top, region_bins);
+
+		ProjBinRange[] bg_ranges;
+		foreach (g; bg_gates) {
+			if (g is null) continue; // missing/renamed background gate -- treat as nonexistent
+			double bmin = g.data.min + g.min_delta;
+			double bmax = g.data.max + g.max_delta;
+			auto r = gate_bin_range(bmin, bmax, axis_bottom, axis_top, region_bins);
+			if (r.lo <= r.hi) bg_ranges ~= r;
+		}
+		auto bg_final = subtract_bin_range(merge_bin_ranges(bg_ranges), peak_range);
+
+		long peak_width = (peak_range.lo <= peak_range.hi) ? (peak_range.hi-peak_range.lo+1) : 0;
+		long bg_width = 0;
+		foreach (r; bg_final) bg_width += r.hi-r.lo+1;
+		double c = (bg_width > 0) ? cast(double)peak_width/bg_width : 0.0; // 0 means "no usable background -- skip subtraction"
+
+		bins.length = out_bins;
+		bin_errors.length = out_bins;
+		if (peak_width == 0) {
+			bins[] = 0.0;
+			bin_errors[] = 0.0;
+			return;
+		}
+		foreach (col; 0 .. out_bins) {
+			double peak_sum = projection_range_sum(integral_bindata, bins_x, direction, col, peak_range);
+			double bg_sum = 0.0;
+			foreach (r; bg_final) bg_sum += projection_range_sum(integral_bindata, bins_x, direction, col, r);
+			double var_peak = max(0.0, peak_sum); // Poisson: variance == counts; clamped defensively
+			double var_bg   = max(0.0, bg_sum);   // in case the source isn't a plain counts histogram
+			bins[col]       = peak_sum - c*bg_sum;
+			bin_errors[col] = sqrt(var_peak + c*c*var_bg);
+		}
+	}
+
+private:
+	// (Re)builds integral_bindata as a cumulative sum of srcdata.bins along the given direction's
+	// projection axis (double.init bins count as 0) -- the exact same recurrence
+	// Hist2Projection.getVersion() already uses, just parameterized by direction so it can be
+	// reused for either axis.
+	void rebuild_integral_from(Hist2ProjectionSource.Data srcdata, int direction) {
+		integral_bindata.length = srcdata.bins.length;
+		ulong bins_x = srcdata.bins_x, bins_y = srcdata.bins_y;
+		if (direction == 1) {
+			for (long y = 0; y < bins_y; ++y) {
+				for (long x = 0; x < bins_x; ++x) {
+					auto idx = x + y*bins_x;
+					double v = srcdata.bins[idx];
+					if (y == 0) integral_bindata[idx] = (v is double.init) ? 0 : v;
+					else {
+						double prev = integral_bindata[x + (y-1)*bins_x];
+						integral_bindata[idx] = (v is double.init) ? prev : prev + v;
+					}
+				}
+			}
+		} else {
+			for (long y = 0; y < bins_y; ++y) {
+				for (long x = 0; x < bins_x; ++x) {
+					auto idx = x + y*bins_x;
+					double v = srcdata.bins[idx];
+					if (x == 0) integral_bindata[idx] = (v is double.init) ? 0 : v;
+					else {
+						double prev = integral_bindata[(x-1) + y*bins_x];
+						integral_bindata[idx] = (v is double.init) ? prev : prev + v;
+					}
+				}
+			}
+		}
+	}
+
+	long source_version = -1;
+	int cached_direction = -1;
+	double[] integral_bindata;
+
+	bool dirty = true;
+	long item_version;
+	double[] bins;
+	double[] bin_errors;
+	double left, right;
+
+	Visual source_item;
+	Hist2ProjectionSource source;
+	Gate1D peak_gate;
+	Gate1D[] bg_gates;
+
+	double peak_min_cached = double.init, peak_max_cached = double.init;
+	double[] bg_min_cached, bg_max_cached;
+}
 
 
 
@@ -1501,6 +1845,68 @@ private: // state
 	string _ylabel;
 	import color : LineColor;
 	LineColor _line_color = LineColor.blue;
+}
+
+// Draws exactly like Hist1Visualizer (reusing its draw() via super.draw()), but additionally
+// overlays a vertical error-bar line (no caps, same style XYDataVisualizer already uses for its
+// data points) at the center of every bin that is currently rendered individually rather than
+// folded into a mipmap level -- an error bar on top of a mipmap'd min/max band would be
+// misleading, since that band no longer represents a single bin's value. Only Hist2ProjectionBg
+// constructs this (it is the only Item with per-bin error bars to show); Hist1Visualizer itself
+// is untouched, so no other histogram's rendering is affected by this class existing.
+class Hist1ErrorBarVisualizer : Hist1Visualizer {
+public:
+	this(Visualizer old, ulong itemversion, double[] data, double[] errors, string xlabel, double left, double right) {
+		super(old, itemversion, data, xlabel, left, right);
+		_errors = errors.idup;
+	}
+
+	import graphics, transform;
+	@trusted override void draw(BackendInterface d, in Transform[3] t, bool modified) const {
+		super.draw(d, t, modified);
+		if (_bin_data is null || _errors is null || _bin_data.length == 0) return;
+		try {
+			double bin_width = (_right-_left)/_bin_data.length;
+			double x_start = t[0].exp(t[0].min);
+			double index = (x_start-_left)/bin_width;
+			if (index < 0) index = 0;
+			uint idx_start = cast(uint)index;
+			if (idx_start >= _bin_data.length) return;
+
+			import color;
+			uint line_rgb = color.line_color(_line_color);
+			d.set_color(((line_rgb>>16)&0xff)/255.0, ((line_rgb>>8)&0xff)/255.0, (line_rgb&0xff)/255.0);
+			d.set_line_width(2.0);
+
+			foreach (idx; idx_start .. _bin_data.length) {
+				double xleft  = _left + idx*bin_width;
+				double xright = xleft + bin_width;
+				double cx1 = t[0].world2canvas(t[0].log(xleft));
+				double cx2 = t[0].world2canvas(t[0].log(xright));
+				if (cx2-cx1 >= d.get_line_width()) { // skip bins currently folded into a mipmap level
+					double value = _bin_data[idx];
+					double err   = _errors[idx];
+					if (value !is double.init && err !is double.init && err > 0) {
+						double xcenter = xleft + 0.5*bin_width;
+						double cx = t[0].world2canvas(t[0].log(xcenter));
+						double cy_lo = t[1].world2canvas(t[1].log(value-err));
+						double cy_hi = t[1].world2canvas(t[1].log(value+err));
+						import std.algorithm : swap;
+						if (cy_hi < cy_lo) swap(cy_lo,cy_hi);
+						d.vertical_line(cx, cy_lo, cy_hi);
+					}
+				}
+				if (t[0].log(xright) > t[0].max) break;
+			}
+			d.stroke();
+		} catch (Exception e) {
+			import std.stdio;
+			writeln("there was an Exception: ", e.file, ":", e.line, " -> ", e.msg, "\r");
+		}
+	}
+
+private:
+	immutable(double[]) _errors;
 }
 
 import transform;
