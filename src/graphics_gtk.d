@@ -1546,7 +1546,7 @@ class ItemView : TreeView {
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
-						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " [\""~ gatename ~ "\"] " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
 						"show      "~gatename~" "~main_window.name ~ "\n" ~
 						"show      "~funcname~" "~main_window.name;
 
@@ -1622,7 +1622,7 @@ class ItemView : TreeView {
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
-						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " [\""~ gatename ~ "\"] " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
 						"show      "~gatename~" "~main_window.name ~ "\n" ~
 						"show      "~funcname~" "~main_window.name;
 
@@ -1695,7 +1695,7 @@ class ItemView : TreeView {
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
-						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " [\""~ gatename ~ "\"] " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
 						"show      "~gatename~" "~main_window.name ~ "\n" ~
 						"show      "~funcname~" "~main_window.name;
 
@@ -1766,7 +1766,7 @@ class ItemView : TreeView {
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
-						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " [\""~ gatename ~ "\"] " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
 						"show      "~gatename~" "~main_window.name ~ "\n" ~
 						"show      "~funcname~" "~main_window.name;
 
@@ -1837,7 +1837,7 @@ class ItemView : TreeView {
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
-						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " [\""~ gatename ~ "\"] " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
 						"show      "~gatename~" "~main_window.name ~ "\n" ~
 						"show      "~funcname~" "~main_window.name;
 
@@ -1909,7 +1909,7 @@ class ItemView : TreeView {
 					import cmdline;
 					string command =
 						"gate1d "~gatename~" "~left.to!string~" "~right.to!string~"\n"~
-						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " "~ gatename ~ " " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
+						"funct "~funcname~" "~function_definition~" "~parameter_definition~" "~handle_definition~" "~ fullname~ " [\""~ gatename ~ "\"] " ~ result_definition ~  " " ~ dragupdate_and_loglikelihood ~ "\n" ~
 						"show      "~gatename~" "~main_window.name ~ "\n" ~
 						"show      "~funcname~" "~main_window.name;
 

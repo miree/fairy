@@ -45,7 +45,7 @@ public:
 		@SERIALIZE @EDITABLE string   definition;
 		@SERIALIZE @EDITABLE string   handles;
 		@SERIALIZE @EDITABLE string   hist1dname;
-		@SERIALIZE @EDITABLE string   gate1dname;
+		@SERIALIZE          string[] gate1dnames; // not @EDITABLE: array fields aren't supported by the generic properties editor. Fit data is gathered from all of them.
 		@SERIALIZE string[] results;       // result expressions defined by the user
 		@SERIALIZE double[] result_values; // numerical value of the result expression after the fit
 		@SERIALIZE double[] result_errors; // numerial error of the result expression after the fit
@@ -160,11 +160,11 @@ public:
 	//}
 
 
-	this(string function_definition, double[string] parameters, string handle_definition, string hist, string gate, string[] results, bool dragupdate, bool loglikelihood) { 
+	this(string function_definition, double[string] parameters, string handle_definition, string hist, string[] gates, string[] results, bool dragupdate, bool loglikelihood) {
 		data.definition  = function_definition;
 		data.handles     = handle_definition;
 		data.hist1dname  = hist;
-		data.gate1dname  = gate;
+		data.gate1dnames = gates.dup;
 		data.results     = results;
 		data.dragupdate  = dragupdate;
 		data.loglikelihood = loglikelihood;
@@ -247,11 +247,11 @@ public:
 
 
 
-	void fit(FitDataSource source, double[2] region, bool verbose = true, bool quiet = false, bool with_deltas = false, int max_steps=250) {
+	void fit(FitDataSource source, double[2][] regions, bool verbose = true, bool quiet = false, bool with_deltas = false, int max_steps=250) {
 		import multifit_nlin;
 		import std.algorithm, std.array;
 
-		auto datapoints = source.get_data(region).map!(xyd=>Dp!double(xyd[0],xyd[1],xyd[2])).array;
+		auto datapoints = regions.map!(region => source.get_data(region)).join.map!(xyd=>Dp!double(xyd[0],xyd[1],xyd[2])).array;
 
 		import std.stdio;
 
@@ -452,11 +452,11 @@ public:
 		}
 	}
 
-	void fit_loglikelihood(FitDataSource source, double[2] region, bool verbose = true, bool quiet = false, bool with_deltas = false, int max_steps=250) {
+	void fit_loglikelihood(FitDataSource source, double[2][] regions, bool verbose = true, bool quiet = false, bool with_deltas = false, int max_steps=250) {
 		import multifit_nlin;
 		import std.algorithm, std.array;
 
-		auto datapoints = source.get_data(region).map!(xyd=>Dp!double(xyd[0],xyd[1],xyd[2])).array;
+		auto datapoints = regions.map!(region => source.get_data(region)).join.map!(xyd=>Dp!double(xyd[0],xyd[1],xyd[2])).array;
 
 		import std.stdio;
 
@@ -1013,7 +1013,7 @@ public:
 	//	handles.select_box(x1,y1, x2,y2, t, add, remove);
 	//}
 	void do_fit(bool verbose, bool quiet, bool with_deltas, int Nmax, bool loglikelihood = false) {
-		if (funct.data.hist1dname !is null && funct.data.gate1dname !is null) {
+		if (funct.data.hist1dname !is null && funct.data.gate1dnames.length > 0) {
 			import fairy, functions, std.stdio;
 			auto h1_ptr = funct.data.hist1dname in fairy.session.items;
 			if (h1_ptr is null) {
@@ -1030,34 +1030,38 @@ public:
 				writeln("drag fit: item  not of type functions.Function");
 				return;
 			}
-			auto g1_ptr = funct.data.gate1dname in fairy.session.items;
-			if (g1_ptr is null) {
-				writeln("drag fit: no item with name " ~ funct.data.gate1dname);	
-				return;
-			}
 			import gate;
-			Gate1D gate1d = cast(Gate1D)(g1_ptr.item);
-			if (gate1d is null) {
-				writeln("drag fit: item " ~ funct.data.gate1dname ~ " is not of type Gate1d");	
-				return;
-			}
-			double left = gate1d.data.min;
-			double right = gate1d.data.max;
+			double[2][] regions;
+			foreach(gate1dname; funct.data.gate1dnames) {
+				auto g1_ptr = gate1dname in fairy.session.items;
+				if (g1_ptr is null) {
+					writeln("drag fit: no item with name " ~ gate1dname);
+					return;
+				}
+				Gate1D gate1d = cast(Gate1D)(g1_ptr.item);
+				if (gate1d is null) {
+					writeln("drag fit: item " ~ gate1dname ~ " is not of type Gate1d");
+					return;
+				}
+				double left = gate1d.data.min;
+				double right = gate1d.data.max;
 
-			if (with_deltas) {
-				left += gate1d.min_delta;
-				right += gate1d.max_delta;
-			}
-			if (left > right) {
-				import std.algorithm;
-				swap(left,right);
+				if (with_deltas) {
+					left += gate1d.min_delta;
+					right += gate1d.max_delta;
+				}
+				if (left > right) {
+					import std.algorithm;
+					swap(left,right);
+				}
+				regions ~= [left,right];
 			}
 
-			//writeln("left right = " , left, " ", right);
+			//writeln("regions = " , regions);
 			if (loglikelihood) {
-				fun.fit_loglikelihood(source,[left,right],verbose,quiet,with_deltas,Nmax);			
+				fun.fit_loglikelihood(source,regions,verbose,quiet,with_deltas,Nmax);
 			} else {
-				fun.fit(source,[left,right],verbose,quiet,with_deltas,Nmax);			
+				fun.fit(source,regions,verbose,quiet,with_deltas,Nmax);
 			}
 		}
 	}

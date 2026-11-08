@@ -321,11 +321,11 @@ string ls(bool all = true) {
 	 "function parameters",
 	 "handles for gui manipulation",
 	 "name of histogram item",
-	 "name of gate",
+	 "name(s) of one or more gates, e.g. [\"gate1\",\"gate2\"] -- fit data is gathered from all of them",
 	 "fit is updated while dragging",
 	 "do loglikelihood fit instead of chisquare"])
 @trusted
-string funct(string name, string definition, string[] parameters = null, string handles = null, string hist1dname = null, string gate1dname = null, string[] results = null, bool dragupdate = true, bool loglikelihood = false) {
+string funct(string name, string definition, string[] parameters = null, string handles = null, string hist1dname = null, string[] gate1dnames = null, string[] results = null, bool dragupdate = true, bool loglikelihood = false) {
 	import std.algorithm, std.conv, std.stdio, std.array;
 	import fairy, functions;
 	double[string] pars;
@@ -336,7 +336,7 @@ string funct(string name, string definition, string[] parameters = null, string 
 		}
 	}
 	pars["x"]=0.0;
-	fairy.session.add_item(name, new Function(definition, pars, handles, hist1dname, gate1dname, results, dragupdate, loglikelihood));
+	fairy.session.add_item(name, new Function(definition, pars, handles, hist1dname, gate1dnames, results, dragupdate, loglikelihood));
 	return "";
 }
 @UI_EXPORT("set dragupdate property of function",
@@ -419,7 +419,7 @@ string fit2(string function_name, string histogram_name, double left, double rig
 	if (fun is null) {
 		throw new Exception("item " ~ function_name ~ " is not of type functions.Function");
 	}
-	fun.fit(source,[left,right]);
+	fun.fit(source,[[left,right]]);
 	return "";
 }
 
@@ -446,7 +446,7 @@ string fitLL(string function_name, string histogram_name, double left, double ri
 	if (fun is null) {
 		throw new Exception("item " ~ function_name ~ " is not of type functions.Function");
 	}
-	fun.fit_loglikelihood(source,[left,right]);
+	fun.fit_loglikelihood(source,[[left,right]]);
 	return "";
 }
 
@@ -498,7 +498,7 @@ string fit2dseriesLL(string function_name, string histogram2d_name, double left,
 		projection.do_project();
 		import std.stdio;
 		write(0.5*(tmpgate.data.min+tmpgate.data.max), "    ");
-		fun.fit_loglikelihood(projection,[left,right], false);
+		fun.fit_loglikelihood(projection,[[left,right]], false);
 		tmpgate.data.min += height; 
 		tmpgate.data.max += height;
 		tmpgate.item_version++;
