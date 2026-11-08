@@ -40,6 +40,7 @@ static this() {
 	add_item_factory("histogram.Hist2Projection",           new Hist2ProjectionFactory);
 	add_item_factory("histogram.Hist2ProjectionBg",         new Hist2ProjectionBgFactory);
 	add_item_factory("histogram.Hist1MinusFunction",        new Hist1MinusFunctionFactory);
+	add_item_factory("histogram.Hist1Integral",             new Hist1IntegralFactory);
 	add_item_factory("functions.Function",                  new FunctionFactory);
 	add_item_factory("gate.Gate1D",                         new Gate1DFactory);
 	add_item_factory("gate.Gate2D",                         new Gate2DFactory);

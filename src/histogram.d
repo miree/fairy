@@ -324,6 +324,47 @@ private:
 // its evaluated points share the same fit parameters) error contribution.
 //////////////////////////////////////////////////////////////////////////////////////////////
 
+// Reconstructs a dense bin grid (values[idx]/errors[idx], both double.init where the source
+// didn't report a point -- e.g. a Hist1 bin that is exactly 0) from a generic FitDataSource's
+// get_bin_width() and every point its get_data() returns, so a caller can work with a source's
+// bins without needing a concrete histogram type. Also returns the reconstructed left/right (bin
+// edges) and bin_width. Shared by Hist1MinusFunction and Hist1Integral.
+private void reconstruct_dense_bins(FitDataSource source, out double[] values, out double[] errors,
+                                     out double left, out double right, out double bin_width) {
+	import std.algorithm, std.math;
+	bin_width = source.get_bin_width();
+	if (bin_width is double.init || bin_width <= 0) throw new Exception("source has no usable bin width");
+
+	auto points = source.get_data([-double.max, double.max]);
+	if (points.length == 0) {
+		values.length = 0;
+		errors.length = 0;
+		left = 0; right = 0;
+		return;
+	}
+
+	double min_x = points[0][0], max_x = points[0][0];
+	foreach(p; points) {
+		min_x = min(min_x, p[0]);
+		max_x = max(max_x, p[0]);
+	}
+	left  = min_x - bin_width/2;
+	right = max_x + bin_width/2;
+	ulong n = max(1, cast(long)round((right-left)/bin_width));
+
+	values.length = n;
+	errors.length = n;
+	values[] = double.init;
+	errors[] = double.init;
+	foreach(p; points) {
+		double x = p[0], y = p[1], err = p[2];
+		long idx = cast(long)round((x-left)/bin_width - 0.5);
+		if (idx < 0 || idx >= cast(long)n) continue;
+		values[cast(ulong)idx] = y;
+		errors[cast(ulong)idx] = err;
+	}
+}
+
 class Hist1MinusFunctionFactory : ItemFactory {
 	override Item create(ref JSONValue json) {
 		return new Hist1MinusFunction(json);
@@ -438,7 +479,7 @@ class Hist1MinusFunction : Visual, Hist1Export, FitDataSource, Item, HasProperti
 	// own (correlated, since every evaluated point shares the same fit parameters) error
 	// contribution isn't accounted for yet.
 	void do_subtract() {
-		import fairy, std.math, std.algorithm;
+		import fairy;
 		auto h1_ptr = data.hist1name in session.items;
 		if (h1_ptr is null) throw new Exception("Hist1MinusFunction fails: no item (source) with name " ~ data.hist1name);
 		auto fn_ptr = data.functionname in session.items;
@@ -450,36 +491,17 @@ class Hist1MinusFunction : Visual, Hist1Export, FitDataSource, Item, HasProperti
 		if (source_item is null || source is null) throw new Exception("Hist1MinusFunction fails: " ~ data.hist1name ~ " is not a fittable (FitDataSource) item");
 		if (func is null) throw new Exception("Hist1MinusFunction fails: " ~ data.functionname ~ " is not a Function");
 
-		double bin_width = source.get_bin_width();
-		if (bin_width is double.init || bin_width <= 0) throw new Exception("Hist1MinusFunction fails: " ~ data.hist1name ~ " has no usable bin width");
+		double bin_width;
+		double[] values, errors;
+		reconstruct_dense_bins(source, values, errors, left, right, bin_width);
 
-		auto points = source.get_data([-double.max, double.max]);
-		if (points.length == 0) {
-			bins.length = 0;
-			bin_errors.length = 0;
-			left = 0; right = 0;
-			return;
-		}
-
-		double min_x = points[0][0], max_x = points[0][0];
-		foreach(p; points) {
-			min_x = min(min_x, p[0]);
-			max_x = max(max_x, p[0]);
-		}
-		left  = min_x - bin_width/2;
-		right = max_x + bin_width/2;
-		ulong n = max(1, cast(long)round((right-left)/bin_width));
-
-		bins.length = n;
-		bin_errors.length = n;
-		bins[]       = double.init;
-		bin_errors[] = double.init;
-		foreach(p; points) {
-			double x = p[0], y = p[1], err = p[2];
-			long idx = cast(long)round((x-left)/bin_width - 0.5);
-			if (idx < 0 || idx >= cast(long)n) continue;
-			bins[cast(ulong)idx]       = y - func.evaluate(x);
-			bin_errors[cast(ulong)idx] = err;
+		bins.length = values.length;
+		bin_errors.length = values.length;
+		foreach(i, v; values) {
+			if (v is double.init) { bins[i] = double.init; bin_errors[i] = double.init; continue; }
+			double x = left + (i+0.5)*bin_width;
+			bins[i]       = v - func.evaluate(x);
+			bin_errors[i] = errors[i];
 		}
 	}
 
@@ -496,6 +518,216 @@ private:
 	Visual source_item;
 	FitDataSource source;
 	Function func;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Hist1Integral: fits a Function to one or more background 1D-gates (reusing the same
+// overlap-merge rules as Hist2ProjectionBg: overlapping backgrounds are merged, and where a
+// background overlaps the peak gate the peak wins, shrinking the background), then integrates
+// (sum of bins minus the fitted function, ignoring bins the source never reported a point for)
+// over the peak 1D-gate. Works on any FitDataSource, same as Hist1MinusFunction.
+//
+// Deliberately NOT a Visual -- for now this just exposes a scalar result (read via the
+// properties window, or the hist1integral/hist1integral_value console commands); a canvas-drawn
+// result (e.g. a text label near the peak, as FunctionVisualizer already does for chi^2/ndf) may
+// be added later.
+//
+// The fit mode (chi-square vs log-likelihood) follows the Function's own loglikelihood flag, so
+// there is no separate flag to manage here. Error is, for now, sqrt(sum of the peak region's raw
+// bin values) -- independent-Poisson error on the sum, same simplification as Hist1MinusFunction,
+// still not accounting for the fitted function's own (correlated) error contribution.
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+class Hist1IntegralFactory : ItemFactory {
+	override Item create(ref JSONValue json) {
+		return new Hist1Integral(json);
+	}
+}
+
+import gate;
+class Hist1Integral : Item, HasProperties {
+	struct Data {
+		@SERIALIZE @EDITABLE string sourcename;
+		@SERIALIZE @EDITABLE string functionname;
+		@SERIALIZE @EDITABLE string peak_gatename;
+		@SERIALIZE          string[] bg_gatenames; // not @EDITABLE: array fields aren't supported by the generic properties editor
+
+		// computed output, not user input -- @SERIALIZE only, so it's still visible (read-only)
+		// in the generic properties window and persists across session save/load.
+		@SERIALIZE double integral;
+		@SERIALIZE double integral_error;
+	}
+	Data data;
+	override void visitEditableFields(FieldVisitor v) { item.visitEditableFields(data, v); }
+
+	this(string sourcename, string functionname, string peak_gatename, string[] bg_gatenames) {
+		data.sourcename    = sourcename;
+		data.functionname  = functionname;
+		data.peak_gatename = peak_gatename;
+		data.bg_gatenames  = bg_gatenames.dup;
+	}
+	this(ref JSONValue json) {
+		data = deserialize!Data(json);
+	}
+
+	// Item interface
+	override JSONValue toJSON() { return serialize(data); }
+	override string get_type()  { return "histogram.Hist1Integral"; }
+	override void reset() {}
+
+	// Recomputes (fit + integral) only if the source, function, or any gate actually changed
+	// since the last call -- a GSL fit is far more expensive than the prefix-sum math the other
+	// projection/subtraction items use, so this is deliberately not redone on every call.
+	void update() {
+		import fairy, std.stdio;
+		auto src_ptr  = data.sourcename in session.items;
+		auto fn_ptr   = data.functionname in session.items;
+		auto peak_ptr = data.peak_gatename in session.items;
+		if (src_ptr is null || fn_ptr is null || peak_ptr is null) {
+			writeln("Hist1Integral: source, function, or peak gate is missing");
+			return;
+		}
+		auto test_source_item = cast(Visual)src_ptr.item;
+		auto test_func        = cast(Function)fn_ptr.item;
+		auto test_peak        = cast(Gate1D)peak_ptr.item;
+		if (test_source_item is null || test_func is null || test_peak is null) return;
+
+		Gate1D[] test_bg_gates;
+		test_bg_gates.length = data.bg_gatenames.length;
+		foreach(i, name; data.bg_gatenames) {
+			auto ptr = name in session.items;
+			test_bg_gates[i] = (ptr !is null) ? cast(Gate1D)ptr.item : null;
+		}
+
+		bool changed = (source_version == -1) || (test_source_item.getVersion() > source_version)
+		            || (func_version   == -1) || (test_func.getVersion()        > func_version);
+
+		double new_peak_min = test_peak.data.min + test_peak.min_delta;
+		double new_peak_max = test_peak.data.max + test_peak.max_delta;
+		if (new_peak_min !is peak_min_cached || new_peak_max !is peak_max_cached) changed = true;
+
+		if (bg_min_cached.length != test_bg_gates.length) {
+			bg_min_cached.length = test_bg_gates.length;
+			bg_max_cached.length = test_bg_gates.length;
+			changed = true;
+		}
+		foreach(i, g; test_bg_gates) {
+			double bmin = (g !is null) ? g.data.min+g.min_delta : double.init;
+			double bmax = (g !is null) ? g.data.max+g.max_delta : double.init;
+			if (bmin !is bg_min_cached[i] || bmax !is bg_max_cached[i]) changed = true;
+			bg_min_cached[i] = bmin;
+			bg_max_cached[i] = bmax;
+		}
+		peak_min_cached = new_peak_min;
+		peak_max_cached = new_peak_max;
+
+		if (!changed) return;
+
+		try {
+			do_integrate();
+		} catch (Exception e) {
+			writeln("cannot compute integral for ", data.sourcename, ": ", e.msg);
+			return;
+		}
+		source_version = test_source_item.getVersion();
+		func_version   = test_func.getVersion();
+		++item_version;
+	}
+
+	// recomputes unconditionally -- update() is the normal entry point; this is for export/
+	// console commands that want to force a fresh computation and surface any failure directly.
+	void do_integrate() {
+		import fairy, std.math, std.algorithm;
+		auto src_ptr = data.sourcename in session.items;
+		if (src_ptr is null) throw new Exception("Hist1Integral fails: no item (source) with name " ~ data.sourcename);
+		auto fn_ptr = data.functionname in session.items;
+		if (fn_ptr is null) throw new Exception("Hist1Integral fails: no item (function) with name " ~ data.functionname);
+		auto peak_ptr = data.peak_gatename in session.items;
+		if (peak_ptr is null) throw new Exception("Hist1Integral fails: no item (peak gate) with name " ~ data.peak_gatename);
+
+		auto source_item = cast(Visual)src_ptr.item;
+		auto source      = cast(FitDataSource)src_ptr.item;
+		auto func        = cast(Function)fn_ptr.item;
+		auto peak_gate   = cast(Gate1D)peak_ptr.item;
+		if (source_item is null || source is null) throw new Exception("Hist1Integral fails: " ~ data.sourcename ~ " is not a fittable (FitDataSource) item");
+		if (func is null) throw new Exception("Hist1Integral fails: " ~ data.functionname ~ " is not a Function");
+		if (peak_gate is null) throw new Exception("Hist1Integral fails: " ~ data.peak_gatename ~ " is not a Gate1D");
+
+		Gate1D[] bg_gates;
+		bg_gates.length = data.bg_gatenames.length;
+		foreach(i, name; data.bg_gatenames) {
+			auto ptr = name in session.items;
+			auto g = (ptr !is null) ? cast(Gate1D)ptr.item : null;
+			if (g !is null && g.data.direction != peak_gate.data.direction) {
+				throw new Exception("Hist1Integral fails: background gate \"" ~ name ~ "\" has a different direction than the peak gate \"" ~ data.peak_gatename ~ "\"");
+			}
+			bg_gates[i] = g;
+		}
+
+		double bin_width, left, right;
+		double[] values, errors;
+		reconstruct_dense_bins(source, values, errors, left, right, bin_width);
+		ulong n = values.length;
+		if (n == 0) {
+			data.integral = 0;
+			data.integral_error = 0;
+			return;
+		}
+
+		double peak_min = peak_gate.data.min + peak_gate.min_delta;
+		double peak_max = peak_gate.data.max + peak_gate.max_delta;
+		auto peak_range = gate_bin_range(peak_min, peak_max, left, right, n);
+
+		ProjBinRange[] bg_ranges;
+		foreach(g; bg_gates) {
+			if (g is null) continue; // missing/renamed background gate -- treat as nonexistent
+			double bmin = g.data.min + g.min_delta;
+			double bmax = g.data.max + g.max_delta;
+			auto r = gate_bin_range(bmin, bmax, left, right, n);
+			if (r.lo <= r.hi) bg_ranges ~= r;
+		}
+		auto bg_final = subtract_bin_range(merge_bin_ranges(bg_ranges), peak_range);
+
+		// fit the function to the background region(s) only, converting the (post-merge,
+		// post-overlap-subtraction) bin ranges back into world-coordinate regions
+		double[2][] fit_regions;
+		foreach(r; bg_final) fit_regions ~= [left + r.lo*bin_width, left + (r.hi+1)*bin_width];
+		if (fit_regions.length > 0) {
+			if (func.use_loglikelihood) func.fit_loglikelihood(source, fit_regions, false, true, false, 250);
+			else                         func.fit(source, fit_regions, false, true, false, 250);
+		}
+
+		double integral = 0;
+		double variance  = 0;
+		if (peak_range.lo <= peak_range.hi) {
+			foreach(idx; peak_range.lo .. peak_range.hi+1) {
+				if (idx < 0 || idx >= cast(long)n) continue;
+				double v = values[cast(ulong)idx];
+				if (v is double.init) continue;
+				double x = left + (idx+0.5)*bin_width;
+				integral += v - func.evaluate(x);
+				variance += v;
+			}
+		}
+		data.integral       = integral;
+		data.integral_error = sqrt(variance > 0 ? variance : 0.0);
+	}
+
+	// returns a short human-readable summary, recomputing first if anything changed
+	string value_string() {
+		update();
+		import std.format;
+		return format("integral = %g +- %g", data.integral, data.integral_error);
+	}
+
+private:
+	ulong item_version = 0;
+	long source_version = -1;
+	long func_version = -1;
+
+	double peak_min_cached = double.init, peak_max_cached = double.init;
+	double[] bg_min_cached, bg_max_cached;
 }
 
 

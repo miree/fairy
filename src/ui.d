@@ -765,6 +765,30 @@ string hist1minusfunc(string name, string hist1name, string functionname) {
 	return "";
 }
 
+@UI_EXPORT("fit a Function to one or more background 1D-gates and integrate (sum of bins minus the fitted function) over a peak 1D-gate, for any FitDataSource (Hist1, Hist2Projection, Hist2ProjectionBg, FileHistogram, ...). Background regions are merged (overlaps not double-counted) and the peak wins where it overlaps a background. Uses the Function's own loglikelihood flag to choose the fit mode. Error is, for now, sqrt(sum of the peak region's raw bin values), ignoring the fitted function's own (correlated) error contribution.",
+	["name of the resulting item",
+	 "name of the source item (anything implementing FitDataSource)",
+	 "name of the Function to fit to the background and subtract",
+	 "name of the 1D-gate marking the peak region to integrate",
+	 "name(s) of one or more 1D-gates marking background regions, e.g. [\"bg1\",\"bg2\"]"])
+string hist1integral(string name, string sourcename, string functionname, string peak_gatename, string[] bg_gatenames) {
+	import fairy, histogram;
+	auto result = new Hist1Integral(sourcename, functionname, peak_gatename, bg_gatenames);
+	fairy.session.add_item(name, result);
+	return result.value_string();
+}
+
+@UI_EXPORT("recompute (if needed) and return the integral value/error of a Hist1Integral item",
+	["name of the Hist1Integral item"])
+string hist1integral_value(string name) {
+	import fairy, histogram;
+	auto ptr = name in fairy.session.items;
+	if (ptr is null) throw new Exception("no item with name " ~ name);
+	auto result = cast(Hist1Integral)ptr.item;
+	if (result is null) throw new Exception("item " ~ name ~ " is not a Hist1Integral");
+	return result.value_string();
+}
+
 @UI_EXPORT("add set of points as interactive demo",
 	["name of point set",
 	 "number of points"])

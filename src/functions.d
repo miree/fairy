@@ -770,6 +770,14 @@ public:
 		return expr.e.eval(local_fitresult);
 	}
 
+	// whether this function should be fit with log-likelihood (true) or chi-square (false) --
+	// used by Hist1Integral (histogram.d) so it doesn't need its own separate flag. Named
+	// use_loglikelihood(), not loglikelihood(), to avoid shadowing multifit_nlin's free function
+	// of that name, which fit_loglikelihood() below refers to via "&loglikelihood".
+	bool use_loglikelihood() const {
+		return data.loglikelihood;
+	}
+
 private:
 	ulong item_version = 0;
 	Data data;
