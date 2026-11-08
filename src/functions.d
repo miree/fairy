@@ -92,6 +92,11 @@ public:
 			// find the strings
 			auto comma_pos = definition[0..$].countUntil(',');
 			auto closing_pos = definition[0..$].countUntil(']');
+			// both must be found, in the right order, with the comma strictly between the
+			// brackets -- otherwise slicing below would under/overflow (e.g. for "[]", where
+			// comma_pos is -1) and throw a cryptic ArraySliceError instead of a clear message.
+			if (comma_pos < 1 || closing_pos < 0 || comma_pos >= closing_pos)
+				throw new Exception("malformed handle node (expected \"[x,y]\"): " ~ definition);
 			string x_definition = definition[1..comma_pos];
 			string y_definition = definition[comma_pos+1..closing_pos];
 
@@ -202,14 +207,18 @@ public:
 			data.parameters[idx] = par_value;
 			data.fitresult[idx] = par_value;
 		}
-		if (handle_definition !is null || handle_definition.length) create_interactive_handles(handle_definition.dup);
+		// "" and "[]" both mean "no handles" -- guard on .length (not "!is null", which a
+		// non-null empty string satisfies too) and exclude the empty-brackets literal explicitly,
+		// since parse_handles()'s grammar has no representation for an "empty" handle node and
+		// would otherwise crash trying to slice out of a 2-character "[]" definition.
+		if (handle_definition.length && handle_definition != "[]") create_interactive_handles(handle_definition.dup);
 	}
 	this(ref JSONValue json) {
 		import std.stdio;
 		try{
 			data = deserialize!Data(json);
 			expr = expression.evaluate(data.definition);
-			if (data.handles.length) create_interactive_handles(data.handles.dup);
+			if (data.handles.length && data.handles != "[]") create_interactive_handles(data.handles.dup);
 
 			// prepare display of results after fitting
 			foreach(result_expr; data.results) {
@@ -255,10 +264,15 @@ public:
 
 		import std.stdio;
 
-		const x_idx = expr.param_index_lookup["x"];
+		// functions that don't depend on x at all (e.g. a flat background "a") have no "x" entry
+		// in param_index_lookup -- x_idx becomes a one-past-the-end sentinel in that case, which
+		// every "idx==x_idx"/"idx>x_idx" comparison below naturally treats as "never matches",
+		// i.e. every parameter is a real fit parameter and none are skipped/remapped.
+		const has_x = ("x" in expr.param_index_lookup) !is null;
+		const x_idx = has_x ? expr.param_index_lookup["x"] : cast(int) expr.param_index_lookup.length;
 		double[] all_params = data.parameters.dup; // original set of parameters. What is actually used as fit paramters is an array of 1.0
 		double[] all_params_mod = data.parameters.dup; // each fit parameter is then multiplied with all_params during function execution and stored here (modified parameters)
-													   // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big 
+													   // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big
 
 		if (datapoints.length < all_params.length) {
 			writeln("not enough datapoints. not fit");
@@ -271,9 +285,14 @@ public:
 		}
 
 		auto fitdelegate = delegate double(double x, double[] pars) {
-			foreach(i; 0..x_idx) all_params_mod[i] = all_params[i]*pars[i];
-			all_params_mod[x_idx] = x;
-			foreach(i; x_idx+1 ..all_params.length) all_params_mod[i] = all_params[i]*pars[i-1];
+			foreach(i; 0..all_params.length) {
+				if (has_x && i==x_idx) {
+					all_params_mod[i] = x;
+				} else {
+					const pi = (has_x && i>x_idx) ? i-1 : i;
+					all_params_mod[i] = all_params[i]*pars[pi];
+				}
+			}
 			return expr.e.eval(all_params_mod);
 		};
 		double[] fit_params;
@@ -435,7 +454,7 @@ public:
 		double red_chisqr = 0; // vairance of the residuals
 		foreach(datapoint; datapoints) {
 			double yi = datapoint.v;
-			fitresults[x_idx] = datapoint.c;
+			if (has_x) fitresults[x_idx] = datapoint.c;
 			double fi = expr.e.eval(fitresults);
 			double delta = (yi-fi)/datapoint.s;
 			//writeln(delta);
@@ -465,10 +484,13 @@ public:
 
 		import std.stdio;
 
-		const x_idx = expr.param_index_lookup["x"];
+		// see the equivalent comment in fit() above -- x_idx is a one-past-the-end sentinel when
+		// this function has no "x" parameter, which every comparison below treats as "never matches".
+		const has_x = ("x" in expr.param_index_lookup) !is null;
+		const x_idx = has_x ? expr.param_index_lookup["x"] : cast(int) expr.param_index_lookup.length;
 		double[] all_params = data.parameters.dup; // original set of parameters. What is actually used as fit paramters is an array of 1.0
 		double[] all_params_mod = data.parameters.dup; // each fit parameter is then multiplied with all_params during function execution and stored here (modified parameters)
-													   // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big 
+													   // this is necessary because the GSL-fitter becomes unreliable if the paramteres are too big
 
 		if (datapoints.length < all_params.length) {
 			writeln("not enough datapoints. not fit");
@@ -481,9 +503,14 @@ public:
 		}
 
 		auto fitdelegate = delegate double(double x, double[] pars) {
-			foreach(i; 0..x_idx) all_params_mod[i] = all_params[i]*pars[i];
-			all_params_mod[x_idx] = x;
-			foreach(i; x_idx+1 ..all_params.length) all_params_mod[i] = all_params[i]*pars[i-1];
+			foreach(i; 0..all_params.length) {
+				if (has_x && i==x_idx) {
+					all_params_mod[i] = x;
+				} else {
+					const pi = (has_x && i>x_idx) ? i-1 : i;
+					all_params_mod[i] = all_params[i]*pars[pi];
+				}
+			}
 			return expr.e.eval(all_params_mod);
 		};
 		double[] fit_params;
@@ -646,7 +673,7 @@ public:
 		double red_deviance = 0; // vairance of the residuals
 		foreach(datapoint; datapoints) {
 			double ni = datapoint.v;
-			fitresults[x_idx] = datapoint.c;
+			if (has_x) fitresults[x_idx] = datapoint.c;
 			double ui = expr.e.eval(fitresults);
 			double delta = ui-ni+ni*log(ni/ui);
 			//writeln("=>", delta);
@@ -865,8 +892,11 @@ public:
 		if (funct.is_interactive) local_parameters[] += funct.parameter_deltas[];
 		double y_max;
 		double x_at_y_max;
-		// function does depend on x
-		auto x_idx = funct.expr.param_index_lookup["x"];
+		// x_idx is only valid when has_x -- a function that doesn't mention "x" at all (e.g. a
+		// flat background "a") has no entry for it in param_index_lookup, and indexing with
+		// ["x"] directly would throw.
+		auto has_x = ("x" in funct.expr.param_index_lookup) !is null;
+		auto x_idx = has_x ? funct.expr.param_index_lookup["x"] : 0;
 		for (int n = 0; n < 2; ++n) {
 			if (n == 0) {
 				d.set_color(0,0.3,0,0.2);
@@ -879,10 +909,12 @@ public:
 			const points = 1000;
 			double left  = t[0].min;
 			double right = t[0].max;
-			// function does not depend on x
-			if (("x" in funct.expr.param_index_lookup) is null) {
-				double y = funct.expr.e.eval(funct.data.parameters);
-				d.line(t[0].world2canvas(left) , t[1].world2canvas(t[1].log(y)), 
+			// function does not depend on x -- draw a flat line at its one value (the preview
+			// value for n==0, the actual fit result for n==1), same as a constant would evaluate to
+			// at any x.
+			if (!has_x) {
+				double y = (n == 0) ? funct.expr.e.eval(local_parameters) : funct.expr.e.eval(local_fitresults);
+				d.line(t[0].world2canvas(left) , t[1].world2canvas(t[1].log(y)),
 					   t[0].world2canvas(right), t[1].world2canvas(t[1].log(y)));
 				d.stroke();
 				continue;
@@ -931,7 +963,7 @@ public:
 		double right = t[0].max;
 		if (y_max is double.init) {
 			x_at_y_max = t[0].exp(left+points/2*(right-left)/points);
-			local_fitresults[x_idx] = x_at_y_max;
+			if (has_x) local_fitresults[x_idx] = x_at_y_max;
 			y_max = funct.expr.e.eval(local_fitresults);
 		}
 		super.draw(d,t,modified);
