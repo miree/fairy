@@ -508,13 +508,6 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 		return;
 	}
 
-	scope(exit) { // clean up
-		elder_pt_controller_destroy(ctrl);
-		ctrl = null;
-		elder_pt_interface_destroy(iface);
-		iface = null;
-	}
-
 	import std.datetime;
 
 	auto evt = elder_pt_event_create();
@@ -615,7 +608,7 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 		receiveTimeout((paused||done)?(100.msecs):(Duration.zero),
 			(MsgPause            msg) { paused = true;  main_thread.send(MsgAck()); },
 			(MsgContinue         msg) { paused = false; main_thread.send(MsgAck()); },
-			(MsgStop             msg) { paused = false; stop = true;  done = false; main_thread.send(MsgAck()); },
+			(MsgStop             msg) { paused = false; stop = true;  done = false; },
 			(MsgGetRate          msg) { main_thread.send(MsgRate(rate)); },
 			(MsgGetCurrentSource msg) { main_thread.send(MsgCurrentSource(active_source.idup)); }
 		);
@@ -623,4 +616,15 @@ void run_elderpt(Tid main_thread_tid, const string config_filename, const string
 	}
 	f_evt_get_close(mbs_channel);
 	elder_pt_event_destroy(evt);
+
+	// Clean up the controller/interface (which destroys all processor plugins) and only
+	// acknowledge the stop once that is fully done. elderpt.state-dependent plugins such as
+	// the TTree example rely on being torn down completely before a new analysis thread
+	// (e.g. from "elderpt restart") is allowed to spawn and touch the same global state again.
+	elder_pt_controller_destroy(ctrl);
+	ctrl = null;
+	elder_pt_interface_destroy(iface);
+	iface = null;
+
+	main_thread.send(MsgAck());
 }
