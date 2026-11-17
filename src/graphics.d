@@ -1005,6 +1005,7 @@ struct CanvasPainter {
 			}
 		}
 		if (select_or_drag.valid) {
+			string dragged_itemname;
 			if (canvas.display_mode == DisplayMode.overlay) {
 				foreach(itemname; canvas.itemnames) {
 					auto vis = itemname in visualizers;
@@ -1012,7 +1013,10 @@ struct CanvasPainter {
 						auto interact = cast(Interactive)(*vis);
 						if (interact) {
 							long handle = -1;
-							if (interact is select_or_drag.item) handle = select_or_drag.handle;
+							if (interact is select_or_drag.item) {
+								handle = select_or_drag.handle;
+								dragged_itemname = itemname;
+							}
 							//import std.stdio;
 							//writeln("mouse_motion drag overlay ", ctrl);
 							interact.drag(handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[0], ctrl, shift);
@@ -1028,6 +1032,7 @@ struct CanvasPainter {
 							auto interact = cast(Interactive)(*vis);
 							if (interact && (interact is select_or_drag.item)) {
 								grid_idx = idx;
+								dragged_itemname = canvas.itemnames[idx];
 							}
 						}
 					}
@@ -1035,6 +1040,13 @@ struct CanvasPainter {
 				select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[grid_idx], ctrl, shift);
 			}
 			backend.need_redraw();
+			// the drag above mutates the item's live drag state directly (e.g.
+			// Gate1D.min_delta/max_delta) without bumping its version, so other windows showing
+			// the same item won't pick up the change on their own -- force them to redraw too.
+			if (dragged_itemname !is null) {
+				import fairy;
+				fairy.redraw_windows_showing(dragged_itemname);
+			}
 		}
 		if (draw_selection_box) {
 			current_selection_x = x;
@@ -1183,6 +1195,7 @@ struct CanvasPainter {
 		//writeln("left release ", nPress, " ", x , " ", y, "     ctrl=", ctrl, "    shift=",shift, "    mouse_moved=", mouse_moved);
 
 		// dragging interactive elements
+		string dragged_itemname;
 		if (mouse_moved && select_or_drag.valid) {
 			bool end = true;
 			if (canvas.display_mode == DisplayMode.overlay) {
@@ -1192,7 +1205,10 @@ struct CanvasPainter {
 						auto interact = cast(Interactive)(*vis);
 						if (interact) {
 							long handle = -1;
-							if (interact is select_or_drag.item) handle = select_or_drag.handle;
+							if (interact is select_or_drag.item) {
+								handle = select_or_drag.handle;
+								dragged_itemname = itemname;
+							}
 							interact.drag(handle, canvas_drag_start_x, canvas_drag_start_y, x,y, grid_transforms[0], ctrl, shift, end);
 						}
 					}
@@ -1206,6 +1222,7 @@ struct CanvasPainter {
 							auto interact = cast(Interactive)(*vis);
 							if (interact && (interact is select_or_drag.item)) {
 								grid_idx = idx;
+								dragged_itemname = canvas.itemnames[idx];
 							}
 						}
 					}
@@ -1214,7 +1231,7 @@ struct CanvasPainter {
 			}
 
 			//select_or_drag.item.drag(select_or_drag.handle, canvas_drag_start_x, canvas_drag_start_y, x,y, canvas.transform, end);
-		} 
+		}
 		// selection via box
 		if (mouse_moved && draw_selection_box) {
 			if (canvas.display_mode != DisplayMode.overlay) {
@@ -1252,6 +1269,13 @@ struct CanvasPainter {
 		}
 		select_or_drag = BoundingBox();
 		backend.need_redraw();
+		// see the equivalent comment in mouse_motion() -- the drag commit above mutates the
+		// item directly without bumping its version, so other windows showing it need to be
+		// told explicitly to redraw.
+		if (dragged_itemname !is null) {
+			import fairy;
+			fairy.redraw_windows_showing(dragged_itemname);
+		}
 		draw_selection_box = false;
 	}
 

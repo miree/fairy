@@ -447,7 +447,26 @@ void redraw_windows() {
 				main_gui.redraw_window(window_name);
 			}
 		}
-	}	
+	}
+}
+
+// Forces a redraw of every window currently showing the given item (including, harmlessly, the
+// one the caller may have already redrawn directly). Needed because interactive dragging (gate
+// handles, polygate points, ...) mutates an item's live, not-yet-committed drag state (e.g.
+// Gate1D.min_delta/max_delta) directly, without bumping its getVersion() -- so
+// CanvasPainter.content_changed()'s version check (used to skip redundant periodic autorefreshes)
+// can't detect the change, and a window other than the one being dragged in would otherwise only
+// catch up once the drag commits or something else forces a real redraw. Called from
+// CanvasPainter.mouse_motion() (graphics.d) whenever an interactive drag updates an item.
+void redraw_windows_showing(string itemname) {
+	if (start_gui) {
+		if (main_gui !is null) {
+			import std.algorithm : canFind;
+			foreach(window_name, ref win; session.windows) {
+				if (win.itemnames.canFind(itemname)) main_gui.redraw_window(window_name);
+			}
+		}
+	}
 }
 
 void remove_window(string name) {
